@@ -15,7 +15,8 @@
     "job-tracking"
   ],
   "dependencies": {
-    "htmx.org": "^1.9.12"
+    "htmx.org": "^1.9.12",
+    "hyperscript.org": "^0.9.14"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.254",

@@ -46,8 +46,8 @@ module.exports = {
         { from: 'src/manifest.json', to: 'manifest.json' },
         { from: 'src/icons', to: 'icons' },
         { from: 'src/popup/index.html', to: 'popup/index.html' },
-        // Include HTMX if you want to use it
         { from: 'node_modules/htmx.org/dist/htmx.min.js', to: 'lib/htmx.min.js' },
+        { from: 'node_modules/hyperscript.org/dist/_hyperscript.min.js', to: 'lib/hyperscript.min.js' },
       ],
     }),
   ],
