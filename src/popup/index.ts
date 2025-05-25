@@ -23,7 +23,7 @@ function renderLoginForm(): void {
   
   contentElement.innerHTML = `
     <div class="bg-white p-4 rounded shadow">
-      <h2 class="text-lg font-semibold mb-4">Login to ProspecTor</h2>
+      <h2 class="text-lg font-semibold mb-4">Login to Ascentio</h2>
       <button 
         id="loginBtn" 
         class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ProspecTor Job Capture",
+  "name": "Ascentio Job Capture",
   "version": "0.1.0",
   "description": "Capture job listings while browsing",
   "permissions": ["storage", "identity", "activeTab"],

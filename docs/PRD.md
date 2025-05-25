@@ -1,8 +1,8 @@
-# ProspecTor Browser Extension: PRD
+# Ascentio Browser Extension: PRD
 
 ## Product Definition
 
-A browser extension that extracts job listing data while browsing, allows users to review/edit the data, and uploads it to the ProspecTor backend service.
+A browser extension that extracts job listing data while browsing, allows users to review/edit the data, and uploads it to the Ascentio backend service.
 
 ## Core Features
 
@@ -17,7 +17,7 @@ A browser extension that extracts job listing data while browsing, allows users 
    - Validate before submission
 
 3. **Backend Integration**
-   - Upload jobs to ProspecTor backend
+   - Upload jobs to Ascentio backend
    - Store data during network interruptions
    - Provide upload status feedback
 

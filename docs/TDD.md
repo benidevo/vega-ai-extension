@@ -1,4 +1,4 @@
-# ProspecTor Browser Extension: TDD (Vanilla Implementation)
+# Ascentio Browser Extension: TDD (Vanilla Implementation)
 
 ## Tech Stack
 
@@ -15,7 +15,7 @@
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │                 │     │                 │     │                 │
-│  Content Script │────▶│  Service Worker │────▶│  ProspecTor API │
+│  Content Script │────▶│  Service Worker │────▶│  Ascentio API   │
 │                 │     │                 │     │                 │
 └────────┬────────┘     └────────┬────────┘     └─────────────────┘
          │                       │
@@ -88,10 +88,10 @@ Purpose: Display, edit, and upload job data.
 ```html
 <!-- popup/index.html -->
 <div class="w-80 p-4 bg-gray-50">
-  <h1 class="text-xl font-bold mb-4">ProspecTor</h1>
+  <h1 class="text-xl font-bold mb-4">Ascentio</h1>
 
   <!-- Job data form -->
-  <form hx-post="https://api.prospector.example/jobs"
+  <form hx-post="https://api.ascentio.example/jobs"
         hx-trigger="submit"
         hx-indicator="#loading">
     <!-- Form fields -->
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!authToken) {
     document.body.innerHTML = `
       <div class="flex flex-col items-center p-4">
-        <p class="mb-4">Please sign in to use ProspecTor</p>
+        <p class="mb-4">Please sign in to use Ascentio</p>
         <button id="login" class="px-4 py-2 bg-blue-600 text-white rounded">
           Sign in with Google
         </button>
@@ -200,7 +200,7 @@ function extractStructuredData(document: Document): JobListing | null {
 2. Extension calls chrome.identity.launchWebAuthFlow()
 3. User completes Google authentication
 4. Extension receives OAuth token
-5. Extension exchanges token with ProspecTor backend for JWT
+5. Extension exchanges token with Ascentio backend for JWT
 6. JWT stored securely in chrome.storage.local
 7. JWT used for all subsequent API calls
 
@@ -208,7 +208,7 @@ function extractStructuredData(document: Document): JobListing | null {
 
 ### Authentication
 
-- `POST /api/auth/google` - Exchange Google token for ProspecTor JWT
+- `POST /api/auth/google` - Exchange Google token for Ascentio JWT
   - Request: `{ token: string }`
   - Response: `{ token: string, user: UserProfile }`
 

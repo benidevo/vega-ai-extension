@@ -2,7 +2,7 @@ import { JobListing } from '@/types';
 
 // Handle when extension is installed
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log('ProspecTor extension installed');
+  console.log('Ascentio extension installed');
 
   // Add a sample job for testing
   const sampleJob: JobListing = {

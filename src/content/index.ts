@@ -6,13 +6,13 @@ window.addEventListener('load', async () => {
   const site = detectJobSite(window.location.href);
 
   if (site) {
-    console.log('ProspecTor: Detected job site:', site);
+    console.log('Ascentio: Detected job site:', site);
 
     // Try to extract job data
     const jobData = extractJobData(site, document);
 
     if (jobData) {
-      console.log('ProspecTor: Extracted job data:', jobData);
+      console.log('Ascentio: Extracted job data:', jobData);
 
       // Store job data
       chrome.storage.local.set({ currentJob: jobData });

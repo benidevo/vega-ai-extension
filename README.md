@@ -1,4 +1,4 @@
-# ProspecTor Job Capture Extension
+# Ascentio Job Capture Extension
 
 A browser extension that helps you capture and save job listings while browsing LinkedIn and Indeed.
 
@@ -26,7 +26,7 @@ A browser extension that helps you capture and save job listings while browsing 
 ### Loading the Extension in Firefox
 
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
-2. Click "Load Temporary Add-on..." 
+2. Click "Load Temporary Add-on..."
 3. Select the `manifest.json` file in the `dist` directory
 4. The extension should now be loaded and ready to use
 
@@ -44,7 +44,3 @@ Before using the extension, make sure to:
 
 1. Obtain a Google OAuth client ID and add it to the appropriate places in the code
 2. Update the API endpoint in the code to point to your backend service
-
-## License
-
-MIT
