@@ -1,238 +1,391 @@
-// Content script overlay components for Ascentio
+import { JobListing } from '@/types';
+import { extractJobData } from './extractors';
+import { overlayStyles } from './styles/overlay.styles';
+
+/**
+ * Provides a floating overlay UI for capturing and displaying job listing information on a web page.
+ * Includes a floating action button, a details panel, and integration with Chrome extension messaging and storage.
+ */
 export class AscentioOverlay {
-  private captureButton: HTMLElement | null = null;
-  private capturePanel: HTMLElement | null = null;
-  private rootElement: HTMLElement | null = null;
+  private container: HTMLElement | null = null;
+  private button: HTMLButtonElement | null = null;
+  private panel: HTMLElement | null = null;
+  private isVisible: boolean = false;
+  private extractedJob: JobListing | null = null;
 
   constructor() {
     this.init();
   }
 
   private init(): void {
-    // Create root element for all Ascentio injected content
-    this.createRootElement();
-    this.createCaptureButton();
-    this.createCapturePanel();
-    this.injectStyles();
+    this.createContainer();
+    this.createFloatingButton();
+    this.createPanel();
+    this.attachEventListeners();
   }
 
-  private createRootElement(): void {
-    this.rootElement = document.createElement('div');
-    this.rootElement.id = 'ascentio-root';
-    document.body.appendChild(this.rootElement);
+  private createContainer(): void {
+    // Create root element with proper namespacing
+    const root = document.createElement('div');
+    root.id = 'ascentio-root';
+    root.style.cssText = 'position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647;';
+    document.body.appendChild(root);
+
+    // Create style element for isolated styles
+    const style = document.createElement('style');
+    style.textContent = overlayStyles;
+    root.appendChild(style);
+
+    // Create main container
+    this.container = document.createElement('div');
+    this.container.id = 'ascentio-overlay';
+    this.container.className = 'ascentio-container';
+    root.appendChild(this.container);
   }
 
-  private createCaptureButton(): void {
-    const buttonHtml = `
-      <div id="ascentio-capture-button" class="fixed bottom-4 right-4 z-[9999]">
-        <button class="group p-3 bg-primary hover:bg-primary-dark text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110"
-                aria-label="Capture job listing">
-          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      </div>
-    `;
+  private createFloatingButton(): void {
+    // Create wrapper div as per design spec
+    const buttonWrapper = document.createElement('div');
+    buttonWrapper.id = 'ascentio-capture-button';
+    buttonWrapper.className = 'ascentio-capture-button';
 
-    const container = document.createElement('div');
-    container.innerHTML = buttonHtml;
-    this.captureButton = container.firstElementChild as HTMLElement;
-    this.rootElement?.appendChild(this.captureButton);
+    this.button = document.createElement('button');
+    this.button.className = 'ascentio-fab';
+    this.button.setAttribute('aria-label', 'Capture job listing');
 
-    // Add click handler
-    const button = this.captureButton.querySelector('button');
-    button?.addEventListener('click', () => this.toggleCapturePanel());
+    // SVG icon as per design
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '24');
+    svg.setAttribute('height', '24');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M12 5v14M5 12h14');
+    svg.appendChild(path);
+    
+    this.button.appendChild(svg);
+    buttonWrapper.appendChild(this.button);
+    this.container?.appendChild(buttonWrapper);
   }
 
-  private createCapturePanel(): void {
-    const panelHtml = `
-      <div id="ascentio-capture-panel" class="hidden fixed bottom-20 right-4 w-80 z-[9999]">
-        <div class="bg-slate-900 bg-opacity-95 backdrop-blur-md rounded-lg shadow-2xl border border-slate-700 p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-lg font-medium text-white">Capture Job</h3>
-            <button class="text-gray-400 hover:text-white transition-colors"
-                    aria-label="Close panel">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <div id="ascentio-job-preview" class="mb-4">
-            <!-- Job data will be populated here -->
-            <div class="text-center py-4">
-              <p class="text-sm text-gray-400">Extracting job information...</p>
-              <div class="mt-2">
-                <svg class="animate-spin h-6 w-6 text-primary mx-auto" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </div>
-            </div>
-          </div>
-          
-          <div class="space-y-3">
-            <button id="ascentio-save-btn" class="w-full px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium text-sm rounded-md transition-colors duration-200">
-              Save to Ascentio
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
+  private createPanel(): void {
+    // Create panel wrapper as per design spec
+    const panelWrapper = document.createElement('div');
+    panelWrapper.id = 'ascentio-capture-panel';
+    panelWrapper.className = 'ascentio-capture-panel ascentio-hidden';
 
-    const container = document.createElement('div');
-    container.innerHTML = panelHtml;
-    this.capturePanel = container.firstElementChild as HTMLElement;
-    this.rootElement?.appendChild(this.capturePanel);
+    this.panel = document.createElement('div');
+    this.panel.className = 'ascentio-panel-inner';
 
-    // Add close handler
-    const closeBtn = this.capturePanel.querySelector('button[aria-label="Close panel"]');
-    closeBtn?.addEventListener('click', () => this.hideCapturePanel());
+    const header = this.createPanelHeader();
+    const content = this.createPanelContent();
+    const footer = this.createPanelFooter();
+
+    this.panel.appendChild(header);
+    this.panel.appendChild(content);
+    this.panel.appendChild(footer);
+
+    panelWrapper.appendChild(this.panel);
+    this.container?.appendChild(panelWrapper);
   }
 
-  private toggleCapturePanel(): void {
-    if (this.capturePanel?.classList.contains('hidden')) {
-      this.showCapturePanel();
+  private createPanelHeader(): HTMLElement {
+    const header = document.createElement('div');
+    header.className = 'ascentio-panel-header';
+
+    const titleWrapper = document.createElement('div');
+    titleWrapper.className = 'ascentio-flex ascentio-items-center ascentio-justify-between';
+
+    // Add logo and branding
+    const brandingWrapper = document.createElement('div');
+    brandingWrapper.className = 'ascentio-flex ascentio-items-center ascentio-gap-2';
+    
+    const logo = document.createElement('img');
+    logo.src = chrome.runtime.getURL('icons/icon48.png');
+    logo.className = 'ascentio-logo';
+    logo.alt = 'Ascentio';
+    
+    const title = document.createElement('h3');
+    title.className = 'ascentio-panel-title';
+    title.textContent = 'Ascentio';
+    
+    brandingWrapper.appendChild(logo);
+    brandingWrapper.appendChild(title);
+
+    const closeButton = document.createElement('button');
+    closeButton.className = 'ascentio-close-button';
+    closeButton.setAttribute('aria-label', 'Close panel');
+
+    // Create close icon SVG
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '20');
+    svg.setAttribute('height', '20');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M6 18L18 6M6 6l12 12');
+    svg.appendChild(path);
+    
+    closeButton.appendChild(svg);
+    closeButton.addEventListener('click', () => this.hidePanel());
+
+    titleWrapper.appendChild(brandingWrapper);
+    titleWrapper.appendChild(closeButton);
+    header.appendChild(titleWrapper);
+
+    return header;
+  }
+
+  private createPanelContent(): HTMLElement {
+    const content = document.createElement('div');
+    content.id = 'ascentio-job-preview';
+    content.className = 'ascentio-panel-content';
+
+    this.updatePanelContent(content, 'loading');
+
+    return content;
+  }
+
+  private createPanelFooter(): HTMLElement {
+    const footer = document.createElement('div');
+    footer.className = 'ascentio-panel-footer';
+
+    const saveButton = this.createButton('Save to Ascentio', 'primary');
+    saveButton.id = 'ascentio-save-btn';
+
+    saveButton.addEventListener('click', () => {
+      if (this.extractedJob) {
+        chrome.storage.local.set({ currentJob: this.extractedJob });
+        chrome.runtime.sendMessage({
+          type: 'JOB_EXTRACTED',
+          payload: this.extractedJob
+        });
+        this.showSuccess();
+      }
+    });
+
+    footer.appendChild(saveButton);
+
+    return footer;
+  }
+
+  private createButton(text: string, variant: 'primary' | 'secondary'): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.className = variant === 'primary' ? 'ascentio-btn-primary' : 'ascentio-btn-secondary';
+    return button;
+  }
+
+  private updatePanelContent(container: HTMLElement, state: 'loading' | 'success' | 'error' | 'data'): void {
+    container.innerHTML = '';
+
+    if (state === 'loading') {
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'ascentio-text-center';
+      loadingDiv.style.padding = '40px 0';
+      
+      const spinner = document.createElement('div');
+      spinner.className = 'ascentio-spinner';
+      
+      const text = document.createElement('p');
+      text.className = 'ascentio-text-sm ascentio-text-gray';
+      text.style.marginTop = '16px';
+      text.textContent = 'Extracting job information...';
+      
+      loadingDiv.appendChild(spinner);
+      loadingDiv.appendChild(text);
+      container.appendChild(loadingDiv);
+    } else if (state === 'data' && this.extractedJob) {
+      const fields = [
+        { label: 'Position', value: this.extractedJob.title },
+        { label: 'Company', value: this.extractedJob.company },
+        { label: 'Location', value: this.extractedJob.location },
+        { label: 'Type', value: this.formatJobType(this.extractedJob.jobType) },
+        { label: 'Experience', value: this.extractedJob.experienceLevel },
+        { label: 'Skills', value: this.extractedJob.skills?.join(', ') || 'Not specified' }
+      ];
+
+      fields.forEach(field => {
+        if (field.value) {
+          const fieldDiv = document.createElement('div');
+          fieldDiv.className = 'ascentio-field';
+
+          const label = document.createElement('div');
+          label.className = 'ascentio-field-label';
+          label.textContent = field.label;
+
+          const value = document.createElement('div');
+          value.className = 'ascentio-field-value';
+          value.textContent = field.value;
+
+          fieldDiv.appendChild(label);
+          fieldDiv.appendChild(value);
+          container.appendChild(fieldDiv);
+        }
+      });
+      
+      // Add status dropdown
+      const statusDiv = document.createElement('div');
+      statusDiv.className = 'ascentio-field';
+      
+      const statusLabel = document.createElement('div');
+      statusLabel.className = 'ascentio-field-label';
+      statusLabel.textContent = 'Status';
+      
+      const statusSelect = document.createElement('select');
+      statusSelect.className = 'ascentio-select';
+      statusSelect.id = 'ascentio-status-select';
+      
+      const statusOptions = [
+        { value: '', text: 'Select status...' },
+        { value: 'interested', text: 'Interested' },
+        { value: 'applied', text: 'Applied' }
+      ];
+      
+      statusOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        if (this.extractedJob?.status === opt.value) {
+          option.selected = true;
+        }
+        statusSelect.appendChild(option);
+      });
+      
+      statusSelect.addEventListener('change', (e) => {
+        if (this.extractedJob) {
+          this.extractedJob.status = (e.target as HTMLSelectElement).value as 'applied' | 'interested' | undefined;
+        }
+      });
+      
+      statusDiv.appendChild(statusLabel);
+      statusDiv.appendChild(statusSelect);
+      container.appendChild(statusDiv);
+      
+      // Add notes field
+      const notesDiv = document.createElement('div');
+      notesDiv.className = 'ascentio-field';
+      
+      const notesLabel = document.createElement('div');
+      notesLabel.className = 'ascentio-field-label';
+      notesLabel.textContent = 'Notes';
+      
+      const notesTextarea = document.createElement('textarea');
+      notesTextarea.className = 'ascentio-textarea';
+      notesTextarea.id = 'ascentio-notes-textarea';
+      notesTextarea.placeholder = 'Add your notes here...';
+      notesTextarea.rows = 3;
+      notesTextarea.value = this.extractedJob.notes || '';
+      
+      notesTextarea.addEventListener('input', (e) => {
+        if (this.extractedJob) {
+          this.extractedJob.notes = (e.target as HTMLTextAreaElement).value;
+        }
+      });
+      
+      notesDiv.appendChild(notesLabel);
+      notesDiv.appendChild(notesTextarea);
+      container.appendChild(notesDiv);
+    } else if (state === 'success') {
+      const successDiv = document.createElement('div');
+      successDiv.className = 'ascentio-text-center';
+      successDiv.style.padding = '40px 0';
+      
+      const iconWrapper = document.createElement('div');
+      iconWrapper.className = 'ascentio-success-icon';
+      
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '30');
+      svg.setAttribute('height', '30');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', '#10B981');
+      svg.setAttribute('stroke-width', '3');
+      
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M20 6L9 17l-5-5');
+      svg.appendChild(path);
+      
+      iconWrapper.appendChild(svg);
+      
+      const text = document.createElement('p');
+      text.className = 'ascentio-success-text';
+      text.textContent = 'Job saved successfully!';
+      
+      successDiv.appendChild(iconWrapper);
+      successDiv.appendChild(text);
+      container.appendChild(successDiv);
+    }
+  }
+
+  private formatJobType(type?: string): string {
+    if (!type) return 'Not specified';
+    return type.split('_').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  }
+
+  private attachEventListeners(): void {
+    this.button?.addEventListener('click', () => this.togglePanel());
+  }
+
+  private async togglePanel(): Promise<void> {
+    if (this.isVisible) {
+      this.hidePanel();
     } else {
-      this.hideCapturePanel();
+      this.showPanel();
     }
   }
 
-  private showCapturePanel(): void {
-    this.capturePanel?.classList.remove('hidden');
-    // Trigger job extraction when panel opens
-    this.extractJobData();
-  }
+  private async showPanel(): Promise<void> {
+    const panelWrapper = document.getElementById('ascentio-capture-panel');
+    if (!panelWrapper) return;
 
-  private hideCapturePanel(): void {
-    this.capturePanel?.classList.add('hidden');
-  }
+    this.isVisible = true;
+    panelWrapper.classList.remove('ascentio-hidden');
 
-  private async extractJobData(): Promise<void> {
-    // This will be implemented to extract job data from the current page
-    const previewElement = document.querySelector('#ascentio-job-preview');
-    if (previewElement) {
-      // Simulated extraction - will be replaced with actual extraction logic
-      setTimeout(() => {
-        previewElement.innerHTML = `
-          <div class="space-y-2">
-            <div>
-              <p class="text-xs text-gray-400">Position</p>
-              <p class="text-sm text-white font-medium">Software Engineer</p>
-            </div>
-            <div>
-              <p class="text-xs text-gray-400">Company</p>
-              <p class="text-sm text-white">Example Corp</p>
-            </div>
-            <div>
-              <p class="text-xs text-gray-400">Location</p>
-              <p class="text-sm text-white">Remote</p>
-            </div>
-          </div>
-        `;
-      }, 1000);
+    const content = document.getElementById('ascentio-job-preview');
+    if (content) {
+      this.updatePanelContent(content, 'loading');
     }
+
+    this.extractedJob = extractJobData();
+
+    setTimeout(() => {
+      if (content) {
+        if (this.extractedJob) {
+          this.updatePanelContent(content, 'data');
+        } else {
+          this.updatePanelContent(content, 'error');
+        }
+      }
+    }, 1000);
   }
 
-  private injectStyles(): void {
-    const styles = `
-      #ascentio-root * {
-        box-sizing: border-box;
-        font-family: 'Inter', system-ui, sans-serif;
-      }
-      
-      #ascentio-root {
-        /* High specificity reset */
-        all: initial;
-      }
-      
-      /* Tailwind classes specific to Ascentio */
-      #ascentio-root .fixed { position: fixed; }
-      #ascentio-root .bottom-4 { bottom: 1rem; }
-      #ascentio-root .right-4 { right: 1rem; }
-      #ascentio-root .bottom-20 { bottom: 5rem; }
-      #ascentio-root .w-80 { width: 20rem; }
-      #ascentio-root .w-6 { width: 1.5rem; }
-      #ascentio-root .h-6 { height: 1.5rem; }
-      #ascentio-root .w-5 { width: 1.25rem; }
-      #ascentio-root .h-5 { height: 1.25rem; }
-      #ascentio-root .p-3 { padding: 0.75rem; }
-      #ascentio-root .p-4 { padding: 1rem; }
-      #ascentio-root .px-4 { padding-left: 1rem; padding-right: 1rem; }
-      #ascentio-root .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-      #ascentio-root .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
-      #ascentio-root .mb-3 { margin-bottom: 0.75rem; }
-      #ascentio-root .mb-4 { margin-bottom: 1rem; }
-      #ascentio-root .mt-2 { margin-top: 0.5rem; }
-      #ascentio-root .mx-auto { margin-left: auto; margin-right: auto; }
-      #ascentio-root .space-y-2 > * + * { margin-top: 0.5rem; }
-      #ascentio-root .space-y-3 > * + * { margin-top: 0.75rem; }
-      
-      /* Colors */
-      #ascentio-root .bg-primary { background-color: #0D9488; }
-      #ascentio-root .bg-slate-900 { background-color: rgb(15 23 42); }
-      #ascentio-root .bg-slate-700 { background-color: rgb(51 65 85); }
-      #ascentio-root .bg-opacity-95 { background-color: rgb(15 23 42 / 0.95); }
-      #ascentio-root .text-white { color: white; }
-      #ascentio-root .text-primary { color: #0D9488; }
-      #ascentio-root .text-gray-400 { color: rgb(156 163 175); }
-      
-      /* Border and shadows */
-      #ascentio-root .border { border-width: 1px; }
-      #ascentio-root .border-slate-700 { border-color: rgb(51 65 85); }
-      #ascentio-root .rounded-full { border-radius: 9999px; }
-      #ascentio-root .rounded-lg { border-radius: 0.5rem; }
-      #ascentio-root .rounded-md { border-radius: 0.375rem; }
-      #ascentio-root .shadow-lg { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
-      #ascentio-root .shadow-2xl { box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
-      
-      /* Typography */
-      #ascentio-root .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
-      #ascentio-root .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-      #ascentio-root .text-xs { font-size: 0.75rem; line-height: 1rem; }
-      #ascentio-root .font-medium { font-weight: 500; }
-      #ascentio-root .text-center { text-align: center; }
-      
-      /* Layout */
-      #ascentio-root .flex { display: flex; }
-      #ascentio-root .hidden { display: none; }
-      #ascentio-root .items-center { align-items: center; }
-      #ascentio-root .justify-between { justify-content: space-between; }
-      #ascentio-root .w-full { width: 100%; }
-      
-      /* Effects */
-      #ascentio-root .backdrop-blur-md { backdrop-filter: blur(12px); }
-      #ascentio-root .transition-all { transition-property: all; }
-      #ascentio-root .transition-colors { transition-property: color, background-color, border-color; }
-      #ascentio-root .duration-200 { transition-duration: 200ms; }
-      #ascentio-root .opacity-25 { opacity: 0.25; }
-      #ascentio-root .opacity-75 { opacity: 0.75; }
-      
-      /* Hover states */
-      #ascentio-root .hover\\:bg-primary-dark:hover { background-color: #0B7A70; }
-      #ascentio-root .hover\\:text-white:hover { color: white; }
-      #ascentio-root .hover\\:scale-110:hover { transform: scale(1.1); }
-      
-      /* Animation */
-      @keyframes ascentio-spin {
-        to { transform: rotate(360deg); }
-      }
-      
-      #ascentio-root .animate-spin {
-        animation: ascentio-spin 1s linear infinite;
-      }
-      
-      /* Z-index management */
-      #ascentio-root .z-\\[9999\\] { z-index: 9999; }
-    `;
+  private hidePanel(): void {
+    const panelWrapper = document.getElementById('ascentio-capture-panel');
+    if (!panelWrapper) return;
 
-    const styleElement = document.createElement('style');
-    styleElement.textContent = styles;
-    document.head.appendChild(styleElement);
+    this.isVisible = false;
+    panelWrapper.classList.add('ascentio-hidden');
+  }
+
+  private showSuccess(): void {
+    const content = document.getElementById('ascentio-job-preview');
+    if (content) {
+      this.updatePanelContent(content, 'success');
+      setTimeout(() => this.hidePanel(), 2000);
+    }
   }
 
   public destroy(): void {
-    this.rootElement?.remove();
+    const root = document.getElementById('ascentio-root');
+    root?.remove();
   }
 }

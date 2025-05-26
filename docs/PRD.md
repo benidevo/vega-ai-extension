@@ -7,8 +7,8 @@ A browser extension that extracts job listing data while browsing, allows users 
 ## Core Features
 
 1. **Job Data Extraction**
-   - Auto-detect and extract job details from LinkedIn and Indeed.
-   - Fields: title, company, location, description, salary (if available), URL, source site
+   - Auto-detect and extract job details from LinkedIn job listings
+   - Fields: title, company, location, description, URL, job type, experience level, skills, requirements
    - Parse both structured data (JSON-LD) and HTML DOM elements
 
 2. **Data Review & Editing**
@@ -27,7 +27,7 @@ A browser extension that extracts job listing data while browsing, allows users 
 
 ## User Flow
 
-1. User visits job listing page (LinkedIn and Indeed)
+1. User visits LinkedIn job listing page
 2. Extension automatically extracts job data
 3. Extension icon shows notification badge
 4. User clicks extension icon to open popup
@@ -36,25 +36,8 @@ A browser extension that extracts job listing data while browsing, allows users 
 7. User clicks "Upload" button
 8. System shows confirmation of successful upload
 
-## Data Model
-
-```typescript
-interface JobListing {
-  title: string;          // Job title
-  company: string;        // Company name
-  location: string;       // Job location
-  description: string;    // Job description
-  url: string;            // Original job listing URL
-  source: string;         // Website source (LinkedIn, Indeed, etc.)
-  postedAt: string;     // ISO timestamp
-  salary?: string;        // Optional salary information
-  requirements?: string[]; // Optional list of requirements
-}
-```
-
 ## Success Criteria
 
 - Extract job data with 95% accuracy across supported sites
 - Complete extraction within 3 seconds of page load
 - Extension size under 1MB
-- Cross-browser compatibility (Chrome, Firefox, Edge)

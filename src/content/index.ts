@@ -1,43 +1,37 @@
-import { detectJobSite, extractJobData } from './extractors';
+import { extractJobData, isSupportedJobPage } from './extractors';
 import { AscentioOverlay } from './overlay';
 
-// Initialize overlay
 let overlay: AscentioOverlay | null = null;
 
-// Initialize the content script
+
+/**
+ * Initializes the content script by detecting supported job pages, extracting job data,
+ * updating the extension badge, and managing the overlay UI.
+ */
 async function initialize(): Promise<void> {
-  // Detect if this is a job site we support
-  const site = detectJobSite(window.location.href);
+  if (isSupportedJobPage()) {
+    console.log('Ascentio: Detected supported job page');
 
-  if (site) {
-    console.log('Ascentio: Detected job site:', site);
-
-    // Create overlay if it doesn't exist
     if (!overlay) {
       overlay = new AscentioOverlay();
     }
 
-    // Try to extract job data
-    const jobData = extractJobData(site, document);
+    const jobData = extractJobData();
 
     if (jobData) {
       console.log('Ascentio: Extracted job data:', jobData);
 
-      // Store job data
       chrome.storage.local.set({ currentJob: jobData });
 
-      // Update badge to indicate job is ready
       chrome.action.setBadgeText({ text: '1' });
-      chrome.action.setBadgeBackgroundColor({ color: '#0D9488' }); // Use primary color
+      chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
 
-      // Notify background script
       chrome.runtime.sendMessage({
         type: 'JOB_EXTRACTED',
         payload: jobData
       });
     }
   } else {
-    // Remove overlay if we're not on a job page
     if (overlay) {
       overlay.destroy();
       overlay = null;
@@ -45,7 +39,6 @@ async function initialize(): Promise<void> {
   }
 }
 
-// Listen for page changes (SPA navigation)
 let lastUrl = location.href;
 new MutationObserver(() => {
   const url = location.href;

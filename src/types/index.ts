@@ -6,14 +6,13 @@ export interface JobListing {
   company: string;
   location: string;
   description: string;
-  url: string;
-  source: string;
-  extractedAt: string;
-  salary?: string;
-  requirements?: string[];
-  interestLevel?: 'high' | 'medium' | 'low';
+  jobType?: 'full_time' | 'part_time' | 'contract' | 'intern' | 'remote' | 'freelance';
+  applicationUrl?: string;
+  sourceUrl: string;
+  skills?: string[];
+  experienceLevel?: string;
   notes?: string;
-  savedAt?: string;
+  status?: 'applied' | 'interested';
 }
 
 /**

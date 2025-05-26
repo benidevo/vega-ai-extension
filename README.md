@@ -1,12 +1,12 @@
 # Ascentio Job Capture Extension
 
-A browser extension that helps you capture and save job listings while browsing LinkedIn and Indeed.
+A browser extension that helps users capture and save job listings while browsing job listing sites like LinkedIn and Indeed.
 
 ## Features
 
 - Automatically detects job listings on LinkedIn and Indeed
 - Extracts job details like title, company, location, and description
-- Save jobs with notes and interest level
+- Save jobs with notes
 - Google authentication
 
 ## Development
@@ -14,6 +14,11 @@ A browser extension that helps you capture and save job listings while browsing 
 ### Building the Extension
 
 1. Clone this repository
+
+    ```bash
+    git clone https://github.com/benidevo/ascentio-extension.git
+    ```
+
 2. Run `npm run build` to copy the source files to the dist directory
 
 ### Loading the Extension in Chrome
@@ -21,13 +26,6 @@ A browser extension that helps you capture and save job listings while browsing 
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode" by toggling the switch in the top right corner
 3. Click "Load unpacked" and select the `dist` directory
-4. The extension should now be loaded and ready to use
-
-### Loading the Extension in Firefox
-
-1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
-2. Click "Load Temporary Add-on..."
-3. Select the `manifest.json` file in the `dist` directory
 4. The extension should now be loaded and ready to use
 
 ## Usage
