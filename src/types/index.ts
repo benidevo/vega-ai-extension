@@ -9,10 +9,7 @@ export interface JobListing {
   jobType?: 'full_time' | 'part_time' | 'contract' | 'intern' | 'remote' | 'freelance';
   applicationUrl?: string;
   sourceUrl: string;
-  skills?: string[];
-  experienceLevel?: string;
   notes?: string;
-  status?: 'applied' | 'interested';
 }
 
 /**

@@ -29,6 +29,15 @@ export const overlayStyles = `
     bottom: 100px;
     right: 24px;
     z-index: 999999;
+    transition: opacity 200ms, transform 200ms;
+  }
+
+  /* Responsive positioning for mobile */
+  @media (max-width: 768px) {
+    #ascentio-root .ascentio-capture-button {
+      bottom: 80px;
+      right: 16px;
+    }
   }
 
   #ascentio-root .ascentio-fab {
@@ -52,13 +61,47 @@ export const overlayStyles = `
     transform: scale(1.1);
   }
 
+  #ascentio-root .ascentio-fab:active {
+    transform: scale(0.95);
+  }
+
   /* Panel styles */
   #ascentio-root .ascentio-capture-panel {
     position: fixed;
     bottom: 170px;
     right: 24px;
     width: 320px;
+    max-width: calc(100vw - 48px);
     z-index: 999999;
+    transition: opacity 200ms, transform 200ms;
+  }
+
+  #ascentio-root .ascentio-capture-panel.ascentio-hidden {
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+  }
+
+  /* Responsive panel positioning */
+  @media (max-width: 768px) {
+    #ascentio-root .ascentio-capture-panel {
+      bottom: 150px;
+      right: 16px;
+      left: 16px;
+      width: auto;
+    }
+  }
+
+  /* Ensure panel doesn't go off-screen on small viewports */
+  @media (max-height: 600px) {
+    #ascentio-root .ascentio-capture-panel {
+      bottom: 60px;
+      max-height: calc(100vh - 120px);
+    }
+    
+    #ascentio-root .ascentio-capture-button {
+      bottom: 20px;
+    }
   }
 
   #ascentio-root .ascentio-panel-inner {
@@ -70,12 +113,16 @@ export const overlayStyles = `
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(51, 65, 85, 0.8);
     overflow: hidden;
+    max-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
   }
 
   /* Panel header */
   #ascentio-root .ascentio-panel-header {
     padding: 16px;
     border-bottom: 1px solid rgb(51, 65, 85);
+    flex-shrink: 0;
   }
 
   #ascentio-root .ascentio-panel-title {
@@ -107,12 +154,27 @@ export const overlayStyles = `
     padding: 16px;
     max-height: 400px;
     overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Responsive content height */
+  @media (max-height: 700px) {
+    #ascentio-root .ascentio-panel-content {
+      max-height: 250px;
+    }
+  }
+
+  @media (max-height: 500px) {
+    #ascentio-root .ascentio-panel-content {
+      max-height: 150px;
+    }
   }
 
   /* Panel footer */
   #ascentio-root .ascentio-panel-footer {
     padding: 16px;
     border-top: 1px solid rgb(51, 65, 85);
+    flex-shrink: 0;
   }
 
   /* Buttons */
@@ -154,6 +216,22 @@ export const overlayStyles = `
     display: none !important;
   }
 
+  /* Animation classes */
+  #ascentio-root .ascentio-fade-in {
+    animation: ascentio-fadeIn 200ms ease-out;
+  }
+
+  @keyframes ascentio-fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   /* Loading spinner */
   @keyframes ascentio-spin {
     to { transform: rotate(360deg); }
@@ -193,14 +271,14 @@ export const overlayStyles = `
   #ascentio-root .ascentio-text-center {
     text-align: center;
   }
-  
+
   /* Ensure all text elements have proper display */
   #ascentio-root p,
   #ascentio-root div,
   #ascentio-root span {
     display: block;
   }
-  
+
   #ascentio-root svg {
     display: inline-block;
     vertical-align: middle;
@@ -252,32 +330,6 @@ export const overlayStyles = `
     height: 24px;
     display: inline-block;
     vertical-align: middle;
-  }
-
-  /* Form elements */
-  #ascentio-root .ascentio-select {
-    width: 100%;
-    padding: 8px 12px;
-    background-color: rgba(51, 65, 85, 0.5);
-    color: white;
-    border: 1px solid rgba(71, 85, 105, 0.5);
-    border-radius: 6px;
-    font-size: 14px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 200ms;
-  }
-
-  #ascentio-root .ascentio-select:hover,
-  #ascentio-root .ascentio-select:focus {
-    background-color: rgba(51, 65, 85, 0.7);
-    border-color: #0D9488;
-    outline: none;
-  }
-
-  #ascentio-root .ascentio-select option {
-    background-color: rgb(15, 23, 42);
-    color: white;
   }
 
   #ascentio-root .ascentio-textarea {

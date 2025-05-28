@@ -12,6 +12,7 @@ export class AscentioOverlay {
   private panel: HTMLElement | null = null;
   private isVisible: boolean = false;
   private extractedJob: JobListing | null = null;
+  private eventListeners: Array<{ element: Element | Window | Document; event: string; handler: EventListener }> = [];
 
   constructor() {
     this.init();
@@ -25,18 +26,15 @@ export class AscentioOverlay {
   }
 
   private createContainer(): void {
-    // Create root element with proper namespacing
     const root = document.createElement('div');
     root.id = 'ascentio-root';
     root.style.cssText = 'position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647;';
     document.body.appendChild(root);
 
-    // Create style element for isolated styles
     const style = document.createElement('style');
     style.textContent = overlayStyles;
     root.appendChild(style);
 
-    // Create main container
     this.container = document.createElement('div');
     this.container.id = 'ascentio-overlay';
     this.container.className = 'ascentio-container';
@@ -44,7 +42,6 @@ export class AscentioOverlay {
   }
 
   private createFloatingButton(): void {
-    // Create wrapper div as per design spec
     const buttonWrapper = document.createElement('div');
     buttonWrapper.id = 'ascentio-capture-button';
     buttonWrapper.className = 'ascentio-capture-button';
@@ -53,7 +50,6 @@ export class AscentioOverlay {
     this.button.className = 'ascentio-fab';
     this.button.setAttribute('aria-label', 'Capture job listing');
 
-    // SVG icon as per design
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '24');
     svg.setAttribute('height', '24');
@@ -61,18 +57,17 @@ export class AscentioOverlay {
     svg.setAttribute('fill', 'none');
     svg.setAttribute('stroke', 'currentColor');
     svg.setAttribute('stroke-width', '2');
-    
+
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', 'M12 5v14M5 12h14');
     svg.appendChild(path);
-    
+
     this.button.appendChild(svg);
     buttonWrapper.appendChild(this.button);
     this.container?.appendChild(buttonWrapper);
   }
 
   private createPanel(): void {
-    // Create panel wrapper as per design spec
     const panelWrapper = document.createElement('div');
     panelWrapper.id = 'ascentio-capture-panel';
     panelWrapper.className = 'ascentio-capture-panel ascentio-hidden';
@@ -99,19 +94,18 @@ export class AscentioOverlay {
     const titleWrapper = document.createElement('div');
     titleWrapper.className = 'ascentio-flex ascentio-items-center ascentio-justify-between';
 
-    // Add logo and branding
     const brandingWrapper = document.createElement('div');
     brandingWrapper.className = 'ascentio-flex ascentio-items-center ascentio-gap-2';
-    
+
     const logo = document.createElement('img');
     logo.src = chrome.runtime.getURL('icons/icon48.png');
     logo.className = 'ascentio-logo';
     logo.alt = 'Ascentio';
-    
+
     const title = document.createElement('h3');
     title.className = 'ascentio-panel-title';
     title.textContent = 'Ascentio';
-    
+
     brandingWrapper.appendChild(logo);
     brandingWrapper.appendChild(title);
 
@@ -119,7 +113,6 @@ export class AscentioOverlay {
     closeButton.className = 'ascentio-close-button';
     closeButton.setAttribute('aria-label', 'Close panel');
 
-    // Create close icon SVG
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '20');
     svg.setAttribute('height', '20');
@@ -127,13 +120,15 @@ export class AscentioOverlay {
     svg.setAttribute('fill', 'none');
     svg.setAttribute('stroke', 'currentColor');
     svg.setAttribute('stroke-width', '2');
-    
+
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', 'M6 18L18 6M6 6l12 12');
     svg.appendChild(path);
-    
+
     closeButton.appendChild(svg);
-    closeButton.addEventListener('click', () => this.hidePanel());
+    const closeHandler = () => this.hidePanel();
+    closeButton.addEventListener('click', closeHandler);
+    this.eventListeners.push({ element: closeButton, event: 'click', handler: closeHandler });
 
     titleWrapper.appendChild(brandingWrapper);
     titleWrapper.appendChild(closeButton);
@@ -159,16 +154,24 @@ export class AscentioOverlay {
     const saveButton = this.createButton('Save to Ascentio', 'primary');
     saveButton.id = 'ascentio-save-btn';
 
-    saveButton.addEventListener('click', () => {
+    const saveHandler = async () => {
       if (this.extractedJob) {
-        chrome.storage.local.set({ currentJob: this.extractedJob });
-        chrome.runtime.sendMessage({
-          type: 'JOB_EXTRACTED',
-          payload: this.extractedJob
-        });
-        this.showSuccess();
+        try {
+          await chrome.storage.local.set({ currentJob: this.extractedJob });
+          await chrome.runtime.sendMessage({
+            type: 'JOB_EXTRACTED',
+            payload: this.extractedJob
+          });
+          this.showSuccess();
+        } catch (error) {
+          console.error('Ascentio: Failed to save job:', error);
+          this.showError('Failed to save job. Please try again.');
+        }
       }
-    });
+    };
+
+    saveButton.addEventListener('click', saveHandler);
+    this.eventListeners.push({ element: saveButton, event: 'click', handler: saveHandler });
 
     footer.appendChild(saveButton);
 
@@ -182,22 +185,24 @@ export class AscentioOverlay {
     return button;
   }
 
-  private updatePanelContent(container: HTMLElement, state: 'loading' | 'success' | 'error' | 'data'): void {
+  private updatePanelContent(container: HTMLElement | null, state: 'loading' | 'success' | 'error' | 'data', errorMessage?: string): void {
+    if (!container) return;
+
     container.innerHTML = '';
 
     if (state === 'loading') {
       const loadingDiv = document.createElement('div');
       loadingDiv.className = 'ascentio-text-center';
       loadingDiv.style.padding = '40px 0';
-      
+
       const spinner = document.createElement('div');
       spinner.className = 'ascentio-spinner';
-      
+
       const text = document.createElement('p');
       text.className = 'ascentio-text-sm ascentio-text-gray';
       text.style.marginTop = '16px';
       text.textContent = 'Extracting job information...';
-      
+
       loadingDiv.appendChild(spinner);
       loadingDiv.appendChild(text);
       container.appendChild(loadingDiv);
@@ -207,8 +212,6 @@ export class AscentioOverlay {
         { label: 'Company', value: this.extractedJob.company },
         { label: 'Location', value: this.extractedJob.location },
         { label: 'Type', value: this.formatJobType(this.extractedJob.jobType) },
-        { label: 'Experience', value: this.extractedJob.experienceLevel },
-        { label: 'Skills', value: this.extractedJob.skills?.join(', ') || 'Not specified' }
       ];
 
       fields.forEach(field => {
@@ -229,66 +232,30 @@ export class AscentioOverlay {
           container.appendChild(fieldDiv);
         }
       });
-      
-      // Add status dropdown
-      const statusDiv = document.createElement('div');
-      statusDiv.className = 'ascentio-field';
-      
-      const statusLabel = document.createElement('div');
-      statusLabel.className = 'ascentio-field-label';
-      statusLabel.textContent = 'Status';
-      
-      const statusSelect = document.createElement('select');
-      statusSelect.className = 'ascentio-select';
-      statusSelect.id = 'ascentio-status-select';
-      
-      const statusOptions = [
-        { value: '', text: 'Select status...' },
-        { value: 'interested', text: 'Interested' },
-        { value: 'applied', text: 'Applied' }
-      ];
-      
-      statusOptions.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.text;
-        if (this.extractedJob?.status === opt.value) {
-          option.selected = true;
-        }
-        statusSelect.appendChild(option);
-      });
-      
-      statusSelect.addEventListener('change', (e) => {
-        if (this.extractedJob) {
-          this.extractedJob.status = (e.target as HTMLSelectElement).value as 'applied' | 'interested' | undefined;
-        }
-      });
-      
-      statusDiv.appendChild(statusLabel);
-      statusDiv.appendChild(statusSelect);
-      container.appendChild(statusDiv);
-      
-      // Add notes field
+
       const notesDiv = document.createElement('div');
       notesDiv.className = 'ascentio-field';
-      
+
       const notesLabel = document.createElement('div');
       notesLabel.className = 'ascentio-field-label';
       notesLabel.textContent = 'Notes';
-      
+
       const notesTextarea = document.createElement('textarea');
       notesTextarea.className = 'ascentio-textarea';
       notesTextarea.id = 'ascentio-notes-textarea';
       notesTextarea.placeholder = 'Add your notes here...';
       notesTextarea.rows = 3;
       notesTextarea.value = this.extractedJob.notes || '';
-      
-      notesTextarea.addEventListener('input', (e) => {
-        if (this.extractedJob) {
-          this.extractedJob.notes = (e.target as HTMLTextAreaElement).value;
+
+      const notesHandler = (e: Event) => {
+        if (this.extractedJob && e.target instanceof HTMLTextAreaElement) {
+          this.extractedJob.notes = e.target.value;
         }
-      });
-      
+      };
+
+      notesTextarea.addEventListener('input', notesHandler);
+      this.eventListeners.push({ element: notesTextarea, event: 'input', handler: notesHandler });
+
       notesDiv.appendChild(notesLabel);
       notesDiv.appendChild(notesTextarea);
       container.appendChild(notesDiv);
@@ -296,10 +263,10 @@ export class AscentioOverlay {
       const successDiv = document.createElement('div');
       successDiv.className = 'ascentio-text-center';
       successDiv.style.padding = '40px 0';
-      
+
       const iconWrapper = document.createElement('div');
       iconWrapper.className = 'ascentio-success-icon';
-      
+
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('width', '30');
       svg.setAttribute('height', '30');
@@ -307,20 +274,51 @@ export class AscentioOverlay {
       svg.setAttribute('fill', 'none');
       svg.setAttribute('stroke', '#10B981');
       svg.setAttribute('stroke-width', '3');
-      
+
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', 'M20 6L9 17l-5-5');
       svg.appendChild(path);
-      
+
       iconWrapper.appendChild(svg);
-      
+
       const text = document.createElement('p');
       text.className = 'ascentio-success-text';
       text.textContent = 'Job saved successfully!';
-      
+
       successDiv.appendChild(iconWrapper);
       successDiv.appendChild(text);
       container.appendChild(successDiv);
+    } else if (state === 'error') {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'ascentio-text-center';
+      errorDiv.style.padding = '40px 0';
+
+      const iconWrapper = document.createElement('div');
+      iconWrapper.className = 'ascentio-error-icon';
+      iconWrapper.style.cssText = 'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '30');
+      svg.setAttribute('height', '30');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', '#EF4444');
+      svg.setAttribute('stroke-width', '3');
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M6 18L18 6M6 6l12 12');
+      svg.appendChild(path);
+
+      iconWrapper.appendChild(svg);
+
+      const text = document.createElement('p');
+      text.className = 'ascentio-error-text';
+      text.style.cssText = 'margin-top: 16px; color: #EF4444; font-size: 16px; font-weight: 500;';
+      text.textContent = errorMessage || 'Failed to extract job data';
+
+      errorDiv.appendChild(iconWrapper);
+      errorDiv.appendChild(text);
+      container.appendChild(errorDiv);
     }
   }
 
@@ -332,7 +330,11 @@ export class AscentioOverlay {
   }
 
   private attachEventListeners(): void {
-    this.button?.addEventListener('click', () => this.togglePanel());
+    if (this.button) {
+      const clickHandler = () => this.togglePanel();
+      this.button.addEventListener('click', clickHandler);
+      this.eventListeners.push({ element: this.button, event: 'click', handler: clickHandler });
+    }
   }
 
   private async togglePanel(): Promise<void> {
@@ -348,24 +350,32 @@ export class AscentioOverlay {
     if (!panelWrapper) return;
 
     this.isVisible = true;
+    panelWrapper.style.display = 'block';
+
+    // Force a reflow by accessing offsetHeight to ensure the browser applies the initial styles
+    // before adding the animation class. This is necessary to trigger the CSS transition effect.
+    panelWrapper.offsetHeight;
+
     panelWrapper.classList.remove('ascentio-hidden');
+    panelWrapper.classList.add('ascentio-fade-in');
 
     const content = document.getElementById('ascentio-job-preview');
-    if (content) {
-      this.updatePanelContent(content, 'loading');
-    }
-
-    this.extractedJob = extractJobData();
+    this.updatePanelContent(content, 'loading');
 
     setTimeout(() => {
-      if (content) {
+      try {
+        this.extractedJob = extractJobData();
+
         if (this.extractedJob) {
           this.updatePanelContent(content, 'data');
         } else {
-          this.updatePanelContent(content, 'error');
+          this.updatePanelContent(content, 'error', 'No job data found on this page');
         }
+      } catch (error) {
+        console.error('Ascentio: Error extracting job data:', error);
+        this.updatePanelContent(content, 'error', 'Failed to extract job data');
       }
-    }, 1000);
+    }, 300);
   }
 
   private hidePanel(): void {
@@ -374,17 +384,40 @@ export class AscentioOverlay {
 
     this.isVisible = false;
     panelWrapper.classList.add('ascentio-hidden');
+    panelWrapper.classList.remove('ascentio-fade-in');
+
+    setTimeout(() => {
+      if (!this.isVisible) {
+        panelWrapper.style.display = 'none';
+      }
+    }, 200);
   }
 
   private showSuccess(): void {
     const content = document.getElementById('ascentio-job-preview');
-    if (content) {
-      this.updatePanelContent(content, 'success');
-      setTimeout(() => this.hidePanel(), 2000);
-    }
+    this.updatePanelContent(content, 'success');
+    setTimeout(() => this.hidePanel(), 2000);
+  }
+
+  private showError(message: string): void {
+    const content = document.getElementById('ascentio-job-preview');
+    this.updatePanelContent(content, 'error', message);
   }
 
   public destroy(): void {
+    this.eventListeners.forEach(({ element, event, handler }) => {
+      element.removeEventListener(event, handler);
+    });
+    this.eventListeners = [];
+
+    // Clear references
+    this.container = null;
+    this.button = null;
+    this.panel = null;
+    this.extractedJob = null;
+    this.isVisible = false;
+
+    // Remove DOM element
     const root = document.getElementById('ascentio-root');
     root?.remove();
   }
