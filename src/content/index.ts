@@ -10,7 +10,7 @@ const REINITIALIZATION_DELAY_MS = 100;
 /**
  * Debounce function to prevent multiple rapid calls
  */
-function debounce<T extends (...args: any[]) => any>(
+function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

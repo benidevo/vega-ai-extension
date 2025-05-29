@@ -1,6 +1,6 @@
 import { JobListing } from '@/types';
 import { IJobExtractor } from './IJobExtractor';
-import { cleanUrl } from '../../utils/validation';
+import { cleanUrl, isValidJobListing, sanitizeJobListing } from '../../utils/validation';
 
 /**
  * Extracts job listing information from LinkedIn job pages.
@@ -66,7 +66,7 @@ export class LinkedInExtractor implements IJobExtractor {
 
     const sourceUrl = cleanUrl(window.location.href);
 
-    return {
+    const jobListing: JobListing = {
       title,
       company,
       location: location || 'Unknown Location',
@@ -74,6 +74,13 @@ export class LinkedInExtractor implements IJobExtractor {
       sourceUrl,
       jobType: this.extractJobType(doc),
     };
+
+    if (!isValidJobListing(jobListing)) {
+      console.error('Invalid job listing extracted:', jobListing);
+      return null;
+    }
+
+    return sanitizeJobListing(jobListing);
   }
 
   private getText(element: Element | null): string {

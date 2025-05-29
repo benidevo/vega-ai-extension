@@ -65,7 +65,7 @@ export function cleanUrl(url: string): string {
     }
 
     return urlObj.toString();
-  } catch (error) {
+  } catch {
     return url;
   }
 }
