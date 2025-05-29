@@ -3,62 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ascentio Job Capture</title>
-  <script src="../lib/htmx.min.js"></script>
-  <script src="../lib/hyperscript.min.js"></script>
+  <title>Ascentio</title>
   <link rel="stylesheet" href="../styles/popup.css">
 </head>
-<body class="w-80 min-h-[400px] max-h-[600px] bg-slate-900 text-white">
+<body class="w-80 min-h-[200px] bg-slate-900 text-white">
   <div class="p-4">
-    <!-- Header with branding -->
-    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-700">
-      <div class="flex items-center">
-        <img src="../icons/icon48.png" class="w-8 h-8 mr-2" alt="Ascentio">
-        <h1 class="text-lg font-heading font-semibold text-primary">Ascentio</h1>
-      </div>
-      <button class="text-gray-400 hover:text-white transition-colors" 
-              _="on click toggle .hidden on #settings-panel 
-                 then if #settings-panel matches .hidden 
-                 remove .rotate-180 from me 
-                 else add .rotate-180 to me">
-        <svg class="w-5 h-5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      </button>
+    <!-- Header -->
+    <div class="flex items-center justify-center mb-6">
+      <img src="../icons/icon48.png" class="w-10 h-10 mr-3" alt="Ascentio">
+      <h1 class="text-xl font-heading font-semibold">Ascentio</h1>
     </div>
-    
-    <!-- Settings panel (hidden by default) -->
-    <div id="settings-panel" class="hidden mb-4 p-3 bg-slate-800 bg-opacity-50 rounded-md border border-slate-700">
-      <h2 class="text-sm font-medium mb-2">Settings</h2>
-      <!-- Settings content will go here -->
+
+    <!-- Status -->
+    <div id="status" class="mb-6">
+      <!-- Dynamic status will be inserted here -->
     </div>
-    
-    <!-- Content area -->
-    <div id="content" class="overflow-y-auto max-h-[500px]">
-      <!-- Page detection status -->
-      <div id="page-status" class="mb-3">
-        <!-- Status will be dynamically inserted here -->
-      </div>
-      
-      <!-- Job data display area -->
-      <div id="job-data" class="mb-4">
-        <!-- This will be populated with job data -->
-      </div>
-      
-      <!-- Authentication state will be handled here -->
-      <div id="auth-content">
-        <div class="text-center py-8">
-          <div class="animate-pulse">
-            <svg class="w-12 h-12 text-gray-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"></circle>
-            </svg>
-          </div>
-          <p class="text-sm text-gray-400">Loading...</p>
-        </div>
-      </div>
+
+    <!-- CTA -->
+    <div id="cta">
+      <!-- Dynamic CTA will be inserted here -->
     </div>
   </div>
+
   <script src="index.js"></script>
 </body>
 </html>
