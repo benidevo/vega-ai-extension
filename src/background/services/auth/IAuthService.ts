@@ -1,5 +1,4 @@
 import { IService } from '../IService';
-import { UserProfile } from '@/types';
 
 /**
  * Authentication service interface
@@ -21,11 +20,6 @@ export interface IAuthService extends IService {
   getAuthToken(): Promise<string | null>;
 
   /**
-   * Get current user profile
-   */
-  getCurrentUser(): Promise<UserProfile | null>;
-
-  /**
    * Check if user is authenticated
    */
   isAuthenticated(): Promise<boolean>;
@@ -33,7 +27,7 @@ export interface IAuthService extends IService {
   /**
    * Set authentication change listener
    */
-  onAuthStateChange(callback: (user: UserProfile | null) => void): void;
+  onAuthStateChange(callback: (isAuthenticated: boolean) => void): void;
 }
 
 /**

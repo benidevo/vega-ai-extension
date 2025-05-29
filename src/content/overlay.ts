@@ -12,18 +12,35 @@ export class AscentioOverlay {
   private panel: HTMLElement | null = null;
   private footer: HTMLElement | null = null;
   private isVisible: boolean = false;
+  private isAuthenticated: boolean = false;
   private extractedJob: JobListing | null = null;
   private eventListeners: Array<{ element: Element | Window | Document; event: string; handler: EventListener }> = [];
 
-  constructor() {
-    this.init();
+  private constructor() {}
+
+  public static async create(): Promise<AscentioOverlay> {
+    const instance = new AscentioOverlay();
+    await instance.init();
+    return instance;
   }
 
-  private init(): void {
+  private async init(): Promise<void> {
+    await this.checkAuthentication();
+
     this.createContainer();
     this.createFloatingButton();
     this.createPanel();
     this.attachEventListeners();
+  }
+
+  private async checkAuthentication(): Promise<void> {
+    try {
+      const result = await chrome.storage.local.get('authToken');
+      this.isAuthenticated = !!result.authToken;
+    } catch (error) {
+      console.error('Ascentio: Failed to check authentication:', error);
+      this.isAuthenticated = false;
+    }
   }
 
   private createContainer(): void {
@@ -157,6 +174,13 @@ export class AscentioOverlay {
     saveButton.id = 'ascentio-save-btn';
 
     const saveHandler = async () => {
+      await this.checkAuthentication();
+
+      if (!this.isAuthenticated) {
+        this.showError('Please sign in to save jobs');
+        return;
+      }
+
       if (!this.extractedJob) {
         this.showError('No job data to save');
         return;
@@ -423,6 +447,8 @@ export class AscentioOverlay {
     const panelWrapper = document.getElementById('ascentio-capture-panel');
     if (!panelWrapper) return;
 
+    await this.checkAuthentication();
+
     this.isVisible = true;
     panelWrapper.style.display = 'block';
 
@@ -434,6 +460,12 @@ export class AscentioOverlay {
     panelWrapper.classList.add('ascentio-fade-in');
 
     const content = document.getElementById('ascentio-job-preview');
+
+    if (!this.isAuthenticated) {
+      this.showAuthRequired(content);
+      return;
+    }
+
     this.updatePanelContent(content, 'loading');
 
     setTimeout(() => {
@@ -476,6 +508,71 @@ export class AscentioOverlay {
   private showError(message: string): void {
     const content = document.getElementById('ascentio-job-preview');
     this.updatePanelContent(content, 'error', message);
+  }
+
+  private showAuthRequired(container: HTMLElement | null): void {
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (this.footer) {
+      this.footer.style.display = 'none';
+    }
+
+    const authDiv = document.createElement('div');
+    authDiv.className = 'ascentio-text-center';
+    authDiv.style.padding = '40px 20px';
+
+    const iconWrapper = document.createElement('div');
+    iconWrapper.style.cssText = 'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '30');
+    svg.setAttribute('height', '30');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', '#3B82F6');
+    svg.setAttribute('stroke-width', '2');
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z');
+    svg.appendChild(path);
+
+    iconWrapper.appendChild(svg);
+
+    const title = document.createElement('h3');
+    title.style.cssText = 'margin-top: 16px; color: #1F2937; font-size: 18px; font-weight: 600;';
+    title.textContent = 'Sign In Required';
+
+    const text = document.createElement('p');
+    text.style.cssText = 'margin-top: 8px; color: #6B7280; font-size: 14px;';
+    text.textContent = 'Please sign in to Ascentio to save job listings';
+
+    const signInButton = this.createButton('Sign In', 'primary');
+    signInButton.style.marginTop = '20px';
+
+    const signInHandler = () => {
+      // Send message to background to set attention badge
+      chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, () => {
+        // Show instruction after sending message
+        const instruction = document.createElement('p');
+        instruction.style.cssText = 'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
+        instruction.textContent = '→ Click the Ascentio icon in your toolbar';
+        authDiv.appendChild(instruction);
+
+        // Remove the button after click
+        signInButton.style.display = 'none';
+      });
+    };
+
+    signInButton.addEventListener('click', signInHandler);
+    this.eventListeners.push({ element: signInButton, event: 'click', handler: signInHandler });
+
+    authDiv.appendChild(iconWrapper);
+    authDiv.appendChild(title);
+    authDiv.appendChild(text);
+    authDiv.appendChild(signInButton);
+    container.appendChild(authDiv);
   }
 
   private getErrorMessage(error: string): string {

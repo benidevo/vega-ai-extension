@@ -11,13 +11,3 @@ export interface JobListing {
   sourceUrl: string;
   notes?: string;
 }
-
-/**
- * User profile interface
- */
-export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-}

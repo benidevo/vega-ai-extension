@@ -29,8 +29,8 @@ class Popup {
 
   private async checkAuthStatus(): Promise<boolean> {
     try {
-      const result = await chrome.storage.local.get(['authToken', 'user']);
-      return !!(result.authToken && result.user);
+      const result = await chrome.storage.local.get(['authToken']);
+      return !!result.authToken;
     } catch (error) {
       console.error('Failed to check auth status:', error);
       return false;

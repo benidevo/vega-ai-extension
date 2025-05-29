@@ -46,7 +46,7 @@ async function initialize(): Promise<void> {
       console.log('Ascentio: Detected supported job page');
 
       if (!overlay) {
-        overlay = new AscentioOverlay();
+        overlay = await AscentioOverlay.create();
       }
 
       try {

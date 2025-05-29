@@ -11,6 +11,7 @@ import {
   BadgeService,
   MessageType
 } from './services';
+import { googleConfig, apiConfig } from '@/config';
 
 /**
  * Service Manager to coordinate all background services
@@ -28,17 +29,17 @@ export class ServiceManager {
 
     this.authService = new GoogleAuthService(
       {
-        clientId: 'placeholder-client-id.apps.googleusercontent.com',
-        scopes: ['email', 'profile'],
-        apiEndpoint: 'https://localhost:8000/api/auth'
+        clientId: googleConfig.clientId,
+        scopes: googleConfig.scopes,
+        apiEndpoint: `${apiConfig.baseUrl}${apiConfig.authEndpoint}`
       },
       this.storageService
     );
 
     this.apiService = new APIService({
-      baseUrl: 'https://localhost:8000/api',
-      timeout: 30000,
-      retryAttempts: 3
+      baseUrl: apiConfig.baseUrl,
+      timeout: apiConfig.timeout,
+      retryAttempts: apiConfig.retryAttempts
     });
 
     this.messageService = new MessageService();
@@ -57,8 +58,8 @@ export class ServiceManager {
     this.setupAuthHandlers();
     this.setupMessageHandlers();
 
-    this.authService.onAuthStateChange(async (user) => {
-      if (user) {
+    this.authService.onAuthStateChange(async (isAuthenticated) => {
+      if (isAuthenticated) {
         const token = await this.authService.getAuthToken();
         this.apiService.setAuthToken(token);
       } else {
@@ -87,9 +88,8 @@ export class ServiceManager {
   private setupAuthHandlers(): void {
     this.messageService.on(MessageType.LOGIN, (message, sender, sendResponse) => {
       this.authService.login()
-        .then(async () => {
-          const user = await this.authService.getCurrentUser();
-          sendResponse({ success: true, user });
+        .then(() => {
+          sendResponse({ success: true });
         })
         .catch((error) => {
           console.error('Login error:', error);
@@ -130,6 +130,19 @@ export class ServiceManager {
           sendResponse({ success: false, error: error instanceof Error ? error.message : 'Save failed' });
         });
       return true;
+    });
+
+    this.messageService.on(MessageType.OPEN_POPUP, (message, sender, sendResponse) => {
+      // Set badge to draw attention to the extension icon
+      chrome.action.setBadgeText({ text: '!' });
+      chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
+
+      setTimeout(() => {
+        chrome.action.setBadgeText({ text: '' });
+      }, 5000);
+
+      sendResponse({ success: true });
+      return false;
     });
   }
 

@@ -118,10 +118,11 @@ src/
 ### Available Scripts
 
 ```bash
-npm run build       # Production build
 npm run dev         # Development build with watch mode
+npm run build       # Production build
+npm run clean       # Clean dist directory
 npm run lint        # Run ESLint
-npm run type-check  # Run TypeScript compiler checks
+npm run typecheck   # Run TypeScript compiler checks
 ```
 
 ### Adding New Job Sites

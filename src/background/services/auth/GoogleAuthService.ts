@@ -1,11 +1,10 @@
 import { IAuthService, GoogleAuthConfig } from './IAuthService';
-import { UserProfile } from '@/types';
 import { IStorageService } from '../storage/IStorageService';
 
 export class GoogleAuthService implements IAuthService {
   private config: GoogleAuthConfig;
   private storageService: IStorageService;
-  private authStateListeners: Array<(user: UserProfile | null) => void> = [];
+  private authStateListeners: Array<(isAuthenticated: boolean) => void> = [];
   private isInitialized = false;
 
   constructor(config: GoogleAuthConfig, storageService: IStorageService) {
@@ -18,8 +17,7 @@ export class GoogleAuthService implements IAuthService {
 
     const authToken = await this.getAuthToken();
     if (authToken) {
-      const user = await this.getCurrentUser();
-      this.notifyAuthStateChange(user);
+      this.notifyAuthStateChange(true);
     }
 
     this.isInitialized = true;
@@ -31,11 +29,14 @@ export class GoogleAuthService implements IAuthService {
   }
 
   async login(): Promise<void> {
-    const redirectUri = chrome.identity.getRedirectURL('oauth2');
+    const redirectUri = chrome.identity.getRedirectURL();
+    console.log('Extension redirect URI:', redirectUri);
+    console.log('Client ID being used:', this.config.clientId);
+
     const authUrl = new URL('https://accounts.google.com/o/oauth2/auth');
 
     authUrl.searchParams.set('client_id', this.config.clientId);
-    authUrl.searchParams.set('response_type', 'token');
+    authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', this.config.scopes.join(' '));
 
@@ -50,14 +51,14 @@ export class GoogleAuthService implements IAuthService {
 
           try {
             const url = new URL(responseUrl);
-            const params = new URLSearchParams(url.hash.substring(1));
-            const accessToken = params.get('access_token');
+            const params = new URLSearchParams(url.search);
+            const authCode = params.get('code');
 
-            if (!accessToken) {
-              throw new Error('No access token received');
+            if (!authCode) {
+              throw new Error('No authorization code received');
             }
 
-            await this.exchangeTokenForJWT(accessToken);
+            await this.exchangeTokenForJWT(authCode);
             resolve();
           } catch (error) {
             reject(error);
@@ -68,34 +69,13 @@ export class GoogleAuthService implements IAuthService {
   }
 
   async logout(): Promise<void> {
-    const authToken = await this.getAuthToken();
-
-    if (authToken) {
-      try {
-        await fetch(`${this.config.apiEndpoint}/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      } catch (error) {
-        console.error('Error revoking token on server:', error);
-      }
-    }
-
     await this.storageService.remove('authToken');
-    await this.storageService.remove('user');
 
-    this.notifyAuthStateChange(null);
+    this.notifyAuthStateChange(false);
   }
 
   async getAuthToken(): Promise<string | null> {
     return await this.storageService.get<string>('authToken');
-  }
-
-  async getCurrentUser(): Promise<UserProfile | null> {
-    return await this.storageService.get<UserProfile>('user');
   }
 
   async isAuthenticated(): Promise<boolean> {
@@ -103,15 +83,19 @@ export class GoogleAuthService implements IAuthService {
     return !!token;
   }
 
-  onAuthStateChange(callback: (user: UserProfile | null) => void): void {
+  onAuthStateChange(callback: (isAuthenticated: boolean) => void): void {
     this.authStateListeners.push(callback);
   }
 
-  private async exchangeTokenForJWT(googleToken: string): Promise<void> {
-    const response = await fetch(`${this.config.apiEndpoint}/google`, {
+  private async exchangeTokenForJWT(authCode: string): Promise<void> {
+    const redirectUri = chrome.identity.getRedirectURL();
+    const response = await fetch(`${this.config.apiEndpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: googleToken })
+      body: JSON.stringify({
+        code: authCode,
+        redirect_uri: redirectUri
+      })
     });
 
     if (!response.ok) {
@@ -120,22 +104,19 @@ export class GoogleAuthService implements IAuthService {
 
     const data = await response.json();
 
-    if (!data.token || !data.user) {
+    if (!data.token) {
       throw new Error('Invalid response from authentication server');
     }
 
-    await this.storageService.setMultiple({
-      authToken: data.token,
-      user: data.user
-    });
+    await this.storageService.set('authToken', data.token);
 
-    this.notifyAuthStateChange(data.user);
+    this.notifyAuthStateChange(true);
   }
 
-  private notifyAuthStateChange(user: UserProfile | null): void {
+  private notifyAuthStateChange(isAuthenticated: boolean): void {
     this.authStateListeners.forEach(listener => {
       try {
-        listener(user);
+        listener(isAuthenticated);
       } catch (error) {
         console.error('Error in auth state listener:', error);
       }
