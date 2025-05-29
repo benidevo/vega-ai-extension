@@ -151,7 +151,7 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'REINITIALIZE' || message.type === 'JOB_SAVED') {
+  if (message.type === 'REINITIALIZE') {
     debouncedInitialize();
     sendResponse({ success: true });
   }
