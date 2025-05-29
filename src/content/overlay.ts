@@ -10,6 +10,7 @@ export class AscentioOverlay {
   private container: HTMLElement | null = null;
   private button: HTMLButtonElement | null = null;
   private panel: HTMLElement | null = null;
+  private footer: HTMLElement | null = null;
   private isVisible: boolean = false;
   private extractedJob: JobListing | null = null;
   private eventListeners: Array<{ element: Element | Window | Document; event: string; handler: EventListener }> = [];
@@ -77,11 +78,11 @@ export class AscentioOverlay {
 
     const header = this.createPanelHeader();
     const content = this.createPanelContent();
-    const footer = this.createPanelFooter();
+    this.footer = this.createPanelFooter();
 
     this.panel.appendChild(header);
     this.panel.appendChild(content);
-    this.panel.appendChild(footer);
+    this.panel.appendChild(this.footer);
 
     panelWrapper.appendChild(this.panel);
     this.container?.appendChild(panelWrapper);
@@ -149,24 +150,57 @@ export class AscentioOverlay {
 
   private createPanelFooter(): HTMLElement {
     const footer = document.createElement('div');
+    footer.id = 'ascentio-panel-footer';
     footer.className = 'ascentio-panel-footer';
 
     const saveButton = this.createButton('Save to Ascentio', 'primary');
     saveButton.id = 'ascentio-save-btn';
 
     const saveHandler = async () => {
-      if (this.extractedJob) {
-        try {
-          await chrome.storage.local.set({ currentJob: this.extractedJob });
-          await chrome.runtime.sendMessage({
-            type: 'JOB_EXTRACTED',
-            payload: this.extractedJob
-          });
+      if (!this.extractedJob) {
+        this.showError('No job data to save');
+        return;
+      }
+
+      const saveButton = document.getElementById('ascentio-save-btn') as HTMLButtonElement;
+      if (!saveButton) return;
+
+      // Disable button and show loading state
+      const originalText = saveButton.textContent || 'Save to Ascentio';
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+
+      try {
+        // Save job data to local storage
+        await chrome.storage.local.set({ currentJob: this.extractedJob });
+
+        // Send to background for API call
+        const response = await chrome.runtime.sendMessage({
+          type: 'SAVE_JOB',
+          payload: this.extractedJob
+        });
+
+        if (response && response.success) {
           this.showSuccess();
-        } catch (error) {
-          console.error('Ascentio: Failed to save job:', error);
-          this.showError('Failed to save job. Please try again.');
+        } else {
+          const errorMessage = response?.error || 'Failed to save job';
+          this.showError(this.getErrorMessage(errorMessage));
         }
+      } catch (error) {
+        console.error('Ascentio: Failed to save job:', error);
+
+        // Handle specific error types
+        if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+          this.showError('Extension was updated. Please refresh the page and try again.');
+        } else if (error instanceof Error && error.message.includes('Could not establish connection')) {
+          this.showError('Connection lost. Please refresh the page and try again.');
+        } else {
+          this.showError('Unable to save job. Please check your connection and try again.');
+        }
+      } finally {
+        // Restore button state
+        saveButton.disabled = false;
+        saveButton.textContent = originalText;
       }
     };
 
@@ -189,6 +223,11 @@ export class AscentioOverlay {
     if (!container) return;
 
     container.innerHTML = '';
+
+    // Show footer only when displaying data
+    if (this.footer) {
+      this.footer.style.display = state === 'data' ? 'block' : 'none';
+    }
 
     if (state === 'loading') {
       const loadingDiv = document.createElement('div');
@@ -318,6 +357,41 @@ export class AscentioOverlay {
 
       errorDiv.appendChild(iconWrapper);
       errorDiv.appendChild(text);
+
+      // Add retry button for certain errors
+      if (errorMessage && (errorMessage.includes('try again') || errorMessage.includes('connection') || errorMessage.includes('refresh'))) {
+        const retryButton = this.createButton('Try Again', 'primary');
+        retryButton.style.marginTop = '20px';
+
+        const retryHandler = () => {
+          // If it's a refresh error, refresh the page
+          if (errorMessage.includes('refresh')) {
+            window.location.reload();
+          } else {
+            // Otherwise, try to extract job data again
+            this.updatePanelContent(container, 'loading');
+            setTimeout(() => {
+              try {
+                this.extractedJob = extractJobData();
+                if (this.extractedJob) {
+                  this.updatePanelContent(container, 'data');
+                } else {
+                  this.updatePanelContent(container, 'error', 'No job data found on this page');
+                }
+              } catch (error) {
+                console.error('Ascentio: Error extracting job data:', error);
+                this.updatePanelContent(container, 'error', 'Failed to extract job data');
+              }
+            }, 300);
+          }
+        };
+
+        retryButton.addEventListener('click', retryHandler);
+        this.eventListeners.push({ element: retryButton, event: 'click', handler: retryHandler });
+
+        errorDiv.appendChild(retryButton);
+      }
+
       container.appendChild(errorDiv);
     }
   }
@@ -404,6 +478,25 @@ export class AscentioOverlay {
     this.updatePanelContent(content, 'error', message);
   }
 
+  private getErrorMessage(error: string): string {
+    const errorMap: Record<string, string> = {
+      'Network request failed': 'Unable to connect to Ascentio. Please check your internet connection.',
+      'Request timed out': 'The request took too long. Please try again.',
+      'Unauthorized': 'Please log in to Ascentio to save jobs.',
+      'Invalid token': 'Your session has expired. Please log in again.',
+      'Server error': 'Ascentio is experiencing issues. Please try again later.',
+      'Save failed': 'Unable to save the job. Please try again.'
+    };
+
+    for (const [key, value] of Object.entries(errorMap)) {
+      if (error.toLowerCase().includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+
+    return error;
+  }
+
   public destroy(): void {
     this.eventListeners.forEach(({ element, event, handler }) => {
       element.removeEventListener(event, handler);
@@ -414,6 +507,7 @@ export class AscentioOverlay {
     this.container = null;
     this.button = null;
     this.panel = null;
+    this.footer = null;
     this.extractedJob = null;
     this.isVisible = false;
 

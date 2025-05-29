@@ -15,12 +15,26 @@ class Popup {
   }
 
   async initialize(): Promise<void> {
-    const isJobPage = await this.checkIfJobPage();
+    try {
+      const isJobPage = await this.checkIfJobPage();
+      const isAuthenticated = await this.checkAuthStatus();
 
-    // Get authentication status (always true for now - bypassed)
-    const isAuthenticated = true;
+      this.render(isAuthenticated, isJobPage);
+      this.attachEventListeners(isAuthenticated);
+    } catch (error) {
+      console.error('Failed to initialize popup:', error);
+      this.renderError('Unable to load extension status');
+    }
+  }
 
-    this.render(isAuthenticated, isJobPage);
+  private async checkAuthStatus(): Promise<boolean> {
+    try {
+      const result = await chrome.storage.local.get(['authToken', 'user']);
+      return !!(result.authToken && result.user);
+    } catch (error) {
+      console.error('Failed to check auth status:', error);
+      return false;
+    }
   }
 
   private async checkIfJobPage(): Promise<boolean> {
@@ -65,7 +79,7 @@ class Popup {
         </a>
 
         <div class="mt-3 text-center">
-          <a href="#" class="text-xs text-gray-500 hover:text-gray-400 transition-colors">
+          <a href="#" id="signout-btn" class="text-xs text-gray-500 hover:text-gray-400 transition-colors">
             Sign out
           </a>
         </div>
@@ -73,11 +87,83 @@ class Popup {
     } else {
       this.ctaElement.innerHTML = `
         <button
+          id="signin-btn"
           class="w-full px-4 py-3 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-all duration-200"
         >
           Sign in to Ascentio
         </button>
       `;
+    }
+  }
+
+  private renderError(message: string): void {
+    this.statusElement.innerHTML = `
+      <div class="flex items-center justify-center p-3 bg-red-900 bg-opacity-30 rounded-lg border border-red-600 border-opacity-30">
+        <svg class="w-5 h-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span class="text-sm text-red-400">${message}</span>
+      </div>
+    `;
+  }
+
+  private attachEventListeners(isAuthenticated: boolean): void {
+    if (isAuthenticated) {
+      const signoutBtn = document.getElementById('signout-btn');
+      if (signoutBtn) {
+        signoutBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          await this.handleSignOut();
+        });
+      }
+    } else {
+      const signinBtn = document.getElementById('signin-btn');
+      if (signinBtn) {
+        signinBtn.addEventListener('click', async () => {
+          await this.handleSignIn();
+        });
+      }
+    }
+  }
+
+  private async handleSignIn(): Promise<void> {
+    const signinBtn = document.getElementById('signin-btn') as HTMLButtonElement;
+    if (!signinBtn) return;
+
+    const originalText = signinBtn.textContent;
+    signinBtn.disabled = true;
+    signinBtn.textContent = 'Signing in...';
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'LOGIN' });
+
+      if (response && response.success) {
+        await this.initialize();
+      } else {
+        this.renderError(response?.error || 'Failed to sign in');
+        signinBtn.disabled = false;
+        signinBtn.textContent = originalText;
+      }
+    } catch (error) {
+      console.error('Sign in error:', error);
+      this.renderError('Unable to connect to Ascentio');
+      signinBtn.disabled = false;
+      signinBtn.textContent = originalText;
+    }
+  }
+
+  private async handleSignOut(): Promise<void> {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'LOGOUT' });
+
+      if (response && response.success) {
+        await this.initialize();
+      } else {
+        this.renderError(response?.error || 'Failed to sign out');
+      }
+    } catch (error) {
+      console.error('Sign out error:', error);
+      this.renderError('Unable to sign out');
     }
   }
 }
