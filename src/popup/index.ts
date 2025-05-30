@@ -68,7 +68,7 @@ class Popup {
     if (isAuthenticated) {
       this.ctaElement.innerHTML = `
         <a
-          href="https://app.ascentio.com/dashboard"
+          href="http://localhost:8000/jobs"
           target="_blank"
           class="block w-full px-4 py-3 bg-primary hover:bg-primary-dark text-white font-medium text-center rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
         >

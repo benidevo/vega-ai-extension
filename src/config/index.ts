@@ -69,8 +69,8 @@ const configurations: Record<string, Partial<AppConfig>> = {
       scopes: ['openid']
     },
     api: {
-      baseUrl: 'http://localhost:8000/api',
-      authEndpoint: '/auth',
+      baseUrl: 'http://localhost:8000',
+      authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3
     },

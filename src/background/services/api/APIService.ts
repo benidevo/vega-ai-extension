@@ -29,7 +29,7 @@ export class APIService implements IAPIService {
   }
 
   async saveJob(job: JobListing): Promise<SaveJobResponse> {
-    const response = await this.request<SaveJobResponse>('/jobs', {
+    const response = await this.request<SaveJobResponse>('/api/jobs', {
       method: 'POST',
       body: JSON.stringify(job)
     });
