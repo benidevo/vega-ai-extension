@@ -8,6 +8,7 @@ import '@/styles/main.css';
 class Popup {
   private statusElement: HTMLElement;
   private ctaElement: HTMLElement;
+  private isSigningIn = false;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
@@ -127,9 +128,15 @@ class Popup {
   }
 
   private async handleSignIn(): Promise<void> {
+    if (this.isSigningIn) {
+      console.warn('Sign-in already in progress, ignoring duplicate request');
+      return;
+    }
+
     const signinBtn = document.getElementById('signin-btn') as HTMLButtonElement;
     if (!signinBtn) return;
 
+    this.isSigningIn = true;
     const originalText = signinBtn.textContent;
     signinBtn.disabled = true;
     signinBtn.textContent = 'Signing in...';
@@ -149,6 +156,8 @@ class Popup {
       this.renderError('Unable to connect to Ascentio');
       signinBtn.disabled = false;
       signinBtn.textContent = originalText;
+    } finally {
+      this.isSigningIn = false;
     }
   }
 
@@ -168,7 +177,12 @@ class Popup {
   }
 }
 
+// Generate a unique ID for this popup instance
+const popupInstanceId = `popup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+console.log(`Popup instance created: ${popupInstanceId}`);
+
 document.addEventListener('DOMContentLoaded', () => {
+  console.log(`DOMContentLoaded fired for popup instance: ${popupInstanceId}`);
   const popup = new Popup();
   popup.initialize();
 });

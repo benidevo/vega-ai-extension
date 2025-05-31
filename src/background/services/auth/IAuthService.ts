@@ -1,4 +1,5 @@
 import { IService } from '../IService';
+import { AuthToken } from '@/types';
 
 /**
  * Authentication service interface
@@ -18,6 +19,16 @@ export interface IAuthService extends IService {
    * Get current authentication token
    */
   getAuthToken(): Promise<string | null>;
+
+  /**
+   * Get the complete auth token structure
+   */
+  getAuthTokenData(): Promise<AuthToken | null>;
+
+  /**
+   * Refresh the authentication token
+   */
+  refreshAuthToken(): Promise<void>;
 
   /**
    * Check if user is authenticated

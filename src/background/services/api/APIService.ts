@@ -1,17 +1,22 @@
 import { IAPIService, SaveJobResponse, APIConfig, APIError } from './IAPIService';
 import { JobListing } from '@/types';
+import { IAuthService } from '../auth/IAuthService';
 
 export class APIService implements IAPIService {
   private config: APIConfig;
   private authToken: string | null = null;
+  private authService: IAuthService | null = null;
   private isInitialized = false;
+  private refreshingToken = false;
+  private pendingRequests: Array<() => void> = [];
 
-  constructor(config: APIConfig) {
+  constructor(config: APIConfig, authService?: IAuthService) {
     this.config = {
       timeout: 30000,
       retryAttempts: 3,
       ...config
     };
+    this.authService = authService || null;
   }
 
   async initialize(): Promise<void> {
@@ -73,6 +78,47 @@ export class APIService implements IAPIService {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        // Handle 401 Unauthorized
+        if (response.status === 401 && this.authService && attemptNumber === 1) {
+          // Wait if already refreshing
+          if (this.refreshingToken) {
+            await new Promise<void>(resolve => {
+              this.pendingRequests.push(resolve);
+            });
+            // Retry the request after token refresh
+            return this.request<T>(endpoint, { ...options, attemptNumber: attemptNumber + 1 });
+          }
+
+          this.refreshingToken = true;
+          try {
+            await this.authService.refreshAuthToken();
+            const newToken = await this.authService.getAuthToken();
+            this.setAuthToken(newToken);
+
+            this.pendingRequests.forEach(resolve => resolve());
+            this.pendingRequests = [];
+
+            return this.request<T>(endpoint, { ...options, attemptNumber: attemptNumber + 1 });
+          } catch (refreshError: any) {
+            // Token refresh failed, reject all pending requests
+            this.pendingRequests = [];
+
+            if (refreshError.message === 'Refresh token expired') {
+              throw {
+                code: 'AUTH_EXPIRED',
+                message: 'Your session has expired. Please sign in again.'
+              };
+            }
+
+            throw {
+              code: 'AUTH_REFRESH_FAILED',
+              message: 'Failed to refresh authentication. Please try signing in again.'
+            };
+          } finally {
+            this.refreshingToken = false;
+          }
+        }
+
         const error = await this.parseError(response);
         throw error;
       }
@@ -149,6 +195,10 @@ export class APIService implements IAPIService {
       code: 'NETWORK_ERROR',
       message: error.message || 'Network request failed'
     };
+  }
+
+  setAuthService(authService: IAuthService): void {
+    this.authService = authService;
   }
 }
 

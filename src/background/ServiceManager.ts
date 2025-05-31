@@ -40,7 +40,7 @@ export class ServiceManager {
       baseUrl: apiConfig.baseUrl,
       timeout: apiConfig.timeout,
       retryAttempts: apiConfig.retryAttempts
-    });
+    }, this.authService);
 
     this.messageService = new MessageService();
     this.badgeService = new BadgeService();
@@ -87,8 +87,10 @@ export class ServiceManager {
 
   private setupAuthHandlers(): void {
     this.messageService.on(MessageType.LOGIN, (message, sender, sendResponse) => {
+      console.log('LOGIN message received from:', sender.tab?.id || 'popup', 'at', new Date().toISOString());
       this.authService.login()
         .then(() => {
+          console.log('Login successful');
           sendResponse({ success: true });
         })
         .catch((error) => {
@@ -127,7 +129,13 @@ export class ServiceManager {
         .catch(async (error) => {
           console.error('Save job error:', error);
           await this.badgeService.showError();
-          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Save failed' });
+          // Handle API errors with custom messages
+          const errorMessage = error.code === 'AUTH_EXPIRED' 
+            ? error.message 
+            : error.code === 'AUTH_REFRESH_FAILED'
+            ? error.message
+            : error.message || 'Save failed';
+          sendResponse({ success: false, error: errorMessage });
         });
       return true;
     });

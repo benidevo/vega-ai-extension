@@ -11,3 +11,12 @@ export interface JobListing {
   sourceUrl: string;
   notes?: string;
 }
+
+/**
+ * Authentication token structure
+ */
+export interface AuthToken {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number; // Unix timestamp in milliseconds
+}
