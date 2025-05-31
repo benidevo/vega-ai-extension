@@ -87,10 +87,8 @@ export class ServiceManager {
 
   private setupAuthHandlers(): void {
     this.messageService.on(MessageType.LOGIN, (message, sender, sendResponse) => {
-      console.log('LOGIN message received from:', sender.tab?.id || 'popup', 'at', new Date().toISOString());
       this.authService.login()
         .then(() => {
-          console.log('Login successful');
           sendResponse({ success: true });
         })
         .catch((error) => {

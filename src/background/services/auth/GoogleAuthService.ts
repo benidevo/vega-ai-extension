@@ -40,8 +40,6 @@ export class GoogleAuthService implements IAuthService {
 
     try {
       const redirectUri = chrome.identity.getRedirectURL();
-      console.log('Extension redirect URI:', redirectUri);
-      console.log('Client ID being used:', this.config.clientId);
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/auth');
 

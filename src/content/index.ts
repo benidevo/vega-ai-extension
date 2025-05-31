@@ -43,8 +43,6 @@ async function initialize(): Promise<void> {
     isInitializing = true;
 
     if (isSupportedJobPage()) {
-      console.log('Ascentio: Detected supported job page');
-
       if (!overlay) {
         overlay = await AscentioOverlay.create();
       }
@@ -53,8 +51,6 @@ async function initialize(): Promise<void> {
         const jobData = extractJobData();
 
         if (jobData) {
-          console.log('Ascentio: Extracted job data:', jobData);
-
           await chrome.storage.local.set({ currentJob: jobData });
 
           chrome.action.setBadgeText({ text: '1' });

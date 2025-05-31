@@ -15,8 +15,6 @@ export function extractJobData(): JobListing | null {
 
   for (const extractor of extractors) {
     if (extractor.canExtract(currentUrl)) {
-      console.log(`Using ${extractor.siteName} extractor`);
-
       try {
         const jobData = extractor.extract(document);
 
@@ -33,7 +31,6 @@ export function extractJobData(): JobListing | null {
     }
   }
 
-  console.log('No suitable extractor found for URL:', currentUrl);
   return null;
 }
 

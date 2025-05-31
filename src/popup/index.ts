@@ -177,12 +177,7 @@ class Popup {
   }
 }
 
-// Generate a unique ID for this popup instance
-const popupInstanceId = `popup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-console.log(`Popup instance created: ${popupInstanceId}`);
-
 document.addEventListener('DOMContentLoaded', () => {
-  console.log(`DOMContentLoaded fired for popup instance: ${popupInstanceId}`);
   const popup = new Popup();
   popup.initialize();
 });
