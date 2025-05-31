@@ -1,5 +1,7 @@
 # Ascentio Browser Extension
 
+[![CI](https://github.com/benidevo/ascentio-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/ascentio-extension/actions/workflows/ci.yml)
+
 A focused Chrome extension that captures job listings from various job sites and posts them to the Ascentio backend service.
 
 ## 🚀 Features

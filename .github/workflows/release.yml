@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build extension
+      run: npm run build
+
+    - name: Create release zip
+      run: |
+        cd dist
+        zip -r ../ascentio-extension-${{ github.ref_name }}.zip .
+        cd ..
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ascentio-extension-${{ github.ref_name }}.zip
+        generate_release_notes: true
+        body: |
+          ## Chrome Extension Release
+
+          This release includes the built extension ready for installation.
+
+          ### Installation Instructions
+
+          1. Download the `ascentio-extension-${{ github.ref_name }}.zip` file
+          2. Extract the contents to a folder
+          3. Open Chrome and navigate to `chrome://extensions/`
+          4. Enable "Developer mode"
+          5. Click "Load unpacked" and select the extracted folder
+
+          ### What's Changed
+
+          See the auto-generated release notes below.

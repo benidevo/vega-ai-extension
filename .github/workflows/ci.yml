@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  quality-checks:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run TypeScript type checking
+      run: npm run typecheck
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Build extension
+      run: npm run build
+
+    - name: Check build output
+      run: |
+        echo "Checking if build artifacts exist..."
+        if [ ! -d "dist" ]; then
+          echo "Error: dist directory not found after build"
+          exit 1
+        fi
+        if [ ! -f "dist/manifest.json" ]; then
+          echo "Error: manifest.json not found in dist directory"
+          exit 1
+        fi
+        echo "Build artifacts verified successfully"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: extension-build
+        path: dist/
+        retention-days: 7
+
+  security-check:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Run npm audit
+      run: npm audit --audit-level=high
+      continue-on-error: true
+
+    - name: Check for known vulnerabilities
+      run: npx better-npm-audit audit --level high
+      continue-on-error: true
