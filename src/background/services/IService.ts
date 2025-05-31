@@ -18,5 +18,5 @@ export interface IService {
  */
 export interface ServiceConfig {
   debug?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }

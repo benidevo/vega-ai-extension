@@ -17,7 +17,7 @@ export interface IMessageService extends IService {
   /**
    * Send message to a specific tab
    */
-  sendToTab(tabId: number, message: ExtensionMessage): Promise<any>;
+  sendToTab(tabId: number, message: ExtensionMessage): Promise<unknown>;
 }
 
 /**
@@ -26,7 +26,7 @@ export interface IMessageService extends IService {
 export type MessageHandler = (
   message: ExtensionMessage,
   sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: any) => void
+  sendResponse: (response?: unknown) => void
 ) => boolean | void;
 
 /**
@@ -34,7 +34,7 @@ export type MessageHandler = (
  */
 export interface ExtensionMessage {
   type: string;
-  payload?: any;
+  payload?: unknown;
   error?: string;
 }
 
@@ -49,7 +49,7 @@ export enum MessageType {
   // Auth-related messages
   LOGIN = 'LOGIN',
   LOGOUT = 'LOGOUT',
-  
+
   // UI-related messages
-  OPEN_POPUP = 'OPEN_POPUP'
+  OPEN_POPUP = 'OPEN_POPUP',
 }

@@ -124,8 +124,55 @@ npm run dev         # Development build with watch mode
 npm run build       # Production build
 npm run clean       # Clean dist directory
 npm run lint        # Run ESLint
+npm run lint:fix    # Run ESLint with auto-fix
+npm run format      # Format code with Prettier
+npm run format:check # Check code formatting
 npm run typecheck   # Run TypeScript compiler checks
+npm run test        # Run Jest tests
+npm run test:watch  # Run Jest in watch mode
+npm run test:coverage # Run Jest with coverage
 ```
+
+### Git Hooks & Code Quality
+
+This project uses **Husky** and **lint-staged** to ensure code quality through automated pre-commit hooks.
+
+#### Pre-commit Hooks
+
+Every commit automatically runs:
+
+- **Linting & Formatting**: ESLint + Prettier on staged files
+- **Type Checking**: TypeScript compilation check
+- **Testing**: Complete test suite
+
+#### Setup Details
+
+- **Husky**: Manages Git hooks
+- **lint-staged**: Runs tasks only on staged files for performance
+- **Prettier**: Code formatting with ESLint integration
+- **Pre-commit**: Validates code before commits
+
+#### Manual Quality Checks
+
+```bash
+# Run all quality checks manually
+npm run lint        # Check linting issues
+npm run lint:fix    # Auto-fix linting issues
+npm run format      # Auto-format all code
+npm run typecheck   # Check TypeScript types
+npm run test        # Run full test suite
+```
+
+#### CI/CD Pipeline
+
+The CI pipeline runs the same checks:
+
+1. TypeScript compilation
+2. ESLint linting
+3. Prettier formatting check
+4. Jest test suite
+5. Production build
+6. Security audit
 
 ### Adding New Job Sites
 

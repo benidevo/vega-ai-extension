@@ -27,12 +27,14 @@ export interface IStorageService extends IService {
   /**
    * Get multiple values from storage
    */
-  getMultiple<T extends Record<string, any>>(keys: string[]): Promise<Partial<T>>;
+  getMultiple<T extends Record<string, unknown>>(
+    keys: string[]
+  ): Promise<Partial<T>>;
 
   /**
    * Set multiple values in storage
    */
-  setMultiple(items: Record<string, any>): Promise<void>;
+  setMultiple(items: Record<string, unknown>): Promise<void>;
 }
 
 /**

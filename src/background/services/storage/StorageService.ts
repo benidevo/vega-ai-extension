@@ -18,8 +18,8 @@ export class StorageService implements IStorageService {
   }
 
   async get<T>(key: string): Promise<T | null> {
-    return new Promise((resolve) => {
-      this.area.get(key, (result) => {
+    return new Promise(resolve => {
+      this.area.get(key, result => {
         if (chrome.runtime.lastError) {
           console.error('Storage get error:', chrome.runtime.lastError);
           resolve(null);
@@ -66,9 +66,11 @@ export class StorageService implements IStorageService {
     });
   }
 
-  async getMultiple<T extends Record<string, any>>(keys: string[]): Promise<Partial<T>> {
-    return new Promise((resolve) => {
-      this.area.get(keys, (result) => {
+  async getMultiple<T extends Record<string, unknown>>(
+    keys: string[]
+  ): Promise<Partial<T>> {
+    return new Promise(resolve => {
+      this.area.get(keys, result => {
         if (chrome.runtime.lastError) {
           console.error('Storage getMultiple error:', chrome.runtime.lastError);
           resolve({} as Partial<T>);
@@ -79,7 +81,7 @@ export class StorageService implements IStorageService {
     });
   }
 
-  async setMultiple(items: Record<string, any>): Promise<void> {
+  async setMultiple(items: Record<string, unknown>): Promise<void> {
     return new Promise((resolve, reject) => {
       this.area.set(items, () => {
         if (chrome.runtime.lastError) {
@@ -90,5 +92,4 @@ export class StorageService implements IStorageService {
       });
     });
   }
-
 }

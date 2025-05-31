@@ -28,7 +28,7 @@ export interface SaveJobResponse {
 export interface APIError {
   code: string;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 /**

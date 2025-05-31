@@ -62,5 +62,4 @@ export class BadgeService implements IBadgeService {
       this.clear();
     }, 5000);
   }
-
 }

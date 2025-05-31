@@ -1,9 +1,19 @@
-import { IMessageService, MessageHandler, ExtensionMessage } from './IMessageService';
+import {
+  IMessageService,
+  MessageHandler,
+  ExtensionMessage,
+} from './IMessageService';
 
 export class MessageService implements IMessageService {
   private handlers: Map<string, Set<MessageHandler>> = new Map();
   private isInitialized = false;
-  private messageListener: any;
+  private messageListener:
+    | ((
+        message: ExtensionMessage,
+        sender: chrome.runtime.MessageSender,
+        sendResponse: (response?: unknown) => void
+      ) => boolean)
+    | null = null;
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
@@ -12,7 +22,7 @@ export class MessageService implements IMessageService {
     this.messageListener = (
       message: ExtensionMessage,
       sender: chrome.runtime.MessageSender,
-      sendResponse: (response?: any) => void
+      sendResponse: (response?: unknown) => void
     ) => {
       const handlers = this.handlers.get(message.type);
       if (!handlers || handlers.size === 0) {
@@ -29,7 +39,9 @@ export class MessageService implements IMessageService {
           }
         } catch (error) {
           console.error(`Error in message handler for ${message.type}:`, error);
-          sendResponse({ error: error instanceof Error ? error.message : 'Handler error' });
+          sendResponse({
+            error: error instanceof Error ? error.message : 'Handler error',
+          });
         }
       });
 
@@ -73,9 +85,9 @@ export class MessageService implements IMessageService {
     }
   }
 
-  async sendToTab(tabId: number, message: ExtensionMessage): Promise<any> {
+  async sendToTab(tabId: number, message: ExtensionMessage): Promise<unknown> {
     return new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tabId, message, (response) => {
+      chrome.tabs.sendMessage(tabId, message, response => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
         } else {
@@ -84,12 +96,15 @@ export class MessageService implements IMessageService {
       });
     });
   }
-
 }
 
 /**
  * Utility function to create a message
  */
-export function createMessage(type: string, payload?: any, error?: string): ExtensionMessage {
+export function createMessage(
+  type: string,
+  payload?: unknown,
+  error?: string
+): ExtensionMessage {
   return { type, payload, error };
 }

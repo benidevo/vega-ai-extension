@@ -33,7 +33,7 @@ export function sanitizeJobListing(job: JobListing): JobListing {
     description: (job.description || '').trim(),
     sourceUrl: job.sourceUrl.trim(),
     applicationUrl: job.applicationUrl?.trim(),
-    notes: job.notes?.trim()
+    notes: job.notes?.trim(),
   };
 }
 
@@ -47,16 +47,32 @@ export function cleanUrl(url: string): string {
     const urlObj = new URL(url);
 
     const trackingParams = [
-      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-      'fbclid', 'gclid', 'msclkid', 'ref', 'refId', 'trk', 'trackingId',
-      'WT.mc_id', 'pk_campaign', 'pk_source', 'pk_medium'
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_term',
+      'utm_content',
+      'fbclid',
+      'gclid',
+      'msclkid',
+      'ref',
+      'refId',
+      'trk',
+      'trackingId',
+      'WT.mc_id',
+      'pk_campaign',
+      'pk_source',
+      'pk_medium',
     ];
 
     trackingParams.forEach(param => {
       urlObj.searchParams.delete(param);
     });
 
-    if (urlObj.hostname.includes('linkedin.com') && urlObj.pathname.includes('/jobs/view/')) {
+    if (
+      urlObj.hostname.includes('linkedin.com') &&
+      urlObj.pathname.includes('/jobs/view/')
+    ) {
       const pathParts = urlObj.pathname.split('/');
       const jobIdIndex = pathParts.indexOf('view') + 1;
       if (jobIdIndex > 0 && pathParts[jobIdIndex]) {

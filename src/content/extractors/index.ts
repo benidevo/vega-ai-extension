@@ -3,9 +3,7 @@ import { IJobExtractor } from './IJobExtractor';
 import { LinkedInExtractor } from './linkedin';
 import { isValidJobListing, sanitizeJobListing } from '../../utils/validation';
 
-const extractors: IJobExtractor[] = [
-  new LinkedInExtractor()
-];
+const extractors: IJobExtractor[] = [new LinkedInExtractor()];
 
 /**
  * Main extractor function that determines which extractor to use
@@ -21,11 +19,17 @@ export function extractJobData(): JobListing | null {
         if (jobData && isValidJobListing(jobData)) {
           return sanitizeJobListing(jobData);
         } else {
-          console.warn('Ascentio: Extracted job data failed validation:', jobData);
+          console.warn(
+            'Ascentio: Extracted job data failed validation:',
+            jobData
+          );
           return null;
         }
       } catch (error) {
-        console.error(`Ascentio: Error in ${extractor.siteName} extractor:`, error);
+        console.error(
+          `Ascentio: Error in ${extractor.siteName} extractor:`,
+          error
+        );
         return null;
       }
     }

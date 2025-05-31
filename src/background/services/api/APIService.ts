@@ -1,4 +1,9 @@
-import { IAPIService, SaveJobResponse, APIConfig, APIError } from './IAPIService';
+import {
+  IAPIService,
+  SaveJobResponse,
+  APIConfig,
+  APIError,
+} from './IAPIService';
 import { JobListing } from '@/types';
 import { IAuthService } from '../auth/IAuthService';
 
@@ -14,7 +19,7 @@ export class APIService implements IAPIService {
     this.config = {
       timeout: 30000,
       retryAttempts: 3,
-      ...config
+      ...config,
     };
     this.authService = authService || null;
   }
@@ -36,13 +41,13 @@ export class APIService implements IAPIService {
   async saveJob(job: JobListing): Promise<SaveJobResponse> {
     const response = await this.request<SaveJobResponse>('/api/jobs', {
       method: 'POST',
-      body: JSON.stringify(job)
+      body: JSON.stringify(job),
     });
 
     return response;
   }
 
-  private async request<T = any>(
+  private async request<T = unknown>(
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<T> {
@@ -57,7 +62,7 @@ export class APIService implements IAPIService {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {})
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     if (this.authToken) {
@@ -72,21 +77,28 @@ export class APIService implements IAPIService {
         method,
         headers,
         body,
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
         // Handle 401 Unauthorized
-        if (response.status === 401 && this.authService && attemptNumber === 1) {
+        if (
+          response.status === 401 &&
+          this.authService &&
+          attemptNumber === 1
+        ) {
           // Wait if already refreshing
           if (this.refreshingToken) {
             await new Promise<void>(resolve => {
               this.pendingRequests.push(resolve);
             });
             // Retry the request after token refresh
-            return this.request<T>(endpoint, { ...options, attemptNumber: attemptNumber + 1 });
+            return this.request<T>(endpoint, {
+              ...options,
+              attemptNumber: attemptNumber + 1,
+            });
           }
 
           this.refreshingToken = true;
@@ -98,21 +110,28 @@ export class APIService implements IAPIService {
             this.pendingRequests.forEach(resolve => resolve());
             this.pendingRequests = [];
 
-            return this.request<T>(endpoint, { ...options, attemptNumber: attemptNumber + 1 });
-          } catch (refreshError: any) {
+            return this.request<T>(endpoint, {
+              ...options,
+              attemptNumber: attemptNumber + 1,
+            });
+          } catch (refreshError: unknown) {
             // Token refresh failed, reject all pending requests
             this.pendingRequests = [];
 
-            if (refreshError.message === 'Refresh token expired') {
+            if (
+              refreshError instanceof Error &&
+              refreshError.message === 'Refresh token expired'
+            ) {
               throw {
                 code: 'AUTH_EXPIRED',
-                message: 'Your session has expired. Please sign in again.'
+                message: 'Your session has expired. Please sign in again.',
               };
             }
 
             throw {
               code: 'AUTH_REFRESH_FAILED',
-              message: 'Failed to refresh authentication. Please try signing in again.'
+              message:
+                'Failed to refresh authentication. Please try signing in again.',
             };
           } finally {
             this.refreshingToken = false;
@@ -128,12 +147,16 @@ export class APIService implements IAPIService {
     } catch (error) {
       clearTimeout(timeoutId);
 
-      if (this.shouldRetry(error, attemptNumber)) {
+      const normalizedError = this.normalizeError(error);
+      if (this.shouldRetry(normalizedError, attemptNumber)) {
         await this.delay(this.getRetryDelay(attemptNumber));
-        return this.request<T>(endpoint, { ...options, attemptNumber: attemptNumber + 1 });
+        return this.request<T>(endpoint, {
+          ...options,
+          attemptNumber: attemptNumber + 1,
+        });
       }
 
-      throw this.normalizeError(error);
+      throw normalizedError;
     }
   }
 
@@ -143,27 +166,34 @@ export class APIService implements IAPIService {
       return {
         code: errorData.code || 'API_ERROR',
         message: errorData.message || response.statusText,
-        details: errorData.details
+        details: errorData.details,
       };
     } catch {
       return {
         code: 'API_ERROR',
-        message: response.statusText || 'Request failed'
+        message: response.statusText || 'Request failed',
       };
     }
   }
 
-  private shouldRetry(error: any, attemptNumber: number): boolean {
+  private shouldRetry(error: APIError, attemptNumber: number): boolean {
     if (attemptNumber >= this.config.retryAttempts!) {
       return false;
     }
 
     // Retry on network errors or 5xx server errors
-    if (error.name === 'AbortError' || error.code === 'NETWORK_ERROR') {
+    if (error.code === 'TIMEOUT_ERROR' || error.code === 'NETWORK_ERROR') {
       return true;
     }
 
-    if (error.code === 'API_ERROR' && error.details?.status >= 500) {
+    if (
+      error.code === 'API_ERROR' &&
+      error.details &&
+      typeof error.details === 'object' &&
+      'status' in error.details &&
+      typeof error.details.status === 'number' &&
+      error.details.status >= 500
+    ) {
       return true;
     }
 
@@ -179,21 +209,27 @@ export class APIService implements IAPIService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  private normalizeError(error: any): APIError {
-    if (error.code && error.message) {
-      return error;
+  private normalizeError(error: unknown): APIError {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      'message' in error
+    ) {
+      return error as APIError;
     }
 
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       return {
         code: 'TIMEOUT_ERROR',
-        message: 'Request timed out'
+        message: 'Request timed out',
       };
     }
 
     return {
       code: 'NETWORK_ERROR',
-      message: error.message || 'Network request failed'
+      message:
+        error instanceof Error ? error.message : 'Network request failed',
     };
   }
 

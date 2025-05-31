@@ -1,6 +1,8 @@
 const js = require('@eslint/js');
 const typescript = require('@typescript-eslint/eslint-plugin');
 const typescriptParser = require('@typescript-eslint/parser');
+const prettier = require('eslint-plugin-prettier');
+const prettierConfig = require('eslint-config-prettier');
 const globals = require('globals');
 
 module.exports = [
@@ -20,10 +22,12 @@ module.exports = [
       }
     },
     plugins: {
-      '@typescript-eslint': typescript
+      '@typescript-eslint': typescript,
+      prettier: prettier
     },
     rules: {
       ...js.configs.recommended.rules,
+      ...prettierConfig.rules,
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { 
         argsIgnorePattern: '^_',
@@ -32,7 +36,8 @@ module.exports = [
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       'no-console': 'off',
-      'no-undef': 'off'
+      'no-undef': 'off',
+      'prettier/prettier': 'error'
     }
   }
 ];

@@ -56,12 +56,14 @@ async function initialize(): Promise<void> {
           chrome.action.setBadgeText({ text: '1' });
           chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
 
-          chrome.runtime.sendMessage({
-            type: 'JOB_EXTRACTED',
-            payload: jobData
-          }).catch(err => {
-            console.error('Ascentio: Failed to send message:', err);
-          });
+          chrome.runtime
+            .sendMessage({
+              type: 'JOB_EXTRACTED',
+              payload: jobData,
+            })
+            .catch(err => {
+              console.error('Ascentio: Failed to send message:', err);
+            });
         }
       } catch (extractionError) {
         console.error('Ascentio: Failed to extract job data:', extractionError);
@@ -88,7 +90,7 @@ const initializeWhenVisible = () => {
       '.job-details-jobs-unified-top-card',
       '[data-job-id]',
       'main',
-      '#main'
+      '#main',
     ];
 
     let targetElement: Element | null = null;
@@ -98,17 +100,20 @@ const initializeWhenVisible = () => {
     }
 
     if (targetElement) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting && !hasInitialized) {
-            hasInitialized = true;
-            debouncedInitialize();
-            observer.disconnect();
-          }
-        });
-      }, {
-        threshold: 0.1 // Trigger when 10% of the element is visible
-      });
+      const observer = new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting && !hasInitialized) {
+              hasInitialized = true;
+              debouncedInitialize();
+              observer.disconnect();
+            }
+          });
+        },
+        {
+          threshold: 0.1, // Trigger when 10% of the element is visible
+        }
+      );
 
       observer.observe(targetElement);
     } else {
@@ -142,7 +147,10 @@ window.addEventListener('load', () => {
   initializeWhenVisible();
 });
 
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
+if (
+  document.readyState === 'complete' ||
+  document.readyState === 'interactive'
+) {
   initializeWhenVisible();
 }
 

@@ -36,5 +36,5 @@ export interface IBadgeService extends IService {
 export const BadgeColors = {
   SUCCESS: '#4CAF50',
   ERROR: '#F44336',
-  DEFAULT: '#757575'
+  DEFAULT: '#757575',
 } as const;

@@ -1,6 +1,10 @@
 import { JobListing } from '@/types';
 import { IJobExtractor } from './IJobExtractor';
-import { cleanUrl, isValidJobListing, sanitizeJobListing } from '../../utils/validation';
+import {
+  cleanUrl,
+  isValidJobListing,
+  sanitizeJobListing,
+} from '../../utils/validation';
 
 /**
  * Extracts job listing information from LinkedIn job pages.
@@ -36,13 +40,21 @@ export class LinkedInExtractor implements IJobExtractor {
   }
 
   private extractFromDOM(doc: Document, url: string): JobListing | null {
-    const title = this.getText(doc.querySelector('.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.jobs-unified-top-card__job-title'));
-    const company = this.getText(doc.querySelector('.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__primary-description a'));
+    const title = this.getText(
+      doc.querySelector(
+        '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.jobs-unified-top-card__job-title'
+      )
+    );
+    const company = this.getText(
+      doc.querySelector(
+        '.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__primary-description a'
+      )
+    );
 
     const locationSelectors = [
       '.job-details-jobs-unified-top-card__primary-description-container span:nth-child(1)',
       '.jobs-unified-top-card__primary-description span',
-      '[class*="job-details-jobs-unified-top-card__primary-description"]'
+      '[class*="job-details-jobs-unified-top-card__primary-description"]',
     ];
 
     let location = '';
@@ -51,14 +63,26 @@ export class LinkedInExtractor implements IJobExtractor {
       if (element) {
         const text = this.getText(element);
         // Extract location from text that might include other info
-        if (text && !text.includes('applicants') && !text.includes('Easy Apply')) {
-          location = text.split('·').map(s => s.trim()).find(s => s.length > 0) || text;
+        if (
+          text &&
+          !text.includes('applicants') &&
+          !text.includes('Easy Apply')
+        ) {
+          location =
+            text
+              .split('·')
+              .map(s => s.trim())
+              .find(s => s.length > 0) || text;
           break;
         }
       }
     }
 
-    const description = this.getText(doc.querySelector('.jobs-description__content, .jobs-description-content__text'));
+    const description = this.getText(
+      doc.querySelector(
+        '.jobs-description__content, .jobs-description-content__text'
+      )
+    );
 
     if (!title || !company) {
       return null;
@@ -92,7 +116,7 @@ export class LinkedInExtractor implements IJobExtractor {
       '.job-details-jobs-unified-top-card__job-insight-view-model-secondary',
       '.jobs-unified-top-card__job-insight',
       '.jobs-details-top-card__job-info',
-      '[class*="job-details"] span'
+      '[class*="job-details"] span',
     ];
 
     let jobTypeText = '';
@@ -103,22 +127,46 @@ export class LinkedInExtractor implements IJobExtractor {
       });
     }
 
-    if (jobTypeText.includes('full-time') || jobTypeText.includes('full time') || jobTypeText.includes('fulltime')) {
+    if (
+      jobTypeText.includes('full-time') ||
+      jobTypeText.includes('full time') ||
+      jobTypeText.includes('fulltime')
+    ) {
       return 'full_time';
     }
-    if (jobTypeText.includes('part-time') || jobTypeText.includes('part time') || jobTypeText.includes('parttime')) {
+    if (
+      jobTypeText.includes('part-time') ||
+      jobTypeText.includes('part time') ||
+      jobTypeText.includes('parttime')
+    ) {
       return 'part_time';
     }
-    if (jobTypeText.includes('contract') || jobTypeText.includes('contractor') || jobTypeText.includes('fixed-term')) {
+    if (
+      jobTypeText.includes('contract') ||
+      jobTypeText.includes('contractor') ||
+      jobTypeText.includes('fixed-term')
+    ) {
       return 'contract';
     }
-    if (jobTypeText.includes('intern') || jobTypeText.includes('internship') || jobTypeText.includes('co-op')) {
+    if (
+      jobTypeText.includes('intern') ||
+      jobTypeText.includes('internship') ||
+      jobTypeText.includes('co-op')
+    ) {
       return 'intern';
     }
-    if (jobTypeText.includes('freelance') || jobTypeText.includes('freelancer') || jobTypeText.includes('consultant')) {
+    if (
+      jobTypeText.includes('freelance') ||
+      jobTypeText.includes('freelancer') ||
+      jobTypeText.includes('consultant')
+    ) {
       return 'freelance';
     }
-    if (jobTypeText.includes('remote') || jobTypeText.includes('work from home') || jobTypeText.includes('wfh')) {
+    if (
+      jobTypeText.includes('remote') ||
+      jobTypeText.includes('work from home') ||
+      jobTypeText.includes('wfh')
+    ) {
       return 'remote';
     }
 

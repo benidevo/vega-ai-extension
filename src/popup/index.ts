@@ -39,10 +39,13 @@ class Popup {
   }
 
   private async checkIfJobPage(): Promise<boolean> {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     const url = tab.url || '';
 
-    return url.includes('linkedin.com/jobs/view/')
+    return url.includes('linkedin.com/jobs/view/');
   }
 
   private render(isAuthenticated: boolean, isJobPage: boolean): void {
@@ -112,7 +115,7 @@ class Popup {
     if (isAuthenticated) {
       const signoutBtn = document.getElementById('signout-btn');
       if (signoutBtn) {
-        signoutBtn.addEventListener('click', async (e) => {
+        signoutBtn.addEventListener('click', async e => {
           e.preventDefault();
           await this.handleSignOut();
         });
@@ -133,7 +136,9 @@ class Popup {
       return;
     }
 
-    const signinBtn = document.getElementById('signin-btn') as HTMLButtonElement;
+    const signinBtn = document.getElementById(
+      'signin-btn'
+    ) as HTMLButtonElement;
     if (!signinBtn) return;
 
     this.isSigningIn = true;

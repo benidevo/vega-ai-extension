@@ -14,7 +14,11 @@ export class AscentioOverlay {
   private isVisible: boolean = false;
   private isAuthenticated: boolean = false;
   private extractedJob: JobListing | null = null;
-  private eventListeners: Array<{ element: Element | Window | Document; event: string; handler: EventListener }> = [];
+  private eventListeners: Array<{
+    element: Element | Window | Document;
+    event: string;
+    handler: EventListener;
+  }> = [];
 
   private constructor() {}
 
@@ -46,7 +50,8 @@ export class AscentioOverlay {
   private createContainer(): void {
     const root = document.createElement('div');
     root.id = 'ascentio-root';
-    root.style.cssText = 'position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647;';
+    root.style.cssText =
+      'position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647;';
     document.body.appendChild(root);
 
     const style = document.createElement('style');
@@ -110,10 +115,12 @@ export class AscentioOverlay {
     header.className = 'ascentio-panel-header';
 
     const titleWrapper = document.createElement('div');
-    titleWrapper.className = 'ascentio-flex ascentio-items-center ascentio-justify-between';
+    titleWrapper.className =
+      'ascentio-flex ascentio-items-center ascentio-justify-between';
 
     const brandingWrapper = document.createElement('div');
-    brandingWrapper.className = 'ascentio-flex ascentio-items-center ascentio-gap-2';
+    brandingWrapper.className =
+      'ascentio-flex ascentio-items-center ascentio-gap-2';
 
     const logo = document.createElement('img');
     logo.src = chrome.runtime.getURL('icons/icon48.png');
@@ -146,7 +153,11 @@ export class AscentioOverlay {
     closeButton.appendChild(svg);
     const closeHandler = () => this.hidePanel();
     closeButton.addEventListener('click', closeHandler);
-    this.eventListeners.push({ element: closeButton, event: 'click', handler: closeHandler });
+    this.eventListeners.push({
+      element: closeButton,
+      event: 'click',
+      handler: closeHandler,
+    });
 
     titleWrapper.appendChild(brandingWrapper);
     titleWrapper.appendChild(closeButton);
@@ -186,7 +197,9 @@ export class AscentioOverlay {
         return;
       }
 
-      const saveButton = document.getElementById('ascentio-save-btn') as HTMLButtonElement;
+      const saveButton = document.getElementById(
+        'ascentio-save-btn'
+      ) as HTMLButtonElement;
       if (!saveButton) return;
 
       // Disable button and show loading state
@@ -201,7 +214,7 @@ export class AscentioOverlay {
         // Send to background for API call
         const response = await chrome.runtime.sendMessage({
           type: 'SAVE_JOB',
-          payload: this.extractedJob
+          payload: this.extractedJob,
         });
 
         if (response && response.success) {
@@ -214,12 +227,24 @@ export class AscentioOverlay {
         console.error('Ascentio: Failed to save job:', error);
 
         // Handle specific error types
-        if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-          this.showError('Extension was updated. Please refresh the page and try again.');
-        } else if (error instanceof Error && error.message.includes('Could not establish connection')) {
-          this.showError('Connection lost. Please refresh the page and try again.');
+        if (
+          error instanceof Error &&
+          error.message.includes('Extension context invalidated')
+        ) {
+          this.showError(
+            'Extension was updated. Please refresh the page and try again.'
+          );
+        } else if (
+          error instanceof Error &&
+          error.message.includes('Could not establish connection')
+        ) {
+          this.showError(
+            'Connection lost. Please refresh the page and try again.'
+          );
         } else {
-          this.showError('Unable to save job. Please check your connection and try again.');
+          this.showError(
+            'Unable to save job. Please check your connection and try again.'
+          );
         }
       } finally {
         // Restore button state
@@ -229,21 +254,33 @@ export class AscentioOverlay {
     };
 
     saveButton.addEventListener('click', saveHandler);
-    this.eventListeners.push({ element: saveButton, event: 'click', handler: saveHandler });
+    this.eventListeners.push({
+      element: saveButton,
+      event: 'click',
+      handler: saveHandler,
+    });
 
     footer.appendChild(saveButton);
 
     return footer;
   }
 
-  private createButton(text: string, variant: 'primary' | 'secondary'): HTMLButtonElement {
+  private createButton(
+    text: string,
+    variant: 'primary' | 'secondary'
+  ): HTMLButtonElement {
     const button = document.createElement('button');
     button.textContent = text;
-    button.className = variant === 'primary' ? 'ascentio-btn-primary' : 'ascentio-btn-secondary';
+    button.className =
+      variant === 'primary' ? 'ascentio-btn-primary' : 'ascentio-btn-secondary';
     return button;
   }
 
-  private updatePanelContent(container: HTMLElement | null, state: 'loading' | 'success' | 'error' | 'data', errorMessage?: string): void {
+  private updatePanelContent(
+    container: HTMLElement | null,
+    state: 'loading' | 'success' | 'error' | 'data',
+    errorMessage?: string
+  ): void {
     if (!container) return;
 
     container.innerHTML = '';
@@ -317,7 +354,11 @@ export class AscentioOverlay {
       };
 
       notesTextarea.addEventListener('input', notesHandler);
-      this.eventListeners.push({ element: notesTextarea, event: 'input', handler: notesHandler });
+      this.eventListeners.push({
+        element: notesTextarea,
+        event: 'input',
+        handler: notesHandler,
+      });
 
       notesDiv.appendChild(notesLabel);
       notesDiv.appendChild(notesTextarea);
@@ -338,7 +379,10 @@ export class AscentioOverlay {
       svg.setAttribute('stroke', '#10B981');
       svg.setAttribute('stroke-width', '3');
 
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const path = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'path'
+      );
       path.setAttribute('d', 'M20 6L9 17l-5-5');
       svg.appendChild(path);
 
@@ -358,7 +402,8 @@ export class AscentioOverlay {
 
       const iconWrapper = document.createElement('div');
       iconWrapper.className = 'ascentio-error-icon';
-      iconWrapper.style.cssText = 'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
+      iconWrapper.style.cssText =
+        'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
 
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('width', '30');
@@ -368,7 +413,10 @@ export class AscentioOverlay {
       svg.setAttribute('stroke', '#EF4444');
       svg.setAttribute('stroke-width', '3');
 
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const path = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'path'
+      );
       path.setAttribute('d', 'M6 18L18 6M6 6l12 12');
       svg.appendChild(path);
 
@@ -376,14 +424,20 @@ export class AscentioOverlay {
 
       const text = document.createElement('p');
       text.className = 'ascentio-error-text';
-      text.style.cssText = 'margin-top: 16px; color: #EF4444; font-size: 16px; font-weight: 500;';
+      text.style.cssText =
+        'margin-top: 16px; color: #EF4444; font-size: 16px; font-weight: 500;';
       text.textContent = errorMessage || 'Failed to extract job data';
 
       errorDiv.appendChild(iconWrapper);
       errorDiv.appendChild(text);
 
       // Add retry button for certain errors
-      if (errorMessage && (errorMessage.includes('try again') || errorMessage.includes('connection') || errorMessage.includes('refresh'))) {
+      if (
+        errorMessage &&
+        (errorMessage.includes('try again') ||
+          errorMessage.includes('connection') ||
+          errorMessage.includes('refresh'))
+      ) {
         const retryButton = this.createButton('Try Again', 'primary');
         retryButton.style.marginTop = '20px';
 
@@ -400,18 +454,30 @@ export class AscentioOverlay {
                 if (this.extractedJob) {
                   this.updatePanelContent(container, 'data');
                 } else {
-                  this.updatePanelContent(container, 'error', 'No job data found on this page');
+                  this.updatePanelContent(
+                    container,
+                    'error',
+                    'No job data found on this page'
+                  );
                 }
               } catch (error) {
                 console.error('Ascentio: Error extracting job data:', error);
-                this.updatePanelContent(container, 'error', 'Failed to extract job data');
+                this.updatePanelContent(
+                  container,
+                  'error',
+                  'Failed to extract job data'
+                );
               }
             }, 300);
           }
         };
 
         retryButton.addEventListener('click', retryHandler);
-        this.eventListeners.push({ element: retryButton, event: 'click', handler: retryHandler });
+        this.eventListeners.push({
+          element: retryButton,
+          event: 'click',
+          handler: retryHandler,
+        });
 
         errorDiv.appendChild(retryButton);
       }
@@ -422,16 +488,21 @@ export class AscentioOverlay {
 
   private formatJobType(type?: string): string {
     if (!type) return 'Not specified';
-    return type.split('_').map(word =>
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+    return type
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   private attachEventListeners(): void {
     if (this.button) {
       const clickHandler = () => this.togglePanel();
       this.button.addEventListener('click', clickHandler);
-      this.eventListeners.push({ element: this.button, event: 'click', handler: clickHandler });
+      this.eventListeners.push({
+        element: this.button,
+        event: 'click',
+        handler: clickHandler,
+      });
     }
   }
 
@@ -475,7 +546,11 @@ export class AscentioOverlay {
         if (this.extractedJob) {
           this.updatePanelContent(content, 'data');
         } else {
-          this.updatePanelContent(content, 'error', 'No job data found on this page');
+          this.updatePanelContent(
+            content,
+            'error',
+            'No job data found on this page'
+          );
         }
       } catch (error) {
         console.error('Ascentio: Error extracting job data:', error);
@@ -524,7 +599,8 @@ export class AscentioOverlay {
     authDiv.style.padding = '40px 20px';
 
     const iconWrapper = document.createElement('div');
-    iconWrapper.style.cssText = 'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
+    iconWrapper.style.cssText =
+      'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '30');
@@ -535,13 +611,17 @@ export class AscentioOverlay {
     svg.setAttribute('stroke-width', '2');
 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z');
+    path.setAttribute(
+      'd',
+      'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
+    );
     svg.appendChild(path);
 
     iconWrapper.appendChild(svg);
 
     const title = document.createElement('h3');
-    title.style.cssText = 'margin-top: 16px; color: #1F2937; font-size: 18px; font-weight: 600;';
+    title.style.cssText =
+      'margin-top: 16px; color: #1F2937; font-size: 18px; font-weight: 600;';
     title.textContent = 'Sign In Required';
 
     const text = document.createElement('p');
@@ -556,7 +636,8 @@ export class AscentioOverlay {
       chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, () => {
         // Show instruction after sending message
         const instruction = document.createElement('p');
-        instruction.style.cssText = 'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
+        instruction.style.cssText =
+          'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
         instruction.textContent = '→ Click the Ascentio icon in your toolbar';
         authDiv.appendChild(instruction);
 
@@ -566,7 +647,11 @@ export class AscentioOverlay {
     };
 
     signInButton.addEventListener('click', signInHandler);
-    this.eventListeners.push({ element: signInButton, event: 'click', handler: signInHandler });
+    this.eventListeners.push({
+      element: signInButton,
+      event: 'click',
+      handler: signInHandler,
+    });
 
     authDiv.appendChild(iconWrapper);
     authDiv.appendChild(title);
@@ -577,12 +662,14 @@ export class AscentioOverlay {
 
   private getErrorMessage(error: string): string {
     const errorMap: Record<string, string> = {
-      'Network request failed': 'Unable to connect to Ascentio. Please check your internet connection.',
+      'Network request failed':
+        'Unable to connect to Ascentio. Please check your internet connection.',
       'Request timed out': 'The request took too long. Please try again.',
-      'Unauthorized': 'Please log in to Ascentio to save jobs.',
+      Unauthorized: 'Please log in to Ascentio to save jobs.',
       'Invalid token': 'Your session has expired. Please log in again.',
-      'Server error': 'Ascentio is experiencing issues. Please try again later.',
-      'Save failed': 'Unable to save the job. Please try again.'
+      'Server error':
+        'Ascentio is experiencing issues. Please try again later.',
+      'Save failed': 'Unable to save the job. Please try again.',
     };
 
     for (const [key, value] of Object.entries(errorMap)) {

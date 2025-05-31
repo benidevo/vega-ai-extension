@@ -10,7 +10,7 @@ const serviceManager = new ServiceManager();
   }
 })();
 
-chrome.runtime.onInstalled.addListener(async (details) => {
+chrome.runtime.onInstalled.addListener(async details => {
   if (details.reason === 'install') {
     await serviceManager.badge.showSuccess();
   }

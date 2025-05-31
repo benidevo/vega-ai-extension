@@ -9,9 +9,10 @@ import {
   MessageService,
   StorageService,
   BadgeService,
-  MessageType
+  MessageType,
 } from './services';
 import { googleConfig, apiConfig } from '@/config';
+import { JobListing } from '@/types';
 
 /**
  * Service Manager to coordinate all background services
@@ -31,16 +32,19 @@ export class ServiceManager {
       {
         clientId: googleConfig.clientId,
         scopes: googleConfig.scopes,
-        apiEndpoint: `${apiConfig.baseUrl}${apiConfig.authEndpoint}`
+        apiEndpoint: `${apiConfig.baseUrl}${apiConfig.authEndpoint}`,
       },
       this.storageService
     );
 
-    this.apiService = new APIService({
-      baseUrl: apiConfig.baseUrl,
-      timeout: apiConfig.timeout,
-      retryAttempts: apiConfig.retryAttempts
-    }, this.authService);
+    this.apiService = new APIService(
+      {
+        baseUrl: apiConfig.baseUrl,
+        timeout: apiConfig.timeout,
+        retryAttempts: apiConfig.retryAttempts,
+      },
+      this.authService
+    );
 
     this.messageService = new MessageService();
     this.badgeService = new BadgeService();
@@ -58,7 +62,7 @@ export class ServiceManager {
     this.setupAuthHandlers();
     this.setupMessageHandlers();
 
-    this.authService.onAuthStateChange(async (isAuthenticated) => {
+    this.authService.onAuthStateChange(async isAuthenticated => {
       if (isAuthenticated) {
         const token = await this.authService.getAuthToken();
         this.apiService.setAuthToken(token);
@@ -86,29 +90,43 @@ export class ServiceManager {
   }
 
   private setupAuthHandlers(): void {
-    this.messageService.on(MessageType.LOGIN, (message, sender, sendResponse) => {
-      this.authService.login()
-        .then(() => {
-          sendResponse({ success: true });
-        })
-        .catch((error) => {
-          console.error('Login error:', error);
-          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Login failed' });
-        });
-      return true;
-    });
+    this.messageService.on(
+      MessageType.LOGIN,
+      (message, sender, sendResponse) => {
+        this.authService
+          .login()
+          .then(() => {
+            sendResponse({ success: true });
+          })
+          .catch(error => {
+            console.error('Login error:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : 'Login failed',
+            });
+          });
+        return true;
+      }
+    );
 
-    this.messageService.on(MessageType.LOGOUT, (message, sender, sendResponse) => {
-      this.authService.logout()
-        .then(() => {
-          sendResponse({ success: true });
-        })
-        .catch((error) => {
-          console.error('Logout error:', error);
-          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Logout failed' });
-        });
-      return true;
-    });
+    this.messageService.on(
+      MessageType.LOGOUT,
+      (message, sender, sendResponse) => {
+        this.authService
+          .logout()
+          .then(() => {
+            sendResponse({ success: true });
+          })
+          .catch(error => {
+            console.error('Logout error:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : 'Logout failed',
+            });
+          });
+        return true;
+      }
+    );
   }
 
   private setupMessageHandlers(): void {
@@ -117,39 +135,47 @@ export class ServiceManager {
       return false;
     });
 
-    this.messageService.on(MessageType.SAVE_JOB, (message, sender, sendResponse) => {
-      const job = message.payload;
-      this.apiService.saveJob(job)
-        .then(async (response) => {
-          await this.badgeService.showSuccess();
-          sendResponse({ success: true, data: response });
-        })
-        .catch(async (error) => {
-          console.error('Save job error:', error);
-          await this.badgeService.showError();
-          // Handle API errors with custom messages
-          const errorMessage = error.code === 'AUTH_EXPIRED' 
-            ? error.message 
-            : error.code === 'AUTH_REFRESH_FAILED'
-            ? error.message
-            : error.message || 'Save failed';
-          sendResponse({ success: false, error: errorMessage });
-        });
-      return true;
-    });
+    this.messageService.on(
+      MessageType.SAVE_JOB,
+      (message, sender, sendResponse) => {
+        const job = message.payload as JobListing;
+        this.apiService
+          .saveJob(job)
+          .then(async response => {
+            await this.badgeService.showSuccess();
+            sendResponse({ success: true, data: response });
+          })
+          .catch(async error => {
+            console.error('Save job error:', error);
+            await this.badgeService.showError();
+            // Handle API errors with custom messages
+            const errorMessage =
+              error.code === 'AUTH_EXPIRED'
+                ? error.message
+                : error.code === 'AUTH_REFRESH_FAILED'
+                  ? error.message
+                  : error.message || 'Save failed';
+            sendResponse({ success: false, error: errorMessage });
+          });
+        return true;
+      }
+    );
 
-    this.messageService.on(MessageType.OPEN_POPUP, (message, sender, sendResponse) => {
-      // Set badge to draw attention to the extension icon
-      chrome.action.setBadgeText({ text: '!' });
-      chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
+    this.messageService.on(
+      MessageType.OPEN_POPUP,
+      (message, sender, sendResponse) => {
+        // Set badge to draw attention to the extension icon
+        chrome.action.setBadgeText({ text: '!' });
+        chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
 
-      setTimeout(() => {
-        chrome.action.setBadgeText({ text: '' });
-      }, 5000);
+        setTimeout(() => {
+          chrome.action.setBadgeText({ text: '' });
+        }, 5000);
 
-      sendResponse({ success: true });
-      return false;
-    });
+        sendResponse({ success: true });
+        return false;
+      }
+    );
   }
 
   get auth(): IAuthService {

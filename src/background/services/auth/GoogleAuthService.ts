@@ -41,42 +41,46 @@ export class GoogleAuthService implements IAuthService {
     try {
       const redirectUri = chrome.identity.getRedirectURL();
 
-    const authUrl = new URL('https://accounts.google.com/o/oauth2/auth');
+      const authUrl = new URL('https://accounts.google.com/o/oauth2/auth');
 
-    authUrl.searchParams.set('client_id', this.config.clientId);
-    authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('scope', this.config.scopes.join(' '));
+      authUrl.searchParams.set('client_id', this.config.clientId);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('scope', this.config.scopes.join(' '));
 
-    return new Promise((resolve, reject) => {
-      chrome.identity.launchWebAuthFlow(
-        { url: authUrl.toString(), interactive: true },
-        async (responseUrl) => {
-          if (chrome.runtime.lastError || !responseUrl) {
-            this.isLoginInProgress = false;
-            reject(new Error(chrome.runtime.lastError?.message || 'Authentication failed'));
-            return;
-          }
-
-          try {
-            const url = new URL(responseUrl);
-            const params = new URLSearchParams(url.search);
-            const authCode = params.get('code');
-
-            if (!authCode) {
-              throw new Error('No authorization code received');
+      return new Promise((resolve, reject) => {
+        chrome.identity.launchWebAuthFlow(
+          { url: authUrl.toString(), interactive: true },
+          async responseUrl => {
+            if (chrome.runtime.lastError || !responseUrl) {
+              this.isLoginInProgress = false;
+              reject(
+                new Error(
+                  chrome.runtime.lastError?.message || 'Authentication failed'
+                )
+              );
+              return;
             }
 
-            await this.exchangeTokenForJWT(authCode);
-            this.isLoginInProgress = false;
-            resolve();
-          } catch (error) {
-            this.isLoginInProgress = false;
-            reject(error);
+            try {
+              const url = new URL(responseUrl);
+              const params = new URLSearchParams(url.search);
+              const authCode = params.get('code');
+
+              if (!authCode) {
+                throw new Error('No authorization code received');
+              }
+
+              await this.exchangeTokenForJWT(authCode);
+              this.isLoginInProgress = false;
+              resolve();
+            } catch (error) {
+              this.isLoginInProgress = false;
+              reject(error);
+            }
           }
-        }
-      );
-    });
+        );
+      });
     } catch (error) {
       this.isLoginInProgress = false;
       throw error;
@@ -95,7 +99,7 @@ export class GoogleAuthService implements IAuthService {
     if (!tokenData) return null;
 
     // Check if token is expired (with 5 minute buffer)
-    const isExpired = Date.now() >= (tokenData.expires_at - 5 * 60 * 1000);
+    const isExpired = Date.now() >= tokenData.expires_at - 5 * 60 * 1000;
     if (isExpired) {
       try {
         await this.refreshAuthToken();
@@ -124,8 +128,8 @@ export class GoogleAuthService implements IAuthService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        refresh_token: tokenData.refresh_token
-      })
+        refresh_token: tokenData.refresh_token,
+      }),
     });
 
     if (!response.ok) {
@@ -144,12 +148,12 @@ export class GoogleAuthService implements IAuthService {
     }
 
     const expiresIn = data.expires_in || 3600;
-    const expiresAt = Date.now() + (expiresIn * 1000);
+    const expiresAt = Date.now() + expiresIn * 1000;
 
     const newTokenData: AuthToken = {
       access_token: data.token,
       refresh_token: tokenData.refresh_token, // Keep the existing refresh token
-      expires_at: expiresAt
+      expires_at: expiresAt,
     };
 
     await this.storageService.set('authTokenData', newTokenData);
@@ -171,8 +175,8 @@ export class GoogleAuthService implements IAuthService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         code: authCode,
-        redirect_uri: redirectUri
-      })
+        redirect_uri: redirectUri,
+      }),
     });
 
     if (!response.ok) {
@@ -187,12 +191,12 @@ export class GoogleAuthService implements IAuthService {
 
     // Calculate expiration time (assume 1 hour if not provided)
     const expiresIn = data.expires_in || 3600;
-    const expiresAt = Date.now() + (expiresIn * 1000);
+    const expiresAt = Date.now() + expiresIn * 1000;
 
     const tokenData: AuthToken = {
       access_token: data.token,
       refresh_token: data.refresh_token,
-      expires_at: expiresAt
+      expires_at: expiresAt,
     };
 
     await this.storageService.set('authTokenData', tokenData);
