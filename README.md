@@ -68,9 +68,9 @@ src/
 - **TypeScript**: Type-safe development
 - **Webpack 5**: Module bundling and build optimization
 - **Tailwind CSS**: Utility-first styling
-- **HTMX & Hyperscript**: Dynamic UI interactions
 - **Chrome Extension Manifest V3**: Latest extension platform
 - **ESLint**: Code quality and consistency
+- **Jest**: Testing framework with TypeScript support
 
 ## 📦 Installation
 

@@ -86,8 +86,6 @@ module.exports = (env, argv) => {
         },
         { from: 'src/icons', to: 'icons' },
         { from: 'src/popup/index.html', to: 'popup/index.html' },
-        { from: 'node_modules/htmx.org/dist/htmx.min.js', to: 'lib/htmx.min.js' },
-        { from: 'node_modules/hyperscript.org/dist/_hyperscript.min.js', to: 'lib/hyperscript.min.js' },
       ],
     }),
   ],
