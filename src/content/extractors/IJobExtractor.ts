@@ -6,6 +6,6 @@ import { JobListing } from '@/types';
  */
 export interface IJobExtractor {
   canExtract(url: string): boolean;
-  extract(document: Document): JobListing | null;
+  extract(document: Document, url?: string): JobListing | null;
   siteName: string;
 }

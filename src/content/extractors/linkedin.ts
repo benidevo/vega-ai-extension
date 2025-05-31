@@ -26,16 +26,16 @@ export class LinkedInExtractor implements IJobExtractor {
    * @param document - The HTML document to extract job data from.
    * @returns The extracted JobListing object, or null if extraction fails.
    */
-  extract(document: Document): JobListing | null {
+  extract(document: Document, url?: string): JobListing | null {
     try {
-      return this.extractFromDOM(document);
+      return this.extractFromDOM(document, url || window.location.href);
     } catch (error) {
       console.error('Error extracting LinkedIn job data:', error);
       return null;
     }
   }
 
-  private extractFromDOM(doc: Document): JobListing | null {
+  private extractFromDOM(doc: Document, url: string): JobListing | null {
     const title = this.getText(doc.querySelector('.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.jobs-unified-top-card__job-title'));
     const company = this.getText(doc.querySelector('.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__primary-description a'));
 
@@ -64,7 +64,7 @@ export class LinkedInExtractor implements IJobExtractor {
       return null;
     }
 
-    const sourceUrl = cleanUrl(window.location.href);
+    const sourceUrl = cleanUrl(url);
 
     const jobListing: JobListing = {
       title,
