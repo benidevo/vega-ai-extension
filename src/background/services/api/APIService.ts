@@ -115,7 +115,8 @@ export class APIService implements IAPIService {
               attemptNumber: attemptNumber + 1,
             });
           } catch (refreshError: unknown) {
-            // Token refresh failed, reject all pending requests
+            // Token refresh failed, resolve any pending requests so they don't hang
+            this.pendingRequests.forEach(resolve => resolve());
             this.pendingRequests = [];
 
             if (
