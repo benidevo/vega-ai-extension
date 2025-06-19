@@ -78,9 +78,11 @@ export class LinkedInExtractor implements IJobExtractor {
       }
     }
 
-    const description = this.getText(
-      doc.querySelector(
-        '.jobs-description__content, .jobs-description-content__text'
+    const description = this.cleanupDescription(
+      this.getText(
+        doc.querySelector(
+          '.jobs-description__content, .jobs-description-content__text'
+        )
       )
     );
 
@@ -109,6 +111,19 @@ export class LinkedInExtractor implements IJobExtractor {
 
   private getText(element: Element | null): string {
     return element?.textContent?.trim() || '';
+  }
+
+  private cleanupDescription(description: string): string {
+    if (!description) return '';
+
+    // Remove "About the job" from the beginning and any surrounding whitespace
+    let cleaned = description.replace(/^About\s+the\s+job\s*/i, '').trim();
+
+    // Replace double spaces with newline characters to respect formatting
+    // eslint-disable-next-line no-regex-spaces
+    cleaned = cleaned.replace(/  /g, '\n');
+
+    return cleaned;
   }
 
   private extractJobType(doc: Document): JobListing['jobType'] | undefined {
