@@ -97,14 +97,3 @@ export class MessageService implements IMessageService {
     });
   }
 }
-
-/**
- * Utility function to create a message
- */
-export function createMessage(
-  type: string,
-  payload?: unknown,
-  error?: string
-): ExtensionMessage {
-  return { type, payload, error };
-}

@@ -213,7 +213,7 @@ export class VegaAIOverlay {
     footer.id = 'vega-ai-panel-footer';
     footer.className = 'vega-ai-panel-footer';
 
-    const saveButton = this.createButton('Save to Vega AI', 'primary');
+    const saveButton = this.createButton('Save', 'primary');
     saveButton.id = 'vega-ai-save-btn';
     saveButton.title = 'Save job (Ctrl+S / Cmd+S)';
 
@@ -236,7 +236,7 @@ export class VegaAIOverlay {
       if (!saveButton) return;
 
       // Disable button and show loading state
-      const originalText = saveButton.textContent || 'Save to Vega AI';
+      const originalText = saveButton.textContent || 'Save';
       saveButton.disabled = true;
       saveButton.textContent = 'Saving...';
 
@@ -791,7 +791,7 @@ export class VegaAIOverlay {
 
     const text = document.createElement('p');
     text.style.cssText = 'margin-top: 8px; color: #6B7280; font-size: 14px;';
-    text.textContent = 'Please sign in to Vega AI to save job listings';
+    text.textContent = 'Please sign in to save job listings';
 
     const signInButton = this.createButton('Sign In', 'primary');
     signInButton.style.marginTop = '20px';

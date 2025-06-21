@@ -130,12 +130,9 @@ export const config: AppConfig = {
 // Export individual sections for convenience
 export const googleConfig = config.google;
 export const apiConfig = config.api;
-export const extensionConfig = config.extension;
-export const featureFlags = config.features;
 
 export const isDevelopment = () =>
   config.extension.environment === 'development';
-export const isProduction = () => config.extension.environment === 'production';
 
 if (isDevelopment()) {
   console.log('🔧 Vega AI Extension Config:', {

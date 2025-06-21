@@ -296,10 +296,6 @@ export class APIService implements IAPIService {
         error instanceof Error ? error.message : 'Network request failed',
     };
   }
-
-  setAuthService(authService: IAuthService): void {
-    this.authService = authService;
-  }
 }
 
 interface RequestOptions {

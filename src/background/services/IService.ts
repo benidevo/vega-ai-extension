@@ -12,11 +12,3 @@ export interface IService {
    */
   destroy(): Promise<void>;
 }
-
-/**
- * Service configuration interface
- */
-export interface ServiceConfig {
-  debug?: boolean;
-  [key: string]: unknown;
-}

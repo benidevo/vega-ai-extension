@@ -94,7 +94,7 @@ class Popup {
           id="signin-btn"
           class="vega-btn vega-btn-primary w-full"
         >
-          Sign in to Vega AI
+          Sign in
         </button>
       `;
     }

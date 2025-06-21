@@ -167,10 +167,8 @@ export class Logger {
 
 // Create default loggers for different contexts
 export const contentLogger = new Logger('Content');
-export const backgroundLogger = new Logger('Background');
 export const overlayLogger = new Logger('Overlay');
 export const apiLogger = new Logger('API');
-export const extractorLogger = new Logger('Extractor');
 
 if (process.env.NODE_ENV === 'development') {
   Logger.setLogLevel(LogLevel.DEBUG);
