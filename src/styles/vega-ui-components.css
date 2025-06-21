@@ -1,0 +1,144 @@
+/**
+ * Vega UI Components Only
+ * Brand-specific components for use with Tailwind utilities
+ */
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+/* CSS Variables for Brand Colors */
+:root {
+  /* Vega Brand Colors */
+  --primary: #0d9488;
+  --primary-dark: #0b7a70;
+  --secondary: #f59e0b;
+}
+
+/* Component: Button */
+.vega-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+.vega-btn:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.vega-btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+}
+
+.vega-btn-primary:hover {
+  background-color: var(--primary-dark);
+}
+
+.vega-btn-secondary {
+  background-color: var(--secondary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+}
+
+.vega-btn-secondary:hover {
+  background-color: #d97706;
+}
+
+.vega-btn-danger {
+  background-color: #dc2626;
+  color: white;
+  padding: 0.75rem 1.5rem;
+}
+
+.vega-btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+.vega-btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.vega-btn-lg {
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+}
+
+/* Component: Alert */
+.vega-alert {
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.vega-alert-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.vega-alert-error {
+  background-color: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #fca5a5;
+}
+
+.vega-alert-info {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+/* Component: Badge */
+.vega-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.vega-badge-interested {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.vega-badge-applied {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.vega-badge-interviewing {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.vega-badge-offer {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: var(--secondary);
+}
+
+/* Focus states for accessibility */
+.vega-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .vega-btn {
+    transition: none;
+  }
+}

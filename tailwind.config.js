@@ -3,8 +3,8 @@ module.exports = {
   content: ["./src/**/*.{html,ts}"],
   theme: {
     fontFamily: {
-      'sans': ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-      'heading': ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif']
+      'sans': ['DM Sans', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      'heading': ['Space Grotesk', 'DM Sans', 'ui-sans-serif', 'system-ui', 'sans-serif']
     },
     extend: {
       colors: {

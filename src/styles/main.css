@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+/* Import Vega UI Components Only */
+@import './vega-ui-components.css';
 
 @tailwind base;
 @tailwind components;
@@ -23,7 +24,7 @@
 /* Extension-specific styles */
 body {
   width: 320px;
-  min-height: 400px;
+  min-height: 200px;
   max-height: 600px;
 }
 
@@ -109,10 +110,17 @@ body {
 
 /* Glass morphism utility */
 .glass {
-  @apply bg-slate-900 bg-opacity-70 backdrop-blur-xl border border-white border-opacity-10;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Focus visible utilities */
 .focus-visible-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-900;
+  outline: none;
+}
+
+.focus-visible-ring:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
