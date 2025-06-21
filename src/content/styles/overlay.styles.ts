@@ -1,22 +1,22 @@
 /**
- * Isolated styles for the Ascentio overlay component.
- * These styles are namespaced under #ascentio-root to prevent conflicts with host page styles.
+ * Isolated styles for the Vega AI overlay component.
+ * These styles are namespaced under #vega-ai-root to prevent conflicts with host page styles.
  */
 export const overlayStyles = `
   /* Reset and namespace all styles */
-  #ascentio-root {
+  #vega-ai-root {
     all: initial;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
-  #ascentio-root * {
+  #vega-ai-root * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
   }
 
   /* Container styles */
-  #ascentio-root .ascentio-container {
+  #vega-ai-root .vega-ai-container {
     position: fixed;
     bottom: 24px;
     right: 24px;
@@ -24,7 +24,7 @@ export const overlayStyles = `
   }
 
   /* Floating action button - positioned higher to avoid LinkedIn messaging */
-  #ascentio-root .ascentio-capture-button {
+  #vega-ai-root .vega-ai-capture-button {
     position: fixed;
     bottom: 100px;
     right: 24px;
@@ -34,13 +34,13 @@ export const overlayStyles = `
 
   /* Responsive positioning for mobile */
   @media (max-width: 768px) {
-    #ascentio-root .ascentio-capture-button {
+    #vega-ai-root .vega-ai-capture-button {
       bottom: 80px;
       right: 16px;
     }
   }
 
-  #ascentio-root .ascentio-fab {
+  #vega-ai-root .vega-ai-fab {
     width: 56px;
     height: 56px;
     padding: 0;
@@ -56,17 +56,17 @@ export const overlayStyles = `
     transition: all 200ms;
   }
 
-  #ascentio-root .ascentio-fab:hover {
+  #vega-ai-root .vega-ai-fab:hover {
     background-color: #0B7A70;
     transform: scale(1.1);
   }
 
-  #ascentio-root .ascentio-fab:active {
+  #vega-ai-root .vega-ai-fab:active {
     transform: scale(0.95);
   }
 
   /* Panel styles */
-  #ascentio-root .ascentio-capture-panel {
+  #vega-ai-root .vega-ai-capture-panel {
     position: fixed;
     bottom: 170px;
     right: 24px;
@@ -76,7 +76,7 @@ export const overlayStyles = `
     transition: opacity 200ms, transform 200ms;
   }
 
-  #ascentio-root .ascentio-capture-panel.ascentio-hidden {
+  #vega-ai-root .vega-ai-capture-panel.vega-ai-hidden {
     opacity: 0;
     transform: translateY(10px);
     pointer-events: none;
@@ -84,7 +84,7 @@ export const overlayStyles = `
 
   /* Responsive panel positioning */
   @media (max-width: 768px) {
-    #ascentio-root .ascentio-capture-panel {
+    #vega-ai-root .vega-ai-capture-panel {
       bottom: 150px;
       right: 16px;
       left: 16px;
@@ -94,17 +94,17 @@ export const overlayStyles = `
 
   /* Ensure panel doesn't go off-screen on small viewports */
   @media (max-height: 600px) {
-    #ascentio-root .ascentio-capture-panel {
+    #vega-ai-root .vega-ai-capture-panel {
       bottom: 60px;
       max-height: calc(100vh - 120px);
     }
     
-    #ascentio-root .ascentio-capture-button {
+    #vega-ai-root .vega-ai-capture-button {
       bottom: 20px;
     }
   }
 
-  #ascentio-root .ascentio-panel-inner {
+  #vega-ai-root .vega-ai-panel-inner {
     background-color: rgb(15, 23, 42);
     background-color: rgba(15, 23, 42, 0.98);
     -webkit-backdrop-filter: blur(12px);
@@ -119,13 +119,13 @@ export const overlayStyles = `
   }
 
   /* Panel header */
-  #ascentio-root .ascentio-panel-header {
+  #vega-ai-root .vega-ai-panel-header {
     padding: 16px;
     border-bottom: 1px solid rgb(51, 65, 85);
     flex-shrink: 0;
   }
 
-  #ascentio-root .ascentio-panel-title {
+  #vega-ai-root .vega-ai-panel-title {
     display: block;
     margin: 0;
     font-size: 18px;
@@ -134,7 +134,7 @@ export const overlayStyles = `
     color: white;
   }
 
-  #ascentio-root .ascentio-close-button {
+  #vega-ai-root .vega-ai-close-button {
     display: inline-block;
     background: none;
     border: none;
@@ -145,12 +145,12 @@ export const overlayStyles = `
     line-height: 0;
   }
 
-  #ascentio-root .ascentio-close-button:hover {
+  #vega-ai-root .vega-ai-close-button:hover {
     color: white;
   }
 
   /* Panel content */
-  #ascentio-root .ascentio-panel-content {
+  #vega-ai-root .vega-ai-panel-content {
     padding: 16px;
     max-height: 400px;
     overflow-y: auto;
@@ -159,26 +159,26 @@ export const overlayStyles = `
 
   /* Responsive content height */
   @media (max-height: 700px) {
-    #ascentio-root .ascentio-panel-content {
+    #vega-ai-root .vega-ai-panel-content {
       max-height: 250px;
     }
   }
 
   @media (max-height: 500px) {
-    #ascentio-root .ascentio-panel-content {
+    #vega-ai-root .vega-ai-panel-content {
       max-height: 150px;
     }
   }
 
   /* Panel footer */
-  #ascentio-root .ascentio-panel-footer {
+  #vega-ai-root .vega-ai-panel-footer {
     padding: 16px;
     border-top: 1px solid rgb(51, 65, 85);
     flex-shrink: 0;
   }
 
   /* Buttons */
-  #ascentio-root .ascentio-btn-primary {
+  #vega-ai-root .vega-ai-btn-primary {
     width: 100%;
     padding: 8px 16px;
     background-color: #0D9488;
@@ -191,37 +191,37 @@ export const overlayStyles = `
     transition: all 200ms;
   }
 
-  #ascentio-root .ascentio-btn-primary:hover {
+  #vega-ai-root .vega-ai-btn-primary:hover {
     background-color: #0B7A70;
   }
 
   /* Utility classes */
-  #ascentio-root .ascentio-flex {
+  #vega-ai-root .vega-ai-flex {
     display: flex !important;
   }
 
-  #ascentio-root .ascentio-items-center {
+  #vega-ai-root .vega-ai-items-center {
     align-items: center !important;
   }
 
-  #ascentio-root .ascentio-justify-between {
+  #vega-ai-root .vega-ai-justify-between {
     justify-content: space-between !important;
   }
 
-  #ascentio-root .ascentio-gap-2 {
+  #vega-ai-root .vega-ai-gap-2 {
     gap: 8px !important;
   }
 
-  #ascentio-root .ascentio-hidden {
+  #vega-ai-root .vega-ai-hidden {
     display: none !important;
   }
 
   /* Animation classes */
-  #ascentio-root .ascentio-fade-in {
-    animation: ascentio-fadeIn 200ms ease-out;
+  #vega-ai-root .vega-ai-fade-in {
+    animation: vega-ai-fadeIn 200ms ease-out;
   }
 
-  @keyframes ascentio-fadeIn {
+  @keyframes vega-ai-fadeIn {
     from {
       opacity: 0;
       transform: translateY(10px);
@@ -233,59 +233,59 @@ export const overlayStyles = `
   }
 
   /* Loading spinner */
-  @keyframes ascentio-spin {
+  @keyframes vega-ai-spin {
     to { transform: rotate(360deg); }
   }
 
-  #ascentio-root .ascentio-spinner {
+  #vega-ai-root .vega-ai-spinner {
     display: inline-block;
     width: 40px;
     height: 40px;
     border: 3px solid rgb(51, 65, 85);
     border-top-color: #0D9488;
     border-radius: 50%;
-    animation: ascentio-spin 1s linear infinite;
+    animation: vega-ai-spin 1s linear infinite;
   }
 
   /* Text styles */
-  #ascentio-root .ascentio-text-sm {
+  #vega-ai-root .vega-ai-text-sm {
     display: block;
     font-size: 14px;
     line-height: 20px;
   }
 
-  #ascentio-root .ascentio-text-xs {
+  #vega-ai-root .vega-ai-text-xs {
     display: block;
     font-size: 12px;
     line-height: 16px;
   }
 
-  #ascentio-root .ascentio-text-gray {
+  #vega-ai-root .vega-ai-text-gray {
     color: rgb(156, 163, 175);
   }
 
-  #ascentio-root .ascentio-text-white {
+  #vega-ai-root .vega-ai-text-white {
     color: white;
   }
 
-  #ascentio-root .ascentio-text-center {
+  #vega-ai-root .vega-ai-text-center {
     text-align: center;
   }
 
   /* Ensure all text elements have proper display */
-  #ascentio-root p,
-  #ascentio-root div,
-  #ascentio-root span {
+  #vega-ai-root p,
+  #vega-ai-root div,
+  #vega-ai-root span {
     display: block;
   }
 
-  #ascentio-root svg {
+  #vega-ai-root svg {
     display: inline-block;
     vertical-align: middle;
   }
 
   /* Success state */
-  #ascentio-root .ascentio-success-icon {
+  #vega-ai-root .vega-ai-success-icon {
     width: 60px;
     height: 60px;
     margin: 0 auto;
@@ -296,7 +296,7 @@ export const overlayStyles = `
     justify-content: center;
   }
 
-  #ascentio-root .ascentio-success-text {
+  #vega-ai-root .vega-ai-success-text {
     margin-top: 16px;
     color: #10B981;
     font-size: 16px;
@@ -304,11 +304,11 @@ export const overlayStyles = `
   }
 
   /* Field styles */
-  #ascentio-root .ascentio-field {
+  #vega-ai-root .vega-ai-field {
     margin-bottom: 16px;
   }
 
-  #ascentio-root .ascentio-field-label {
+  #vega-ai-root .vega-ai-field-label {
     display: block;
     font-size: 12px;
     line-height: 16px;
@@ -316,7 +316,7 @@ export const overlayStyles = `
     margin-bottom: 4px;
   }
 
-  #ascentio-root .ascentio-field-value {
+  #vega-ai-root .vega-ai-field-value {
     display: block;
     font-size: 14px;
     line-height: 20px;
@@ -325,14 +325,14 @@ export const overlayStyles = `
   }
 
   /* Logo styles */
-  #ascentio-root .ascentio-logo {
+  #vega-ai-root .vega-ai-logo {
     width: 24px;
     height: 24px;
     display: inline-block;
     vertical-align: middle;
   }
 
-  #ascentio-root .ascentio-textarea {
+  #vega-ai-root .vega-ai-textarea {
     width: 100%;
     padding: 8px 12px;
     background-color: rgba(51, 65, 85, 0.5);
@@ -346,33 +346,33 @@ export const overlayStyles = `
     transition: all 200ms;
   }
 
-  #ascentio-root .ascentio-textarea:hover,
-  #ascentio-root .ascentio-textarea:focus {
+  #vega-ai-root .vega-ai-textarea:hover,
+  #vega-ai-root .vega-ai-textarea:focus {
     background-color: rgba(51, 65, 85, 0.7);
     border-color: #0D9488;
     outline: none;
   }
 
-  #ascentio-root .ascentio-textarea::placeholder {
+  #vega-ai-root .vega-ai-textarea::placeholder {
     color: rgba(156, 163, 175, 0.7);
   }
 
   /* Scrollbar styling for panel content */
-  #ascentio-root .ascentio-panel-content::-webkit-scrollbar {
+  #vega-ai-root .vega-ai-panel-content::-webkit-scrollbar {
     width: 6px;
   }
 
-  #ascentio-root .ascentio-panel-content::-webkit-scrollbar-track {
+  #vega-ai-root .vega-ai-panel-content::-webkit-scrollbar-track {
     background: rgba(51, 65, 85, 0.3);
     border-radius: 3px;
   }
 
-  #ascentio-root .ascentio-panel-content::-webkit-scrollbar-thumb {
+  #vega-ai-root .vega-ai-panel-content::-webkit-scrollbar-thumb {
     background: rgba(156, 163, 175, 0.5);
     border-radius: 3px;
   }
 
-  #ascentio-root .ascentio-panel-content::-webkit-scrollbar-thumb:hover {
+  #vega-ai-root .vega-ai-panel-content::-webkit-scrollbar-thumb:hover {
     background: rgba(156, 163, 175, 0.7);
   }
 `;

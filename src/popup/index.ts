@@ -94,7 +94,7 @@ class Popup {
           id="signin-btn"
           class="w-full px-4 py-3 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-all duration-200"
         >
-          Sign in to Ascentio
+          Sign in to Vega AI
         </button>
       `;
     }
@@ -158,7 +158,7 @@ class Popup {
       }
     } catch (error) {
       console.error('Sign in error:', error);
-      this.renderError('Unable to connect to Ascentio');
+      this.renderError('Unable to connect to Vega AI');
       signinBtn.disabled = false;
       signinBtn.textContent = originalText;
     } finally {

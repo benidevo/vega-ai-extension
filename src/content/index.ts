@@ -1,7 +1,7 @@
 import { extractJobData, isSupportedJobPage } from './extractors';
-import { AscentioOverlay } from './overlay';
+import { VegaAIOverlay } from './overlay';
 
-let overlay: AscentioOverlay | null = null;
+let overlay: VegaAIOverlay | null = null;
 let isInitializing = false;
 
 // Delay for reinitialization when URL changes
@@ -44,7 +44,7 @@ async function initialize(): Promise<void> {
 
     if (isSupportedJobPage()) {
       if (!overlay) {
-        overlay = await AscentioOverlay.create();
+        overlay = await VegaAIOverlay.create();
       }
 
       try {
@@ -62,11 +62,11 @@ async function initialize(): Promise<void> {
               payload: jobData,
             })
             .catch(err => {
-              console.error('Ascentio: Failed to send message:', err);
+              console.error('Vega AI: Failed to send message:', err);
             });
         }
       } catch (extractionError) {
-        console.error('Ascentio: Failed to extract job data:', extractionError);
+        console.error('Vega AI: Failed to extract job data:', extractionError);
       }
     } else {
       if (overlay) {

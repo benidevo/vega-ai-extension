@@ -32,13 +32,13 @@ jobs:
     - name: Create release zip
       run: |
         cd dist
-        zip -r ../ascentio-extension-${{ github.ref_name }}.zip .
+        zip -r ../vega-extension-${{ github.ref_name }}.zip .
         cd ..
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: ascentio-extension-${{ github.ref_name }}.zip
+        files: vega-extension-${{ github.ref_name }}.zip
         generate_release_notes: true
         body: |
           ## Chrome Extension Release
@@ -47,7 +47,7 @@ jobs:
 
           ### Installation Instructions
 
-          1. Download the `ascentio-extension-${{ github.ref_name }}.zip` file
+          1. Download the `vega-extension-${{ github.ref_name }}.zip` file
           2. Extract the contents to a folder
           3. Open Chrome and navigate to `chrome://extensions/`
           4. Enable "Developer mode"

@@ -6,7 +6,7 @@ import { overlayStyles } from './styles/overlay.styles';
  * Provides a floating overlay UI for capturing and displaying job listing information on a web page.
  * Includes a floating action button, a details panel, and integration with Chrome extension messaging and storage.
  */
-export class AscentioOverlay {
+export class VegaAIOverlay {
   private container: HTMLElement | null = null;
   private button: HTMLButtonElement | null = null;
   private panel: HTMLElement | null = null;
@@ -22,8 +22,8 @@ export class AscentioOverlay {
 
   private constructor() {}
 
-  public static async create(): Promise<AscentioOverlay> {
-    const instance = new AscentioOverlay();
+  public static async create(): Promise<VegaAIOverlay> {
+    const instance = new VegaAIOverlay();
     await instance.init();
     return instance;
   }
@@ -42,14 +42,14 @@ export class AscentioOverlay {
       const result = await chrome.storage.local.get('authToken');
       this.isAuthenticated = !!result.authToken;
     } catch (error) {
-      console.error('Ascentio: Failed to check authentication:', error);
+      console.error('Vega AI: Failed to check authentication:', error);
       this.isAuthenticated = false;
     }
   }
 
   private createContainer(): void {
     const root = document.createElement('div');
-    root.id = 'ascentio-root';
+    root.id = 'vega-ai-root';
     root.style.cssText =
       'position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647;';
     document.body.appendChild(root);
@@ -59,18 +59,18 @@ export class AscentioOverlay {
     root.appendChild(style);
 
     this.container = document.createElement('div');
-    this.container.id = 'ascentio-overlay';
-    this.container.className = 'ascentio-container';
+    this.container.id = 'vega-ai-overlay';
+    this.container.className = 'vega-ai-container';
     root.appendChild(this.container);
   }
 
   private createFloatingButton(): void {
     const buttonWrapper = document.createElement('div');
-    buttonWrapper.id = 'ascentio-capture-button';
-    buttonWrapper.className = 'ascentio-capture-button';
+    buttonWrapper.id = 'vega-ai-capture-button';
+    buttonWrapper.className = 'vega-ai-capture-button';
 
     this.button = document.createElement('button');
-    this.button.className = 'ascentio-fab';
+    this.button.className = 'vega-ai-fab';
     this.button.setAttribute('aria-label', 'Capture job listing');
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -92,11 +92,11 @@ export class AscentioOverlay {
 
   private createPanel(): void {
     const panelWrapper = document.createElement('div');
-    panelWrapper.id = 'ascentio-capture-panel';
-    panelWrapper.className = 'ascentio-capture-panel ascentio-hidden';
+    panelWrapper.id = 'vega-ai-capture-panel';
+    panelWrapper.className = 'vega-ai-capture-panel vega-ai-hidden';
 
     this.panel = document.createElement('div');
-    this.panel.className = 'ascentio-panel-inner';
+    this.panel.className = 'vega-ai-panel-inner';
 
     const header = this.createPanelHeader();
     const content = this.createPanelContent();
@@ -112,30 +112,30 @@ export class AscentioOverlay {
 
   private createPanelHeader(): HTMLElement {
     const header = document.createElement('div');
-    header.className = 'ascentio-panel-header';
+    header.className = 'vega-ai-panel-header';
 
     const titleWrapper = document.createElement('div');
     titleWrapper.className =
-      'ascentio-flex ascentio-items-center ascentio-justify-between';
+      'vega-ai-flex vega-ai-items-center vega-ai-justify-between';
 
     const brandingWrapper = document.createElement('div');
     brandingWrapper.className =
-      'ascentio-flex ascentio-items-center ascentio-gap-2';
+      'vega-ai-flex vega-ai-items-center vega-ai-gap-2';
 
     const logo = document.createElement('img');
     logo.src = chrome.runtime.getURL('icons/icon48.png');
-    logo.className = 'ascentio-logo';
-    logo.alt = 'Ascentio';
+    logo.className = 'vega-ai-logo';
+    logo.alt = 'Vega AI';
 
     const title = document.createElement('h3');
-    title.className = 'ascentio-panel-title';
-    title.textContent = 'Ascentio';
+    title.className = 'vega-ai-panel-title';
+    title.textContent = 'Vega AI';
 
     brandingWrapper.appendChild(logo);
     brandingWrapper.appendChild(title);
 
     const closeButton = document.createElement('button');
-    closeButton.className = 'ascentio-close-button';
+    closeButton.className = 'vega-ai-close-button';
     closeButton.setAttribute('aria-label', 'Close panel');
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -168,8 +168,8 @@ export class AscentioOverlay {
 
   private createPanelContent(): HTMLElement {
     const content = document.createElement('div');
-    content.id = 'ascentio-job-preview';
-    content.className = 'ascentio-panel-content';
+    content.id = 'vega-ai-job-preview';
+    content.className = 'vega-ai-panel-content';
 
     this.updatePanelContent(content, 'loading');
 
@@ -178,11 +178,11 @@ export class AscentioOverlay {
 
   private createPanelFooter(): HTMLElement {
     const footer = document.createElement('div');
-    footer.id = 'ascentio-panel-footer';
-    footer.className = 'ascentio-panel-footer';
+    footer.id = 'vega-ai-panel-footer';
+    footer.className = 'vega-ai-panel-footer';
 
-    const saveButton = this.createButton('Save to Ascentio', 'primary');
-    saveButton.id = 'ascentio-save-btn';
+    const saveButton = this.createButton('Save to Vega AI', 'primary');
+    saveButton.id = 'vega-ai-save-btn';
 
     const saveHandler = async () => {
       await this.checkAuthentication();
@@ -198,12 +198,12 @@ export class AscentioOverlay {
       }
 
       const saveButton = document.getElementById(
-        'ascentio-save-btn'
+        'vega-ai-save-btn'
       ) as HTMLButtonElement;
       if (!saveButton) return;
 
       // Disable button and show loading state
-      const originalText = saveButton.textContent || 'Save to Ascentio';
+      const originalText = saveButton.textContent || 'Save to Vega AI';
       saveButton.disabled = true;
       saveButton.textContent = 'Saving...';
 
@@ -224,7 +224,7 @@ export class AscentioOverlay {
           this.showError(this.getErrorMessage(errorMessage));
         }
       } catch (error) {
-        console.error('Ascentio: Failed to save job:', error);
+        console.error('Vega AI: Failed to save job:', error);
 
         // Handle specific error types
         if (
@@ -272,7 +272,7 @@ export class AscentioOverlay {
     const button = document.createElement('button');
     button.textContent = text;
     button.className =
-      variant === 'primary' ? 'ascentio-btn-primary' : 'ascentio-btn-secondary';
+      variant === 'primary' ? 'vega-ai-btn-primary' : 'vega-ai-btn-secondary';
     return button;
   }
 
@@ -292,14 +292,14 @@ export class AscentioOverlay {
 
     if (state === 'loading') {
       const loadingDiv = document.createElement('div');
-      loadingDiv.className = 'ascentio-text-center';
+      loadingDiv.className = 'vega-ai-text-center';
       loadingDiv.style.padding = '40px 0';
 
       const spinner = document.createElement('div');
-      spinner.className = 'ascentio-spinner';
+      spinner.className = 'vega-ai-spinner';
 
       const text = document.createElement('p');
-      text.className = 'ascentio-text-sm ascentio-text-gray';
+      text.className = 'vega-ai-text-sm vega-ai-text-gray';
       text.style.marginTop = '16px';
       text.textContent = 'Extracting job information...';
 
@@ -317,14 +317,14 @@ export class AscentioOverlay {
       fields.forEach(field => {
         if (field.value) {
           const fieldDiv = document.createElement('div');
-          fieldDiv.className = 'ascentio-field';
+          fieldDiv.className = 'vega-ai-field';
 
           const label = document.createElement('div');
-          label.className = 'ascentio-field-label';
+          label.className = 'vega-ai-field-label';
           label.textContent = field.label;
 
           const value = document.createElement('div');
-          value.className = 'ascentio-field-value';
+          value.className = 'vega-ai-field-value';
           value.textContent = field.value;
 
           fieldDiv.appendChild(label);
@@ -334,15 +334,15 @@ export class AscentioOverlay {
       });
 
       const notesDiv = document.createElement('div');
-      notesDiv.className = 'ascentio-field';
+      notesDiv.className = 'vega-ai-field';
 
       const notesLabel = document.createElement('div');
-      notesLabel.className = 'ascentio-field-label';
+      notesLabel.className = 'vega-ai-field-label';
       notesLabel.textContent = 'Notes';
 
       const notesTextarea = document.createElement('textarea');
-      notesTextarea.className = 'ascentio-textarea';
-      notesTextarea.id = 'ascentio-notes-textarea';
+      notesTextarea.className = 'vega-ai-textarea';
+      notesTextarea.id = 'vega-ai-notes-textarea';
       notesTextarea.placeholder = 'Add your notes here...';
       notesTextarea.rows = 3;
       notesTextarea.value = this.extractedJob.notes || '';
@@ -365,11 +365,11 @@ export class AscentioOverlay {
       container.appendChild(notesDiv);
     } else if (state === 'success') {
       const successDiv = document.createElement('div');
-      successDiv.className = 'ascentio-text-center';
+      successDiv.className = 'vega-ai-text-center';
       successDiv.style.padding = '40px 0';
 
       const iconWrapper = document.createElement('div');
-      iconWrapper.className = 'ascentio-success-icon';
+      iconWrapper.className = 'vega-ai-success-icon';
 
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('width', '30');
@@ -389,7 +389,7 @@ export class AscentioOverlay {
       iconWrapper.appendChild(svg);
 
       const text = document.createElement('p');
-      text.className = 'ascentio-success-text';
+      text.className = 'vega-ai-success-text';
       text.textContent = 'Job saved successfully!';
 
       successDiv.appendChild(iconWrapper);
@@ -397,11 +397,11 @@ export class AscentioOverlay {
       container.appendChild(successDiv);
     } else if (state === 'error') {
       const errorDiv = document.createElement('div');
-      errorDiv.className = 'ascentio-text-center';
+      errorDiv.className = 'vega-ai-text-center';
       errorDiv.style.padding = '40px 0';
 
       const iconWrapper = document.createElement('div');
-      iconWrapper.className = 'ascentio-error-icon';
+      iconWrapper.className = 'vega-ai-error-icon';
       iconWrapper.style.cssText =
         'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
 
@@ -423,7 +423,7 @@ export class AscentioOverlay {
       iconWrapper.appendChild(svg);
 
       const text = document.createElement('p');
-      text.className = 'ascentio-error-text';
+      text.className = 'vega-ai-error-text';
       text.style.cssText =
         'margin-top: 16px; color: #EF4444; font-size: 16px; font-weight: 500;';
       text.textContent = errorMessage || 'Failed to extract job data';
@@ -461,7 +461,7 @@ export class AscentioOverlay {
                   );
                 }
               } catch (error) {
-                console.error('Ascentio: Error extracting job data:', error);
+                console.error('Vega AI: Error extracting job data:', error);
                 this.updatePanelContent(
                   container,
                   'error',
@@ -515,7 +515,7 @@ export class AscentioOverlay {
   }
 
   private async showPanel(): Promise<void> {
-    const panelWrapper = document.getElementById('ascentio-capture-panel');
+    const panelWrapper = document.getElementById('vega-ai-capture-panel');
     if (!panelWrapper) return;
 
     await this.checkAuthentication();
@@ -527,10 +527,10 @@ export class AscentioOverlay {
     // before adding the animation class. This is necessary to trigger the CSS transition effect.
     panelWrapper.offsetHeight;
 
-    panelWrapper.classList.remove('ascentio-hidden');
-    panelWrapper.classList.add('ascentio-fade-in');
+    panelWrapper.classList.remove('vega-ai-hidden');
+    panelWrapper.classList.add('vega-ai-fade-in');
 
-    const content = document.getElementById('ascentio-job-preview');
+    const content = document.getElementById('vega-ai-job-preview');
 
     if (!this.isAuthenticated) {
       this.showAuthRequired(content);
@@ -553,19 +553,19 @@ export class AscentioOverlay {
           );
         }
       } catch (error) {
-        console.error('Ascentio: Error extracting job data:', error);
+        console.error('Vega AI: Error extracting job data:', error);
         this.updatePanelContent(content, 'error', 'Failed to extract job data');
       }
     }, 300);
   }
 
   private hidePanel(): void {
-    const panelWrapper = document.getElementById('ascentio-capture-panel');
+    const panelWrapper = document.getElementById('vega-ai-capture-panel');
     if (!panelWrapper) return;
 
     this.isVisible = false;
-    panelWrapper.classList.add('ascentio-hidden');
-    panelWrapper.classList.remove('ascentio-fade-in');
+    panelWrapper.classList.add('vega-ai-hidden');
+    panelWrapper.classList.remove('vega-ai-fade-in');
 
     setTimeout(() => {
       if (!this.isVisible) {
@@ -575,13 +575,13 @@ export class AscentioOverlay {
   }
 
   private showSuccess(): void {
-    const content = document.getElementById('ascentio-job-preview');
+    const content = document.getElementById('vega-ai-job-preview');
     this.updatePanelContent(content, 'success');
     setTimeout(() => this.hidePanel(), 2000);
   }
 
   private showError(message: string): void {
-    const content = document.getElementById('ascentio-job-preview');
+    const content = document.getElementById('vega-ai-job-preview');
     this.updatePanelContent(content, 'error', message);
   }
 
@@ -595,7 +595,7 @@ export class AscentioOverlay {
     }
 
     const authDiv = document.createElement('div');
-    authDiv.className = 'ascentio-text-center';
+    authDiv.className = 'vega-ai-text-center';
     authDiv.style.padding = '40px 20px';
 
     const iconWrapper = document.createElement('div');
@@ -626,7 +626,7 @@ export class AscentioOverlay {
 
     const text = document.createElement('p');
     text.style.cssText = 'margin-top: 8px; color: #6B7280; font-size: 14px;';
-    text.textContent = 'Please sign in to Ascentio to save job listings';
+    text.textContent = 'Please sign in to Vega AI to save job listings';
 
     const signInButton = this.createButton('Sign In', 'primary');
     signInButton.style.marginTop = '20px';
@@ -638,7 +638,7 @@ export class AscentioOverlay {
         const instruction = document.createElement('p');
         instruction.style.cssText =
           'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
-        instruction.textContent = '→ Click the Ascentio icon in your toolbar';
+        instruction.textContent = '→ Click the Vega AI icon in your toolbar';
         authDiv.appendChild(instruction);
 
         // Remove the button after click
@@ -663,12 +663,11 @@ export class AscentioOverlay {
   private getErrorMessage(error: string): string {
     const errorMap: Record<string, string> = {
       'Network request failed':
-        'Unable to connect to Ascentio. Please check your internet connection.',
+        'Unable to connect to Vega AI. Please check your internet connection.',
       'Request timed out': 'The request took too long. Please try again.',
-      Unauthorized: 'Please log in to Ascentio to save jobs.',
+      Unauthorized: 'Please log in to Vega AI to save jobs.',
       'Invalid token': 'Your session has expired. Please log in again.',
-      'Server error':
-        'Ascentio is experiencing issues. Please try again later.',
+      'Server error': 'Vega AI is experiencing issues. Please try again later.',
       'Save failed': 'Unable to save the job. Please try again.',
     };
 
@@ -696,7 +695,7 @@ export class AscentioOverlay {
     this.isVisible = false;
 
     // Remove DOM element
-    const root = document.getElementById('ascentio-root');
+    const root = document.getElementById('vega-ai-root');
     root?.remove();
   }
 }

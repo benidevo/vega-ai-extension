@@ -1,8 +1,8 @@
-# Ascentio Browser Extension
+# Vega AI Browser Extension
 
-[![CI](https://github.com/benidevo/ascentio-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/ascentio-extension/actions/workflows/ci.yml)
+[![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
 
-A focused Chrome extension that captures job listings from various job sites and posts them to the Ascentio backend service.
+A focused Chrome extension that captures job listings from various job sites and posts them to the Vega AI backend service.
 
 ## 🚀 Features
 
@@ -11,12 +11,12 @@ A focused Chrome extension that captures job listings from various job sites and
 - **Interactive Overlay**: Floating UI for quick job preview and capture
 - **Quick Notes**: Add personal notes before posting jobs
 - **Google Authentication**: Secure login with Google OAuth 2.0
-- **One-Click Capture**: Post jobs to the Ascentio backend service instantly
+- **One-Click Capture**: Post jobs to the Vega AI backend service instantly
 - **Visual Feedback**: Success/error badge notifications
 
 ## 📋 Purpose
 
-This extension serves a single, focused purpose: to capture job listings from web pages and post them to the Ascentio backend service. It does not manage, store, or track jobs locally. All data is sent directly to the backend for centralized management.
+This extension serves a single, focused purpose: to capture job listings from web pages and post them to the Vega AI backend service. It does not manage, store, or track jobs locally. All data is sent directly to the backend for centralized management.
 
 ## 🏗️ Architecture
 
@@ -52,7 +52,7 @@ src/
 #### Background Services
 
 - **AuthService**: Handles Google OAuth flow and token management
-- **APIService**: Posts captured jobs to the Ascentio backend
+- **APIService**: Posts captured jobs to the Vega AI backend
 - **MessageService**: Type-safe message passing between components
 - **StorageService**: Simple wrapper for Chrome storage operations
 - **BadgeService**: Success/error visual feedback through extension badge
@@ -85,8 +85,8 @@ src/
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/benidevo/ascentio-extension.git
-   cd ascentio-extension
+   git clone https://github.com/benidevo/vega-ai-extension.git
+   cd vega-ai-extension
    ```
 
 2. Install dependencies:
@@ -213,7 +213,7 @@ The extension uses typed messages for communication:
    - Add `chrome-extension://[EXTENSION_ID]` to authorized redirects
 
 2. **Backend API**:
-   - Deploy the Ascentio backend service
+   - Deploy the Vega AI backend service
    - Update API endpoints in `ServiceManager.ts`
 
 ### Optional Configuration
@@ -243,4 +243,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## 📞 Support
 
-For issues and feature requests, please use the [GitHub issue tracker](https://github.com/benidevo/ascentio-extension/issues).
+For issues and feature requests, please use the [GitHub issue tracker](https://github.com/benidevo/vega-ai-extension/issues).

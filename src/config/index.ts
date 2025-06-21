@@ -1,5 +1,5 @@
 /**
- * Configuration management for the Ascentio extension
+ * Configuration management for the Vega AI extension
  *
  * This file provides environment-specific configuration that gets
  * bundled into the extension at build time.
@@ -49,7 +49,7 @@ const defaultConfig: AppConfig = {
     retryAttempts: 3,
   },
   extension: {
-    name: 'Ascentio Job Capture',
+    name: 'Vega AI Job Capture',
     version: '0.1.0',
     environment: 'development',
     debug: true,
@@ -76,7 +76,7 @@ const configurations: Record<string, Partial<AppConfig>> = {
       retryAttempts: 3,
     },
     extension: {
-      name: 'Ascentio Job Capture (Dev)',
+      name: 'Vega AI Job Capture (Dev)',
       version: '0.1.0',
       environment: 'development',
       debug: true,
@@ -94,13 +94,13 @@ const configurations: Record<string, Partial<AppConfig>> = {
       scopes: ['openid'],
     },
     api: {
-      baseUrl: 'https://api.ascentio.com/api',
+      baseUrl: 'https://api.vegaai.com/api',
       authEndpoint: '/auth',
       timeout: 30000,
       retryAttempts: 3,
     },
     extension: {
-      name: 'Ascentio Job Capture',
+      name: 'Vega AI Job Capture',
       version: '0.1.0',
       environment: 'production',
       debug: false,
@@ -138,7 +138,7 @@ export const isDevelopment = () =>
 export const isProduction = () => config.extension.environment === 'production';
 
 if (isDevelopment()) {
-  console.log('🔧 Ascentio Extension Config:', {
+  console.log('🔧 Vega AI Extension Config:', {
     environment: config.extension.environment,
     apiBaseUrl: config.api.baseUrl,
     clientId: config.google.clientId,

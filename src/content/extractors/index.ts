@@ -20,14 +20,14 @@ export function extractJobData(): JobListing | null {
           return sanitizeJobListing(jobData);
         } else {
           console.warn(
-            'Ascentio: Extracted job data failed validation:',
+            'Vega AI: Extracted job data failed validation:',
             jobData
           );
           return null;
         }
       } catch (error) {
         console.error(
-          `Ascentio: Error in ${extractor.siteName} extractor:`,
+          `Vega AI: Error in ${extractor.siteName} extractor:`,
           error
         );
         return null;
