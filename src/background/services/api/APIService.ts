@@ -6,6 +6,7 @@ import {
 } from './IAPIService';
 import { JobListing } from '@/types';
 import { IAuthService } from '../auth/IAuthService';
+import { apiLogger } from '../../../utils/logger';
 
 export class APIService implements IAPIService {
   private config: APIConfig;
@@ -14,6 +15,12 @@ export class APIService implements IAPIService {
   private isInitialized = false;
   private refreshingToken = false;
   private pendingRequests: Array<() => void> = [];
+
+  // Circuit breaker properties
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private readonly CIRCUIT_BREAKER_THRESHOLD = 5;
+  private readonly CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute
 
   constructor(config: APIConfig, authService?: IAuthService) {
     this.config = {
@@ -39,11 +46,18 @@ export class APIService implements IAPIService {
   }
 
   async saveJob(job: JobListing): Promise<SaveJobResponse> {
-    const response = await this.request<SaveJobResponse>('/api/jobs', {
-      method: 'POST',
-      body: JSON.stringify(job),
-    });
+    apiLogger.info('Saving job', { title: job.title, company: job.company });
 
+    const response = await apiLogger.time('save_job_request', () =>
+      this.request<SaveJobResponse>('/api/jobs', {
+        method: 'POST',
+        body: JSON.stringify(job),
+      })
+    );
+
+    apiLogger.info('Job saved successfully', {
+      jobId: response.id || 'unknown',
+    });
     return response;
   }
 
@@ -51,6 +65,20 @@ export class APIService implements IAPIService {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<T> {
+    // Check circuit breaker
+    if (this.failureCount >= this.CIRCUIT_BREAKER_THRESHOLD) {
+      const timeSinceLastFailure = Date.now() - this.lastFailureTime;
+      if (timeSinceLastFailure < this.CIRCUIT_BREAKER_TIMEOUT) {
+        const error = new Error(
+          'Service temporarily unavailable. Please try again later.'
+        );
+        (error as Error & { code: string }).code = 'CIRCUIT_BREAKER_OPEN';
+        throw error;
+      }
+      // Reset circuit breaker
+      this.failureCount = 0;
+    }
+
     const { method = 'GET', body, params, attemptNumber = 1 } = options;
 
     const url = new URL(`${this.config.baseUrl}${endpoint}`);
@@ -59,6 +87,13 @@ export class APIService implements IAPIService {
         url.searchParams.set(key, String(value));
       });
     }
+
+    apiLogger.debug('Making API request', {
+      url: url.toString(),
+      method,
+      attemptNumber,
+      hasAuthToken: !!this.authToken,
+    });
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -123,17 +158,18 @@ export class APIService implements IAPIService {
               refreshError instanceof Error &&
               refreshError.message === 'Refresh token expired'
             ) {
-              throw {
-                code: 'AUTH_EXPIRED',
-                message: 'Your session has expired. Please sign in again.',
-              };
+              const error = new Error(
+                'Your session has expired. Please sign in again.'
+              );
+              (error as Error & { code: string }).code = 'AUTH_EXPIRED';
+              throw error;
             }
 
-            throw {
-              code: 'AUTH_REFRESH_FAILED',
-              message:
-                'Failed to refresh authentication. Please try signing in again.',
-            };
+            const error = new Error(
+              'Failed to refresh authentication. Please try signing in again.'
+            );
+            (error as Error & { code: string }).code = 'AUTH_REFRESH_FAILED';
+            throw error;
           } finally {
             this.refreshingToken = false;
           }
@@ -144,11 +180,23 @@ export class APIService implements IAPIService {
       }
 
       const data = await response.json();
+      // Reset failure count on success
+      this.failureCount = 0;
       return data;
     } catch (error) {
       clearTimeout(timeoutId);
 
       const normalizedError = this.normalizeError(error);
+
+      // Update circuit breaker on failure (but not on auth errors)
+      if (
+        normalizedError.code !== 'AUTH_EXPIRED' &&
+        normalizedError.code !== 'AUTH_REFRESH_FAILED'
+      ) {
+        this.failureCount++;
+        this.lastFailureTime = Date.now();
+      }
+
       if (this.shouldRetry(normalizedError, attemptNumber)) {
         await this.delay(this.getRetryDelay(attemptNumber));
         return this.request<T>(endpoint, {
@@ -225,6 +273,21 @@ export class APIService implements IAPIService {
         code: 'TIMEOUT_ERROR',
         message: 'Request timed out',
       };
+    }
+
+    if (error instanceof Error) {
+      apiLogger.error('API request failed', error, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+      });
+
+      if (error.message.includes('fetch')) {
+        return {
+          code: 'NETWORK_ERROR',
+          message: `Cannot connect to backend (${this.config.baseUrl}). Is it running?`,
+        };
+      }
     }
 
     return {

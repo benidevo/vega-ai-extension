@@ -1,11 +1,9 @@
 import { extractJobData, isSupportedJobPage } from './extractors';
 import { VegaAIOverlay } from './overlay';
+import { contentLogger } from '../utils/logger';
 
 let overlay: VegaAIOverlay | null = null;
 let isInitializing = false;
-
-// Delay for reinitialization when URL changes
-const REINITIALIZATION_DELAY_MS = 100;
 
 /**
  * Debounce function to prevent multiple rapid calls
@@ -36,22 +34,37 @@ function debounce<T extends (...args: unknown[]) => unknown>(
 async function initialize(): Promise<void> {
   // Prevent concurrent initializations
   if (isInitializing) {
+    contentLogger.debug('Initialization already in progress, skipping');
     return;
   }
 
   try {
     isInitializing = true;
+    contentLogger.debug('Starting content script initialization', {
+      url: window.location.href,
+    });
 
     if (isSupportedJobPage()) {
+      contentLogger.info('Job page detected, initializing overlay');
+
       if (!overlay) {
-        overlay = await VegaAIOverlay.create();
+        overlay = await contentLogger.time('overlay_creation', () =>
+          VegaAIOverlay.create()
+        );
+        contentLogger.info('Overlay created successfully');
       }
 
       try {
-        const jobData = extractJobData();
+        const jobData = await contentLogger.time('job_extraction', () =>
+          extractJobData()
+        );
 
         if (jobData) {
           await chrome.storage.local.set({ currentJob: jobData });
+          contentLogger.info('Job data extracted and cached', {
+            title: jobData.title,
+            company: jobData.company,
+          });
 
           chrome.action.setBadgeText({ text: '1' });
           chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
@@ -62,20 +75,24 @@ async function initialize(): Promise<void> {
               payload: jobData,
             })
             .catch(err => {
-              console.error('Vega AI: Failed to send message:', err);
+              contentLogger.error('Failed to send message to background', err);
             });
+        } else {
+          contentLogger.warn('No job data extracted from current page');
         }
       } catch (extractionError) {
-        console.error('Vega AI: Failed to extract job data:', extractionError);
+        contentLogger.error('Failed to extract job data', extractionError);
       }
     } else {
       if (overlay) {
+        contentLogger.info('Not a job page, cleaning up overlay');
         overlay.destroy();
         overlay = null;
       }
     }
   } finally {
     isInitializing = false;
+    contentLogger.debug('Initialization completed');
   }
 }
 
@@ -124,34 +141,41 @@ const initializeWhenVisible = () => {
 };
 
 let lastUrl = location.href;
-const mutationObserver = new MutationObserver(() => {
+
+const checkForUrlChange = () => {
   const url = location.href;
   if (url !== lastUrl) {
     lastUrl = url;
     hasInitialized = false;
 
+    // Clear overlay immediately if not on job page
     if (!isSupportedJobPage() && overlay) {
       overlay.destroy();
       overlay = null;
-      // Clear the badge
       chrome.action.setBadgeText({ text: '' });
+    } else if (isSupportedJobPage()) {
+      // Reinitialize with a delay for DOM to update
+      setTimeout(initializeWhenVisible, 300);
     }
-
-    setTimeout(initializeWhenVisible, REINITIALIZATION_DELAY_MS);
   }
-});
+};
 
+// Use both MutationObserver and periodic checks for LinkedIn SPA
+const mutationObserver = new MutationObserver(() => checkForUrlChange());
 mutationObserver.observe(document, { subtree: true, childList: true });
 
-window.addEventListener('load', () => {
-  initializeWhenVisible();
-});
+// Fallback: Check URL every second for LinkedIn to catch SPA navigation
+if (location.hostname.includes('linkedin.com')) {
+  setInterval(checkForUrlChange, 1000);
+}
 
-if (
-  document.readyState === 'complete' ||
-  document.readyState === 'interactive'
-) {
-  initializeWhenVisible();
+// Initial check on script load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initializeWhenVisible, 100);
+  });
+} else {
+  setTimeout(initializeWhenVisible, 100);
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

@@ -1,6 +1,7 @@
 import { JobListing } from '@/types';
 import { extractJobData } from './extractors';
 import { overlayStyles } from './styles/overlay.styles';
+import { overlayLogger } from '../utils/logger';
 
 /**
  * Provides a floating overlay UI for capturing and displaying job listing information on a web page.
@@ -20,11 +21,42 @@ export class VegaAIOverlay {
     handler: EventListener;
   }> = [];
 
+  // Caching for extracted jobs
+  private jobCache = new Map<string, { data: JobListing; timestamp: number }>();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  // Auto-save for notes
+  private autoSaveTimer: NodeJS.Timeout | null = null;
+  private readonly AUTO_SAVE_DELAY = 2000; // 2 seconds
+
   private constructor() {}
 
+  private getCachedJob(url: string): JobListing | null {
+    const cached = this.jobCache.get(url);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
+    }
+    this.jobCache.delete(url);
+    return null;
+  }
+
+  private setCachedJob(url: string, job: JobListing): void {
+    this.jobCache.set(url, { data: job, timestamp: Date.now() });
+
+    // Clean old cache entries
+    if (this.jobCache.size > 10) {
+      const oldestEntry = Array.from(this.jobCache.entries()).sort(
+        ([, a], [, b]) => a.timestamp - b.timestamp
+      )[0];
+      this.jobCache.delete(oldestEntry[0]);
+    }
+  }
+
   public static async create(): Promise<VegaAIOverlay> {
+    overlayLogger.debug('Creating VegaAI overlay instance');
     const instance = new VegaAIOverlay();
     await instance.init();
+    overlayLogger.info('VegaAI overlay created successfully');
     return instance;
   }
 
@@ -136,7 +168,7 @@ export class VegaAIOverlay {
 
     const closeButton = document.createElement('button');
     closeButton.className = 'vega-ai-close-button';
-    closeButton.setAttribute('aria-label', 'Close panel');
+    closeButton.setAttribute('aria-label', 'Close panel (Esc)');
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '20');
@@ -183,6 +215,7 @@ export class VegaAIOverlay {
 
     const saveButton = this.createButton('Save to Vega AI', 'primary');
     saveButton.id = 'vega-ai-save-btn';
+    saveButton.title = 'Save job (Ctrl+S / Cmd+S)';
 
     const saveHandler = async () => {
       await this.checkAuthentication();
@@ -226,20 +259,36 @@ export class VegaAIOverlay {
       } catch (error) {
         console.error('Vega AI: Failed to save job:', error);
 
-        // Handle specific error types
+        // Handle specific error types without suggesting page reload
         if (
           error instanceof Error &&
           error.message.includes('Extension context invalidated')
         ) {
-          this.showError(
-            'Extension was updated. Please refresh the page and try again.'
-          );
+          // Try to re-establish connection instead of suggesting refresh
+          try {
+            const response = await chrome.runtime.sendMessage({ type: 'PING' });
+            if (response) {
+              // Retry the save
+              const retryResponse = await chrome.runtime.sendMessage({
+                type: 'SAVE_JOB',
+                payload: this.extractedJob,
+              });
+              if (retryResponse?.success) {
+                this.showSuccess();
+                return;
+              }
+            }
+          } catch {
+            this.showError(
+              'Extension was updated. Please close and reopen this panel.'
+            );
+          }
         } else if (
           error instanceof Error &&
           error.message.includes('Could not establish connection')
         ) {
           this.showError(
-            'Connection lost. Please refresh the page and try again.'
+            'Connection lost. Please close and reopen this panel.'
           );
         } else {
           this.showError(
@@ -247,7 +296,6 @@ export class VegaAIOverlay {
           );
         }
       } finally {
-        // Restore button state
         saveButton.disabled = false;
         saveButton.textContent = originalText;
       }
@@ -350,6 +398,15 @@ export class VegaAIOverlay {
       const notesHandler = (e: Event) => {
         if (this.extractedJob && e.target instanceof HTMLTextAreaElement) {
           this.extractedJob.notes = e.target.value;
+
+          // Auto-save notes after delay
+          if (this.autoSaveTimer) {
+            clearTimeout(this.autoSaveTimer);
+          }
+
+          this.autoSaveTimer = setTimeout(() => {
+            this.autoSaveNotes();
+          }, this.AUTO_SAVE_DELAY);
         }
       };
 
@@ -363,6 +420,24 @@ export class VegaAIOverlay {
       notesDiv.appendChild(notesLabel);
       notesDiv.appendChild(notesTextarea);
       container.appendChild(notesDiv);
+
+      // Add keyboard shortcuts help
+      const helpDiv = document.createElement('div');
+      helpDiv.className = 'vega-ai-help';
+      helpDiv.style.cssText =
+        'margin-top: 16px; padding: 8px; background-color: #f8f9fa; border-radius: 6px; font-size: 12px; color: #6b7280;';
+
+      const helpText = document.createElement('div');
+      helpText.innerHTML = `
+        <strong>Keyboard shortcuts:</strong><br>
+        • <kbd>Esc</kbd> - Close panel<br>
+        • <kbd>Ctrl/Cmd + S</kbd> - Save job<br>
+        • <kbd>Ctrl/Cmd + Shift + V</kbd> - Toggle panel
+      `;
+      helpText.style.cssText = 'line-height: 1.4;';
+
+      helpDiv.appendChild(helpText);
+      container.appendChild(helpDiv);
     } else if (state === 'success') {
       const successDiv = document.createElement('div');
       successDiv.className = 'vega-ai-text-center';
@@ -441,35 +516,36 @@ export class VegaAIOverlay {
         const retryButton = this.createButton('Try Again', 'primary');
         retryButton.style.marginTop = '20px';
 
-        const retryHandler = () => {
-          // If it's a refresh error, refresh the page
-          if (errorMessage.includes('refresh')) {
-            window.location.reload();
-          } else {
-            // Otherwise, try to extract job data again
-            this.updatePanelContent(container, 'loading');
-            setTimeout(() => {
-              try {
-                this.extractedJob = extractJobData();
-                if (this.extractedJob) {
-                  this.updatePanelContent(container, 'data');
-                } else {
-                  this.updatePanelContent(
-                    container,
-                    'error',
-                    'No job data found on this page'
-                  );
-                }
-              } catch (error) {
-                console.error('Vega AI: Error extracting job data:', error);
+        const retryHandler = async () => {
+          this.updatePanelContent(container, 'loading');
+          setTimeout(async () => {
+            try {
+              // Re-check authentication first
+              await this.checkAuthentication();
+              if (!this.isAuthenticated) {
+                this.showAuthRequired(container);
+                return;
+              }
+
+              // Try extraction again
+              this.extractedJob = extractJobData();
+              if (this.extractedJob) {
+                this.updatePanelContent(container, 'data');
+              } else {
                 this.updatePanelContent(
                   container,
                   'error',
-                  'Failed to extract job data'
+                  'Unable to extract job data'
                 );
               }
-            }, 300);
-          }
+            } catch {
+              this.updatePanelContent(
+                container,
+                'error',
+                'Please try closing and reopening the panel'
+              );
+            }
+          }, 300);
         };
 
         retryButton.addEventListener('click', retryHandler);
@@ -496,13 +572,76 @@ export class VegaAIOverlay {
 
   private attachEventListeners(): void {
     if (this.button) {
-      const clickHandler = () => this.togglePanel();
+      const clickHandler = () => {
+        overlayLogger.track('overlay_button_clicked');
+        this.togglePanel();
+      };
       this.button.addEventListener('click', clickHandler);
       this.eventListeners.push({
         element: this.button,
         event: 'click',
         handler: clickHandler,
       });
+    }
+
+    // Add keyboard shortcuts
+    this.setupKeyboardShortcuts();
+  }
+
+  private setupKeyboardShortcuts(): void {
+    const keydownHandler = (e: KeyboardEvent) => {
+      // Escape key to close panel
+      if (e.key === 'Escape' && this.isVisible) {
+        e.preventDefault();
+        e.stopPropagation();
+        overlayLogger.track('keyboard_shortcut_escape');
+        this.hidePanel();
+        return;
+      }
+
+      // Ctrl+S or Cmd+S to save job (when panel is visible)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key === 's' &&
+        this.isVisible &&
+        this.extractedJob
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        overlayLogger.track('keyboard_shortcut_save');
+        this.handleSaveJob();
+        return;
+      }
+
+      // Ctrl+Shift+V or Cmd+Shift+V to toggle panel
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
+        e.preventDefault();
+        e.stopPropagation();
+        overlayLogger.track('keyboard_shortcut_toggle');
+        this.togglePanel();
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', keydownHandler as EventListener, true);
+    this.eventListeners.push({
+      element: document,
+      event: 'keydown',
+      handler: keydownHandler as EventListener,
+    });
+  }
+
+  private async handleSaveJob(): Promise<void> {
+    if (!this.extractedJob || !this.isAuthenticated) {
+      return;
+    }
+
+    const saveButton = document.getElementById(
+      'vega-ai-save-btn'
+    ) as HTMLButtonElement;
+    if (saveButton && !saveButton.disabled) {
+      // Trigger the save button click to reuse existing logic
+      saveButton.click();
     }
   }
 
@@ -539,11 +678,37 @@ export class VegaAIOverlay {
 
     this.updatePanelContent(content, 'loading');
 
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        const currentUrl = window.location.href;
+
+        // Try to get cached job first
+        let cachedJob = this.getCachedJob(currentUrl);
+        if (cachedJob) {
+          this.extractedJob = cachedJob;
+          this.updatePanelContent(content, 'data');
+          return;
+        }
+
+        // Extract fresh job data
         this.extractedJob = extractJobData();
 
         if (this.extractedJob) {
+          // Try to restore saved notes
+          try {
+            const savedNotes = await chrome.storage.local.get(
+              `notes_${currentUrl}`
+            );
+            if (savedNotes[`notes_${currentUrl}`]) {
+              this.extractedJob.notes = savedNotes[`notes_${currentUrl}`];
+              overlayLogger.debug('Restored saved notes for job');
+            }
+          } catch (error) {
+            overlayLogger.warn('Failed to restore saved notes', error);
+          }
+
+          // Cache the extracted job
+          this.setCachedJob(currentUrl, this.extractedJob);
           this.updatePanelContent(content, 'data');
         } else {
           this.updatePanelContent(
@@ -680,7 +845,26 @@ export class VegaAIOverlay {
     return error;
   }
 
+  private async autoSaveNotes(): Promise<void> {
+    if (!this.extractedJob) return;
+
+    try {
+      // Save notes to local storage
+      await chrome.storage.local.set({
+        [`notes_${window.location.href}`]: this.extractedJob.notes,
+      });
+    } catch (error) {
+      console.error('Failed to auto-save notes:', error);
+    }
+  }
+
   public destroy(): void {
+    // Clear auto-save timer
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+
     this.eventListeners.forEach(({ element, event, handler }) => {
       element.removeEventListener(event, handler);
     });
@@ -693,6 +877,9 @@ export class VegaAIOverlay {
     this.footer = null;
     this.extractedJob = null;
     this.isVisible = false;
+
+    // Clear cache
+    this.jobCache.clear();
 
     // Remove DOM element
     const root = document.getElementById('vega-ai-root');

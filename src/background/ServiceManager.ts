@@ -130,6 +130,11 @@ export class ServiceManager {
   }
 
   private setupMessageHandlers(): void {
+    this.messageService.on('PING', (message, sender, sendResponse) => {
+      sendResponse({ success: true, timestamp: Date.now() });
+      return false;
+    });
+
     this.messageService.on(MessageType.JOB_EXTRACTED, () => {
       this.badgeService.showSuccess().catch(console.error);
       return false;

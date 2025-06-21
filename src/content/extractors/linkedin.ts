@@ -22,7 +22,19 @@ export class LinkedInExtractor implements IJobExtractor {
    * @returns True if the URL is a LinkedIn job view page, otherwise false.
    */
   canExtract(url: string): boolean {
-    return url.includes('linkedin.com/jobs/view/');
+    if (url.includes('linkedin.com/jobs/view/')) return true;
+
+    // Also check for job page elements as fallback for SPA navigation
+    if (url.includes('linkedin.com')) {
+      const hasJobElements = !!(
+        document.querySelector('.jobs-unified-top-card') ||
+        document.querySelector('.job-details-jobs-unified-top-card') ||
+        document.querySelector('[data-job-id]')
+      );
+      return hasJobElements;
+    }
+
+    return false;
   }
 
   /**

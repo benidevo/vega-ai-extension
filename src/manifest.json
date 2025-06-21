@@ -23,11 +23,12 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.linkedin.com/jobs/*",
+        "https://*.linkedin.com/*",
         "https://*.indeed.com/viewjob*",
         "https://*.indeed.com/job/*"
       ],
-      "js": ["content/index.js"]
+      "js": ["content/index.js"],
+      "run_at": "document_idle"
     }
   ],
   "oauth2": {

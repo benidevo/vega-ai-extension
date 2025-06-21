@@ -11,6 +11,11 @@ dist/
 # Testing
 coverage/
 
+# Debug files
+debug/
+debug_connection.js
+test_backend.html
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*
