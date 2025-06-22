@@ -1,282 +1,155 @@
-# Vega AI Browser Extension
+# Vega AI Job Capture Extension
 
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=google-chrome&logoColor=white)](https://chrome.google.com/webstore)
 
-A focused Chrome extension that captures job listings from various job sites and posts them to the Vega AI backend service.
+**Capture job listings instantly from any job board.**
 
-## 🚀 Features
+The Vega AI extension automatically detects job postings and lets you capture them instantly to your Vega AI dashboard for tracking and management. Currently supports LinkedIn with more job sites coming soon.
 
-- **Smart Job Detection**: Automatically detects job listings on supported sites
-- **Data Extraction**: Captures job title, company, location, description, and job type
-- **Interactive Overlay**: Floating UI for quick job preview and capture
-- **Quick Notes**: Add personal notes before posting jobs
-- **Multi-Provider Authentication**: Secure login with Google OAuth or username/password
-- **One-Click Capture**: Post jobs to the Vega AI backend service instantly
-- **Visual Feedback**: Success/error badge notifications
+## ✨ What it does
 
-## 📋 Purpose
+- 🎯 **Auto-detects** job listings on LinkedIn (more sites coming soon)
+- 💾 **One-click save** to your Vega AI account
+- 📝 **Add notes** before saving (salary expectations, interest level, etc.)
+- 🔐 **Secure login** with your Vega AI username/password
+- ✅ **Visual confirmation** when jobs are saved successfully
 
-This extension serves a single, focused purpose: to capture job listings from web pages and post them to the Vega AI backend service. It does not manage, store, or track jobs locally. All data is sent directly to the backend for centralized management.
+## 🎬 How it works
 
-## 🏗️ Architecture
+1. **Browse jobs** on LinkedIn
+2. **Click the floating capture button** that appears on job listings
+3. **Add optional notes** in the popup
+4. **Hit save** and the job is instantly added to your Vega AI dashboard
 
-### Modular Design
+No manual copy-pasting of job details. No switching between tabs. Just seamless job tracking.
 
-The extension follows a modular architecture with clear separation of concerns:
+## 📥 Get Started
 
-```plaintext
-src/
-├── background/          # Service worker and background services
-│   ├── services/       # Modular service implementations
-│   │   ├── auth/      # Multi-provider authentication (Google OAuth, username/password)
-│   │   ├── api/       # Backend API communication
-│   │   ├── message/   # Chrome extension messaging
-│   │   ├── storage/   # Chrome storage wrapper
-│   │   └── badge/     # Extension badge management
-│   └── ServiceManager.ts # Coordinates all services
-│
-├── content/            # Content scripts injected into web pages
-│   ├── extractors/    # Job data extraction modules
-│   │   ├── IJobExtractor.ts    # Common interface
-│   │   └── linkedin.ts         # LinkedIn-specific extractor
-│   ├── overlay.ts     # Floating UI component
-│   └── index.ts       # Content script entry point
-│
-├── popup/             # Extension popup UI
-├── styles/            # Global styles (Tailwind CSS)
-└── types/             # TypeScript type definitions
-```
+### Install the Extension
 
-### Key Components
+**Option 1: Direct Download** (Recommended)
 
-#### Background Services
+1. Visit the [latest release page](https://github.com/benidevo/vega-ai-extension/releases/latest)
+2. Download the `vega-extension-*.zip` file
+3. Unzip the file to a folder on your computer
+4. Open Chrome and go to `chrome://extensions/`
+5. Turn on "Developer mode" (toggle in top right)
+6. Click "Load unpacked" and select your unzipped folder
 
-- **AuthService**: Handles Google OAuth and username/password authentication with token management
-- **APIService**: Posts captured jobs to the Vega AI backend
-- **MessageService**: Type-safe message passing between components
-- **StorageService**: Simple wrapper for Chrome storage operations
-- **BadgeService**: Success/error visual feedback through extension badge
+**Option 2: Chrome Web Store** *(Coming Soon)*
+The extension will be available on the Chrome Web Store for one-click installation.
 
-#### Content Script Modules
+### Set Up Your Account
 
-- **Job Extractors**: Site-specific modules implementing `IJobExtractor` interface
-- **Overlay Manager**: Creates and manages the floating capture UI
-- **DOM Observer**: Watches for page changes and job listing updates
+1. **Set up Vega AI** by visiting [vega.benidevo.com](https://vega.benidevo.com) for setup instructions
+2. **Open the extension** (click the Vega AI icon in your browser toolbar)
+3. **Sign in** with your Vega AI username and password
+4. **Start browsing jobs** and the extension will automatically detect job listings!
 
-## 🛠️ Technology Stack
+---
 
-- **TypeScript**: Type-safe development
-- **Webpack 5**: Module bundling and build optimization
-- **Tailwind CSS**: Utility-first styling
-- **Chrome Extension Manifest V3**: Latest extension platform
-- **ESLint**: Code quality and consistency
-- **Jest**: Testing framework with TypeScript support
+## 🛠️ For Developers
 
-## 📦 Installation
+<details>
+<summary>Click to expand developer setup instructions</summary>
 
-### For Users
-
-Download the latest release from the [GitHub releases page](https://github.com/benidevo/vega-ai-extension/releases/latest):
-
-1. Download the `vega-extension-*.zip` file
-2. Extract the contents to a folder
-3. Open Chrome and navigate to `chrome://extensions/`
-4. Enable "Developer mode" (toggle in top right)
-5. Click "Load unpacked" and select the extracted folder
-
-### For Developers
-
-#### Prerequisites
+### Prerequisites
 
 - Node.js 20+ and npm
 - Chrome browser
-- Google OAuth client ID (optional, for Google authentication)
 
-#### Development Setup
+### Quick Setup
 
-1. Clone the repository:
+```bash
+# Clone and install
+git clone https://github.com/benidevo/vega-ai-extension.git
+cd vega-ai-extension
+npm install
 
-   ```bash
-   git clone https://github.com/benidevo/vega-ai-extension.git
-   cd vega-ai-extension
-   ```
+# Build and load
+npm run build
+```
 
-2. Install dependencies:
+Then load the `dist` folder as an unpacked extension in Chrome.
 
-   ```bash
-   npm install
-   ```
+### Configuration
 
-3. Configure the extension:
-   - Update `src/background/ServiceManager.ts` with the Google OAuth client ID
-   - Update API endpoints to point to the backend service
+Update API endpoints in `src/config/index.ts` to point to your backend service.
 
-4. Build the extension:
+**Optional**: Enable Google OAuth by setting `features.enableGoogleAuth: true` in config and providing OAuth credentials.
 
-   ```bash
-   npm run build
-   ```
+### Technical Documentation
 
-5. Load in Chrome:
-   - Navigate to `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked" and select the `dist` directory
+📋 **[Technical Design Document](docs/TECHNICAL_DESIGN.md)** - Detailed architecture, security, and implementation details</details>
 
-6. Load in Edge:
-   - Navigate to `edge://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked" and select the `dist` directory
-
-## 🔧 Development
+<details>
+<summary>🔧 Advanced Developer Information</summary>
 
 ### Available Scripts
 
 ```bash
 npm run dev         # Development build with watch mode
 npm run build       # Production build
-npm run clean       # Clean dist directory
 npm run lint        # Run ESLint
-npm run lint:fix    # Run ESLint with auto-fix
-npm run format      # Format code with Prettier
-npm run format:check # Check code formatting
-npm run typecheck   # Run TypeScript compiler checks
 npm run test        # Run Jest tests
-npm run test:watch  # Run Jest in watch mode
-npm run test:coverage # Run Jest with coverage
+npm run typecheck   # Run TypeScript type checking
 ```
 
 ### Build & Release
 
-#### Automated Builds
-
-The project includes GitHub Actions workflows for different scenarios:
-
-- **CI Pipeline**: Runs on every push/PR to master
-  - Quality checks (lint, test, typecheck)
-  - Build verification
-  - Artifact upload (7-day retention)
-  
-- **Manual Build**: Trigger manually from GitHub Actions tab
-  - Same quality checks as CI
-  - Creates timestamped build zip
-  - Artifact upload (30-day retention)
-  - Good for testing specific commits
-
-- **Release**: Automatically triggered by git tags
-  - Full build with quality checks
-  - Creates GitHub release with downloadable extension
-  - Ready for end-user installation
-
-#### Creating a Release
-
-To create a new release:
-
-```bash
-# Tag the current commit
-git tag v1.0.0
-
-# Push the tag to trigger release workflow
-git push origin v1.0.0
-```
-
-This automatically:
-1. Builds the extension
-2. Runs all quality checks
-3. Creates a GitHub release
-4. Uploads the extension zip for users to download
+- **CI**: Runs on every push/PR (quality checks + build verification)
+- **Manual Build**: Trigger from GitHub Actions for testing
+- **Release**: Auto-triggered by git tags (`git tag v1.0.0 && git push origin v1.0.0`)
 
 ### Code Quality
 
-This project uses **Husky** and **lint-staged** for automated pre-commit hooks:
-
-- **Linting & Formatting**: ESLint + Prettier on staged files
-- **Type Checking**: TypeScript compilation check  
-- **Testing**: Complete test suite
-
-Manual quality checks:
-```bash
-npm run lint        # Check linting issues
-npm run lint:fix    # Auto-fix linting issues
-npm run format      # Auto-format all code  
-npm run typecheck   # Check TypeScript types
-npm run test        # Run full test suite
-```
+Pre-commit hooks run ESLint, Prettier, TypeScript checks, and tests automatically.
 
 ### Adding New Job Sites
 
-1. Create a new extractor in `src/content/extractors/`:
-
-   ```typescript
-   export class IndeedExtractor implements IJobExtractor {
-     canExtract(url: string): boolean {
-       return url.includes('indeed.com');
-     }
-
-     extract(): JobListing | null {
-       // Site-specific extraction logic
-     }
-   }
-   ```
-
+1. Create extractor in `src/content/extractors/` implementing `IJobExtractor`
 2. Register in `src/content/extractors/index.ts`
+3. Content script auto-detects and uses it
 
-3. The content script will automatically use it for matching URLs
+### Configuration
 
-### Message Types
+- **Backend API**: Update endpoints in `src/config/index.ts`
+- **Google OAuth**: Set `features.enableGoogleAuth: true` + provide OAuth credentials
+- **Feature Flags**: Control analytics, session limits, etc. in config
 
-The extension uses typed messages for communication:
+</details>
 
-- `JOB_EXTRACTED`: Job detected on page
-- `SAVE_JOB`: Request to save job
-- `LOGIN`/`LOGOUT`: Authentication requests
-- `LOGIN_WITH_PASSWORD`: Username/password authentication
+## ❓ Need Help?
 
-## 🔒 Configuration
+**Having trouble?** Check out these resources:
 
-### Required Configuration
-
-1. **Backend API**:
-   - Deploy the Vega AI backend service
-   - Update API endpoints in `src/config/index.ts`
-
-### Optional Configuration
-
-1. **Google OAuth Setup** (if enabling Google authentication):
-   - Create a project in Google Cloud Console
-   - Enable Google+ API
-   - Create OAuth 2.0 credentials
-   - Add `chrome-extension://[EXTENSION_ID]` to authorized redirects
-   - Set `features.enableGoogleAuth: true` in config
-
-2. **Feature Flags** in `src/config/index.ts`:
-   - `enableGoogleAuth`: Enable/disable Google OAuth (default: false)
-   - `enableAnalytics`: Enable usage analytics
-   - `maxJobsPerSession`: Limit jobs per session
-
-3. **Customization**:
-   - Modify job extraction selectors for better accuracy
-   - Customize overlay styles in `overlay.styles.ts`
-   - Add new storage areas in `StorageService`
+- 📖 **[Setup Guide & FAQ](https://vega.benidevo.com/#faq)** for installation and common questions
+- 🐛 **[Report a Bug](https://github.com/benidevo/vega-ai-extension/issues)** if something isn't working
+- 💡 **[Request a Feature](https://github.com/benidevo/vega-ai-extension/issues)** to suggest improvements
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Love using the extension? Help make it better:
 
-### Code Style
-
-- Follow TypeScript best practices
-- Use meaningful variable names
-- Add JSDoc comments for public APIs
-- Ensure all tests pass before submitting
+1. **Report bugs** or suggest features via GitHub issues
+2. **Add support** for new job sites by contributing extractors
+3. **Improve the code**:
+   - Fork the repository
+   - Create a feature branch (`git checkout -b feature/your-feature`)
+   - Make your changes and test them
+   - Submit a pull request with a clear description
 
 ## 📝 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0).
 
-## 📞 Support
+**What this means:**
 
-For issues and feature requests, please use the [GitHub issue tracker](https://github.com/benidevo/vega-ai-extension/issues).
+- ✅ You can use, study, modify, and distribute the code
+- ✅ If you run this software on a server, you must make your source code available to users
+- ✅ Any modifications must also be released under AGPL-3.0
+
+**Commercial licensing:** For commercial use without AGPL restrictions, contact [benjaminidewor@gmail.com](mailto:benjaminidewor@gmail.com) for licensing options.
