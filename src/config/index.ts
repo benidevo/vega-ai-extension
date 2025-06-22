@@ -56,13 +56,13 @@ const defaultConfig: AppConfig = {
         apiEndpoint: '/api/auth/google',
       },
       password: {
-        apiBaseUrl: 'http://localhost:8000',
+        apiBaseUrl: 'http://localhost:8765',
       },
     },
     defaultProvider: 'password', // Default to password auth
   },
   api: {
-    baseUrl: 'http://localhost:8000',
+    baseUrl: 'http://localhost:8765',
     authEndpoint: '/api/auth',
     timeout: 30000,
     retryAttempts: 3,
@@ -107,13 +107,13 @@ const configurations: Record<string, Partial<AppConfig>> = {
           apiEndpoint: '/api/auth/google',
         },
         password: {
-          apiBaseUrl: 'https://api.vegaai.com',
+          apiBaseUrl: 'http://localhost:8765',
         },
       },
       defaultProvider: 'password',
     },
     api: {
-      baseUrl: 'https://api.vegaai.com',
+      baseUrl: 'http://localhost:8765',
       authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,

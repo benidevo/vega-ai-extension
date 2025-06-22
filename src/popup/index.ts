@@ -73,7 +73,7 @@ class Popup {
     if (isAuthenticated) {
       this.ctaElement.innerHTML = `
         <a
-          href="http://localhost:8000/jobs"
+          href="http://localhost:8765/jobs"
           target="_blank"
           class="vega-btn vega-btn-primary w-full block text-center"
         >

@@ -79,11 +79,11 @@ Then load the `dist` folder as an unpacked extension in Chrome.
 
 The extension uses **username/password authentication by default**. Google OAuth is available but disabled by default.
 
-**Basic Setup** - Update API endpoint in `src/config/index.ts`:
+**Basic Setup** - Update API endpoint in `src/config/index.ts` if needed:
 
 ```typescript
 api: {
-  baseUrl: 'https://your-api.com'  // Your backend URL
+  baseUrl: 'http://localhost:8765'  // Default port, change if your backend uses different port
 }
 ```
 

@@ -32,10 +32,10 @@ describe('MultiProviderAuthService', () => {
     google: {
       clientId: 'test-client-id',
       scopes: ['openid'],
-      apiEndpoint: 'http://localhost:8000/api/auth/google'
+      apiEndpoint: 'http://localhost:8765/api/auth/google'
     },
     password: {
-      apiBaseUrl: 'http://localhost:8000'
+      apiBaseUrl: 'http://localhost:8765'
     }
   };
 
@@ -70,7 +70,7 @@ describe('MultiProviderAuthService', () => {
       await authService.loginWithPassword('testuser', 'testpass');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/auth/login',
+        'http://localhost:8765/api/auth/login',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
