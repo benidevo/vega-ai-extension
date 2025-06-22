@@ -6,7 +6,7 @@
  */
 
 export interface AppConfig {
-  // Authentication Configuration
+  // Authentication Configuration (optional)
   auth: {
     providers: {
       google: {
@@ -42,7 +42,7 @@ export interface AppConfig {
     enableAnalytics: boolean;
     enableErrorReporting: boolean;
     maxJobsPerSession: number;
-    enableGoogleAuth: boolean;
+    enableGoogleAuth: boolean; // Optional: Set to true to enable Google OAuth
   };
 }
 
@@ -51,19 +51,19 @@ const defaultConfig: AppConfig = {
   auth: {
     providers: {
       google: {
-        clientId: 'placeholder-client-id.apps.googleusercontent.com',
-        scopes: ['openid'],
-        apiEndpoint: '/api/auth',
+        clientId: 'your-google-client-id.apps.googleusercontent.com',
+        scopes: ['openid', 'email', 'profile'],
+        apiEndpoint: '/api/auth/google',
       },
       password: {
-        apiBaseUrl: 'https://localhost:8000',
+        apiBaseUrl: 'http://localhost:8000',
       },
     },
-    defaultProvider: 'google',
+    defaultProvider: 'password', // Default to password auth
   },
   api: {
-    baseUrl: 'https://localhost:8000/api',
-    authEndpoint: '/auth',
+    baseUrl: 'http://localhost:8000',
+    authEndpoint: '/api/auth',
     timeout: 30000,
     retryAttempts: 3,
   },
@@ -77,33 +77,13 @@ const defaultConfig: AppConfig = {
     enableAnalytics: false,
     enableErrorReporting: false,
     maxJobsPerSession: 50,
-    enableGoogleAuth: false,
+    enableGoogleAuth: false, // Disabled by default
   },
 };
 
 // Environment-specific configurations
 const configurations: Record<string, Partial<AppConfig>> = {
   development: {
-    auth: {
-      providers: {
-        google: {
-          clientId:
-            '631098864265-nj8bkpn6copd0hnnqubl8a4iqabmd5ho.apps.googleusercontent.com',
-          scopes: ['openid'],
-          apiEndpoint: '/api/auth',
-        },
-        password: {
-          apiBaseUrl: 'http://localhost:8000',
-        },
-      },
-      defaultProvider: 'google',
-    },
-    api: {
-      baseUrl: 'http://localhost:8000',
-      authEndpoint: '/api/auth',
-      timeout: 30000,
-      retryAttempts: 3,
-    },
     extension: {
       name: 'Vega AI Job Capture (Dev)',
       version: '0.1.0',
@@ -114,7 +94,7 @@ const configurations: Record<string, Partial<AppConfig>> = {
       enableAnalytics: false,
       enableErrorReporting: false,
       maxJobsPerSession: 10,
-      enableGoogleAuth: false,
+      enableGoogleAuth: false, // Disabled in dev - use prod build to test OAuth
     },
   },
 
@@ -122,19 +102,19 @@ const configurations: Record<string, Partial<AppConfig>> = {
     auth: {
       providers: {
         google: {
-          clientId: 'YOUR_PROD_CLIENT_ID.apps.googleusercontent.com',
-          scopes: ['openid'],
-          apiEndpoint: '/api/auth',
+          clientId: 'your-prod-google-client-id.apps.googleusercontent.com', // Replace with your production client ID
+          scopes: ['openid', 'email', 'profile'],
+          apiEndpoint: '/api/auth/google',
         },
         password: {
           apiBaseUrl: 'https://api.vegaai.com',
         },
       },
-      defaultProvider: 'google',
+      defaultProvider: 'password',
     },
     api: {
-      baseUrl: 'https://api.vegaai.com/api',
-      authEndpoint: '/auth',
+      baseUrl: 'https://api.vegaai.com',
+      authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,
     },
@@ -148,7 +128,7 @@ const configurations: Record<string, Partial<AppConfig>> = {
       enableAnalytics: true,
       enableErrorReporting: true,
       maxJobsPerSession: 100,
-      enableGoogleAuth: false,
+      enableGoogleAuth: false, // Set to true to enable Google OAuth (requires client ID setup)
     },
   },
 };
@@ -195,6 +175,7 @@ if (isDevelopment()) {
     apiBaseUrl: config.api.baseUrl,
     authProviders: Object.keys(config.auth.providers),
     defaultProvider: config.auth.defaultProvider,
+    googleAuthEnabled: config.features.enableGoogleAuth,
     debug: config.extension.debug,
   });
 }

@@ -77,9 +77,30 @@ Then load the `dist` folder as an unpacked extension in Chrome.
 
 ### Configuration
 
-Update API endpoints in `src/config/index.ts` to point to your backend service.
+The extension uses **username/password authentication by default**. Google OAuth is available but disabled by default.
 
-**Optional**: Enable Google OAuth by setting `features.enableGoogleAuth: true` in config and providing OAuth credentials.
+**Basic Setup** - Update API endpoint in `src/config/index.ts`:
+
+```typescript
+api: {
+  baseUrl: 'https://your-api.com'  // Your backend URL
+}
+```
+
+**Optional: Enable Google OAuth** - Uncomment in production config:
+
+```typescript
+features: {
+  enableGoogleAuth: true, // Uncomment and set to true
+},
+auth: {
+  providers: {
+    google: {
+      clientId: 'your-google-client-id.apps.googleusercontent.com' // Add your client ID
+    }
+  }
+}
+```
 
 ### Technical Documentation
 
@@ -116,8 +137,8 @@ Pre-commit hooks run ESLint, Prettier, TypeScript checks, and tests automaticall
 
 ### Configuration
 
-- **Backend API**: Update endpoints in `src/config/index.ts`
-- **Google OAuth**: Set `features.enableGoogleAuth: true` + provide OAuth credentials
+- **Backend API**: Update `api.baseUrl` in `src/config/index.ts`
+- **Google OAuth**: Set `features.enableGoogleAuth: true` + provide OAuth credentials (optional)
 - **Feature Flags**: Control analytics, session limits, etc. in config
 
 </details>
