@@ -31,6 +31,12 @@
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/logo.svg"],
+      "matches": ["https://*.linkedin.com/*", "https://*.indeed.com/*"]
+    }
+  ],
   "oauth2": {
     "client_id": "WILL_BE_INJECTED_BY_WEBPACK",
     "scopes": ["openid", "email", "profile"]

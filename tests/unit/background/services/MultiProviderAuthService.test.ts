@@ -57,9 +57,8 @@ describe('MultiProviderAuthService', () => {
   describe('loginWithPassword', () => {
     it('should authenticate with username and password', async () => {
       const mockTokenResponse = {
-        access_token: 'test-access-token',
-        refresh_token: 'test-refresh-token',
-        expires_at: Date.now() + 3600000
+        token: 'test-access-token',
+        refresh_token: 'test-refresh-token'
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -79,7 +78,11 @@ describe('MultiProviderAuthService', () => {
         })
       );
 
-      expect(mockStorageService.set).toHaveBeenCalledWith('authTokenData', mockTokenResponse);
+      expect(mockStorageService.set).toHaveBeenCalledWith('authTokenData', expect.objectContaining({
+        access_token: 'test-access-token',
+        refresh_token: 'test-refresh-token',
+        expires_at: expect.any(Number)
+      }));
       expect(mockStorageService.set).toHaveBeenCalledWith('authProvider', 'password');
       expect(mockStorageService.set).toHaveBeenCalledWith('authToken', 'test-access-token');
     });
@@ -104,9 +107,8 @@ describe('MultiProviderAuthService', () => {
 
     it('should allow password auth when Google is disabled', async () => {
       const mockResponse = {
-        access_token: 'token',
-        refresh_token: 'refresh',
-        expires_at: Date.now() + 3600000
+        token: 'token',
+        refresh_token: 'refresh'
       };
 
       mockFetch.mockResolvedValueOnce({

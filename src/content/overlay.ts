@@ -155,7 +155,7 @@ export class VegaAIOverlay {
       'vega-ai-flex vega-ai-items-center vega-ai-gap-2';
 
     const logo = document.createElement('img');
-    logo.src = chrome.runtime.getURL('icons/icon48.png');
+    logo.src = chrome.runtime.getURL('icons/logo.svg');
     logo.className = 'vega-ai-logo';
     logo.alt = 'Vega AI';
 

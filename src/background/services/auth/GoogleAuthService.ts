@@ -124,13 +124,16 @@ export class GoogleAuthService implements IAuthService {
       throw new Error('No refresh token available');
     }
 
-    const response = await fetch(`${this.config.apiEndpoint}/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        refresh_token: tokenData.refresh_token,
-      }),
-    });
+    const response = await fetch(
+      `${this.config.apiEndpoint}/api/auth/refresh`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          refresh_token: tokenData.refresh_token,
+        }),
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -147,13 +150,10 @@ export class GoogleAuthService implements IAuthService {
       throw new Error('Invalid response from authentication server');
     }
 
-    const expiresIn = data.expires_in || 3600;
-    const expiresAt = Date.now() + expiresIn * 1000;
-
     const newTokenData: AuthToken = {
       access_token: data.token,
       refresh_token: tokenData.refresh_token, // Keep the existing refresh token
-      expires_at: expiresAt,
+      expires_at: Date.now() + 3600 * 1000, // Default to 1 hour since backend doesn't return expires_at
     };
 
     await this.storageService.set('authTokenData', newTokenData);
@@ -170,7 +170,7 @@ export class GoogleAuthService implements IAuthService {
 
   private async exchangeTokenForJWT(authCode: string): Promise<void> {
     const redirectUri = chrome.identity.getRedirectURL();
-    const response = await fetch(`${this.config.apiEndpoint}`, {
+    const response = await fetch(`${this.config.apiEndpoint}/api/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -189,14 +189,10 @@ export class GoogleAuthService implements IAuthService {
       throw new Error('Invalid response from authentication server');
     }
 
-    // Calculate expiration time (assume 1 hour if not provided)
-    const expiresIn = data.expires_in || 3600;
-    const expiresAt = Date.now() + expiresIn * 1000;
-
     const tokenData: AuthToken = {
       access_token: data.token,
       refresh_token: data.refresh_token,
-      expires_at: expiresAt,
+      expires_at: Date.now() + 3600 * 1000, // Default to 1 hour since backend doesn't return expires_at
     };
 
     await this.storageService.set('authTokenData', tokenData);

@@ -50,14 +50,18 @@ export class PasswordAuthService implements IAuthProvider {
 
       const data = await response.json();
 
-      if (!data.access_token) {
+      if (!data.token) {
+        throw new Error('Invalid authentication response');
+      }
+
+      if (!data.refresh_token) {
         throw new Error('Invalid authentication response');
       }
 
       const tokens: AuthToken = {
-        access_token: data.access_token,
+        access_token: data.token,
         refresh_token: data.refresh_token,
-        expires_at: data.expires_at || Date.now() + 24 * 60 * 60 * 1000, // Default to 24h if not provided
+        expires_at: Date.now() + 3600 * 1000, // Default to 1 hour since backend doesn't return expires_at
       };
 
       authLogger.info('Password authentication successful', { username });
@@ -96,9 +100,9 @@ export class PasswordAuthService implements IAuthProvider {
       const data = await response.json();
 
       const tokens: AuthToken = {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token || refreshToken, // Keep old refresh token if not provided
-        expires_at: data.expires_at || Date.now() + 24 * 60 * 60 * 1000,
+        access_token: data.token,
+        refresh_token: refreshToken, // Keep the existing refresh token since backend doesn't return a new one
+        expires_at: Date.now() + 3600 * 1000, // Default to 1 hour since backend doesn't return expires_at
       };
 
       authLogger.info('Password auth tokens refreshed successfully');
