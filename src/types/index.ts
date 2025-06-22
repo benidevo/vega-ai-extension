@@ -26,3 +26,8 @@ export interface AuthToken {
   refresh_token: string;
   expires_at: number; // Unix timestamp in milliseconds
 }
+
+/**
+ * Authentication provider types
+ */
+export type AuthProviderType = 'google' | 'password';

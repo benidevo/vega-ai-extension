@@ -169,6 +169,7 @@ export class Logger {
 export const contentLogger = new Logger('Content');
 export const overlayLogger = new Logger('Overlay');
 export const apiLogger = new Logger('API');
+export const authLogger = new Logger('Auth');
 
 if (process.env.NODE_ENV === 'development') {
   Logger.setLogLevel(LogLevel.DEBUG);

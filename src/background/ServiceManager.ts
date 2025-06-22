@@ -4,15 +4,15 @@ import {
   IMessageService,
   IStorageService,
   IBadgeService,
-  GoogleAuthService,
   APIService,
   MessageService,
   StorageService,
   BadgeService,
   MessageType,
 } from './services';
-import { googleConfig, apiConfig } from '@/config';
-import { JobListing } from '@/types';
+import { MultiProviderAuthService } from './services/auth/MultiProviderAuthService';
+import { authConfig, apiConfig } from '@/config';
+import { JobListing, AuthProviderType } from '@/types';
 
 /**
  * Service Manager to coordinate all background services
@@ -28,11 +28,16 @@ export class ServiceManager {
   constructor() {
     this.storageService = new StorageService('local');
 
-    this.authService = new GoogleAuthService(
+    this.authService = new MultiProviderAuthService(
       {
-        clientId: googleConfig.clientId,
-        scopes: googleConfig.scopes,
-        apiEndpoint: `${apiConfig.baseUrl}${apiConfig.authEndpoint}`,
+        google: {
+          clientId: authConfig.providers.google.clientId,
+          scopes: authConfig.providers.google.scopes,
+          apiEndpoint: `${apiConfig.baseUrl}${authConfig.providers.google.apiEndpoint}`,
+        },
+        password: {
+          apiBaseUrl: authConfig.providers.password.apiBaseUrl,
+        },
       },
       this.storageService
     );
@@ -90,6 +95,7 @@ export class ServiceManager {
   }
 
   private setupAuthHandlers(): void {
+    // Default login handler (uses Google OAuth)
     this.messageService.on(
       MessageType.LOGIN,
       (message, sender, sendResponse) => {
@@ -106,6 +112,69 @@ export class ServiceManager {
             });
           });
         return true;
+      }
+    );
+
+    // Handler for provider-specific login
+    this.messageService.on(
+      'LOGIN_WITH_PROVIDER',
+      (message, sender, sendResponse) => {
+        const { provider, credentials } = message.payload as {
+          provider: AuthProviderType;
+          credentials?: unknown;
+        };
+
+        const authService = this.authService as MultiProviderAuthService;
+        authService
+          .loginWithProvider(provider, credentials as never)
+          .then(() => {
+            sendResponse({ success: true });
+          })
+          .catch(error => {
+            console.error('Provider login error:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : 'Login failed',
+            });
+          });
+        return true;
+      }
+    );
+
+    // Password login handler
+    this.messageService.on(
+      'LOGIN_WITH_PASSWORD',
+      (message, sender, sendResponse) => {
+        const { username, password } = message.payload as {
+          username: string;
+          password: string;
+        };
+
+        const authService = this.authService as MultiProviderAuthService;
+        authService
+          .loginWithPassword(username, password)
+          .then(() => {
+            sendResponse({ success: true });
+          })
+          .catch(error => {
+            console.error('Password login error:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : 'Login failed',
+            });
+          });
+        return true;
+      }
+    );
+
+    // Get available providers handler
+    this.messageService.on(
+      'GET_AUTH_PROVIDERS',
+      (message, sender, sendResponse) => {
+        const authService = this.authService as MultiProviderAuthService;
+        const providers = authService.getAvailableProviders();
+        sendResponse({ success: true, providers });
+        return false;
       }
     );
 

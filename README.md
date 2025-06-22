@@ -10,7 +10,7 @@ A focused Chrome extension that captures job listings from various job sites and
 - **Data Extraction**: Captures job title, company, location, description, and job type
 - **Interactive Overlay**: Floating UI for quick job preview and capture
 - **Quick Notes**: Add personal notes before posting jobs
-- **Google Authentication**: Secure login with Google OAuth 2.0
+- **Multi-Provider Authentication**: Secure login with Google OAuth or username/password
 - **One-Click Capture**: Post jobs to the Vega AI backend service instantly
 - **Visual Feedback**: Success/error badge notifications
 
@@ -24,11 +24,11 @@ This extension serves a single, focused purpose: to capture job listings from we
 
 The extension follows a modular architecture with clear separation of concerns:
 
-```
+```plaintext
 src/
 ├── background/          # Service worker and background services
 │   ├── services/       # Modular service implementations
-│   │   ├── auth/      # Authentication service (Google OAuth)
+│   │   ├── auth/      # Multi-provider authentication (Google OAuth, username/password)
 │   │   ├── api/       # Backend API communication
 │   │   ├── message/   # Chrome extension messaging
 │   │   ├── storage/   # Chrome storage wrapper
@@ -51,7 +51,7 @@ src/
 
 #### Background Services
 
-- **AuthService**: Handles Google OAuth flow and token management
+- **AuthService**: Handles Google OAuth and username/password authentication with token management
 - **APIService**: Posts captured jobs to the Vega AI backend
 - **MessageService**: Type-safe message passing between components
 - **StorageService**: Simple wrapper for Chrome storage operations
@@ -74,13 +74,25 @@ src/
 
 ## 📦 Installation
 
-### Prerequisites
+### For Users
+
+Download the latest release from the [GitHub releases page](https://github.com/benidevo/vega-ai-extension/releases/latest):
+
+1. Download the `vega-extension-*.zip` file
+2. Extract the contents to a folder
+3. Open Chrome and navigate to `chrome://extensions/`
+4. Enable "Developer mode" (toggle in top right)
+5. Click "Load unpacked" and select the extracted folder
+
+### For Developers
+
+#### Prerequisites
 
 - Node.js 20+ and npm
 - Chrome browser
-- Google OAuth client ID (for authentication)
+- Google OAuth client ID (optional, for Google authentication)
 
-### Development Setup
+#### Development Setup
 
 1. Clone the repository:
 
@@ -133,46 +145,62 @@ npm run test:watch  # Run Jest in watch mode
 npm run test:coverage # Run Jest with coverage
 ```
 
-### Git Hooks & Code Quality
+### Build & Release
 
-This project uses **Husky** and **lint-staged** to ensure code quality through automated pre-commit hooks.
+#### Automated Builds
 
-#### Pre-commit Hooks
+The project includes GitHub Actions workflows for different scenarios:
 
-Every commit automatically runs:
+- **CI Pipeline**: Runs on every push/PR to master
+  - Quality checks (lint, test, typecheck)
+  - Build verification
+  - Artifact upload (7-day retention)
+  
+- **Manual Build**: Trigger manually from GitHub Actions tab
+  - Same quality checks as CI
+  - Creates timestamped build zip
+  - Artifact upload (30-day retention)
+  - Good for testing specific commits
 
-- **Linting & Formatting**: ESLint + Prettier on staged files
-- **Type Checking**: TypeScript compilation check
-- **Testing**: Complete test suite
+- **Release**: Automatically triggered by git tags
+  - Full build with quality checks
+  - Creates GitHub release with downloadable extension
+  - Ready for end-user installation
 
-#### Setup Details
+#### Creating a Release
 
-- **Husky**: Manages Git hooks
-- **lint-staged**: Runs tasks only on staged files for performance
-- **Prettier**: Code formatting with ESLint integration
-- **Pre-commit**: Validates code before commits
-
-#### Manual Quality Checks
+To create a new release:
 
 ```bash
-# Run all quality checks manually
+# Tag the current commit
+git tag v1.0.0
+
+# Push the tag to trigger release workflow
+git push origin v1.0.0
+```
+
+This automatically:
+1. Builds the extension
+2. Runs all quality checks
+3. Creates a GitHub release
+4. Uploads the extension zip for users to download
+
+### Code Quality
+
+This project uses **Husky** and **lint-staged** for automated pre-commit hooks:
+
+- **Linting & Formatting**: ESLint + Prettier on staged files
+- **Type Checking**: TypeScript compilation check  
+- **Testing**: Complete test suite
+
+Manual quality checks:
+```bash
 npm run lint        # Check linting issues
 npm run lint:fix    # Auto-fix linting issues
-npm run format      # Auto-format all code
+npm run format      # Auto-format all code  
 npm run typecheck   # Check TypeScript types
 npm run test        # Run full test suite
 ```
-
-#### CI/CD Pipeline
-
-The CI pipeline runs the same checks:
-
-1. TypeScript compilation
-2. ESLint linting
-3. Prettier formatting check
-4. Jest test suite
-5. Production build
-6. Security audit
 
 ### Adding New Job Sites
 
@@ -201,26 +229,34 @@ The extension uses typed messages for communication:
 - `JOB_EXTRACTED`: Job detected on page
 - `SAVE_JOB`: Request to save job
 - `LOGIN`/`LOGOUT`: Authentication requests
+- `LOGIN_WITH_PASSWORD`: Username/password authentication
 
 ## 🔒 Configuration
 
 ### Required Configuration
 
-1. **Google OAuth Setup**:
+1. **Backend API**:
+   - Deploy the Vega AI backend service
+   - Update API endpoints in `src/config/index.ts`
+
+### Optional Configuration
+
+1. **Google OAuth Setup** (if enabling Google authentication):
    - Create a project in Google Cloud Console
    - Enable Google+ API
    - Create OAuth 2.0 credentials
    - Add `chrome-extension://[EXTENSION_ID]` to authorized redirects
+   - Set `features.enableGoogleAuth: true` in config
 
-2. **Backend API**:
-   - Deploy the Vega AI backend service
-   - Update API endpoints in `ServiceManager.ts`
+2. **Feature Flags** in `src/config/index.ts`:
+   - `enableGoogleAuth`: Enable/disable Google OAuth (default: false)
+   - `enableAnalytics`: Enable usage analytics
+   - `maxJobsPerSession`: Limit jobs per session
 
-### Optional Configuration
-
-- Modify job extraction selectors for better accuracy
-- Customize overlay styles in `overlay.styles.ts`
-- Add new storage areas in `StorageService`
+3. **Customization**:
+   - Modify job extraction selectors for better accuracy
+   - Customize overlay styles in `overlay.styles.ts`
+   - Add new storage areas in `StorageService`
 
 ## 🤝 Contributing
 

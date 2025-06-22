@@ -6,10 +6,19 @@
  */
 
 export interface AppConfig {
-  // Google OAuth Configuration
-  google: {
-    clientId: string;
-    scopes: string[];
+  // Authentication Configuration
+  auth: {
+    providers: {
+      google: {
+        clientId: string;
+        scopes: string[];
+        apiEndpoint: string;
+      };
+      password: {
+        apiBaseUrl: string;
+      };
+    };
+    defaultProvider: 'google' | 'password';
   };
 
   // API Configuration
@@ -33,14 +42,24 @@ export interface AppConfig {
     enableAnalytics: boolean;
     enableErrorReporting: boolean;
     maxJobsPerSession: number;
+    enableGoogleAuth: boolean;
   };
 }
 
 // Default configuration (fallback)
 const defaultConfig: AppConfig = {
-  google: {
-    clientId: 'placeholder-client-id.apps.googleusercontent.com',
-    scopes: ['openid'],
+  auth: {
+    providers: {
+      google: {
+        clientId: 'placeholder-client-id.apps.googleusercontent.com',
+        scopes: ['openid'],
+        apiEndpoint: '/api/auth',
+      },
+      password: {
+        apiBaseUrl: 'https://localhost:8000',
+      },
+    },
+    defaultProvider: 'google',
   },
   api: {
     baseUrl: 'https://localhost:8000/api',
@@ -58,16 +77,26 @@ const defaultConfig: AppConfig = {
     enableAnalytics: false,
     enableErrorReporting: false,
     maxJobsPerSession: 50,
+    enableGoogleAuth: false,
   },
 };
 
 // Environment-specific configurations
 const configurations: Record<string, Partial<AppConfig>> = {
   development: {
-    google: {
-      clientId:
-        '631098864265-nj8bkpn6copd0hnnqubl8a4iqabmd5ho.apps.googleusercontent.com',
-      scopes: ['openid'],
+    auth: {
+      providers: {
+        google: {
+          clientId:
+            '631098864265-nj8bkpn6copd0hnnqubl8a4iqabmd5ho.apps.googleusercontent.com',
+          scopes: ['openid'],
+          apiEndpoint: '/api/auth',
+        },
+        password: {
+          apiBaseUrl: 'http://localhost:8000',
+        },
+      },
+      defaultProvider: 'google',
     },
     api: {
       baseUrl: 'http://localhost:8000',
@@ -85,13 +114,23 @@ const configurations: Record<string, Partial<AppConfig>> = {
       enableAnalytics: false,
       enableErrorReporting: false,
       maxJobsPerSession: 10,
+      enableGoogleAuth: false,
     },
   },
 
   production: {
-    google: {
-      clientId: 'YOUR_PROD_CLIENT_ID.apps.googleusercontent.com',
-      scopes: ['openid'],
+    auth: {
+      providers: {
+        google: {
+          clientId: 'YOUR_PROD_CLIENT_ID.apps.googleusercontent.com',
+          scopes: ['openid'],
+          apiEndpoint: '/api/auth',
+        },
+        password: {
+          apiBaseUrl: 'https://api.vegaai.com',
+        },
+      },
+      defaultProvider: 'google',
     },
     api: {
       baseUrl: 'https://api.vegaai.com/api',
@@ -109,6 +148,7 @@ const configurations: Record<string, Partial<AppConfig>> = {
       enableAnalytics: true,
       enableErrorReporting: true,
       maxJobsPerSession: 100,
+      enableGoogleAuth: false,
     },
   },
 };
@@ -121,14 +161,29 @@ const envConfig = configurations[environment] || {};
 export const config: AppConfig = {
   ...defaultConfig,
   ...envConfig,
-  google: { ...defaultConfig.google, ...envConfig.google },
+  auth: {
+    ...defaultConfig.auth,
+    ...envConfig.auth,
+    providers: {
+      ...defaultConfig.auth.providers,
+      ...envConfig.auth?.providers,
+      google: {
+        ...defaultConfig.auth.providers.google,
+        ...envConfig.auth?.providers?.google,
+      },
+      password: {
+        ...defaultConfig.auth.providers.password,
+        ...envConfig.auth?.providers?.password,
+      },
+    },
+  },
   api: { ...defaultConfig.api, ...envConfig.api },
   extension: { ...defaultConfig.extension, ...envConfig.extension },
   features: { ...defaultConfig.features, ...envConfig.features },
 };
 
 // Export individual sections for convenience
-export const googleConfig = config.google;
+export const authConfig = config.auth;
 export const apiConfig = config.api;
 
 export const isDevelopment = () =>
@@ -138,7 +193,8 @@ if (isDevelopment()) {
   console.log('🔧 Vega AI Extension Config:', {
     environment: config.extension.environment,
     apiBaseUrl: config.api.baseUrl,
-    clientId: config.google.clientId,
+    authProviders: Object.keys(config.auth.providers),
+    defaultProvider: config.auth.defaultProvider,
     debug: config.extension.debug,
   });
 }
