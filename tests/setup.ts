@@ -13,3 +13,4 @@ global.console = {
   info: jest.fn(),
   debug: jest.fn(),
 };
+

@@ -34,6 +34,7 @@ export interface AppConfig {
     name: string;
     version: string;
     environment: 'development' | 'production';
+    deploymentMode: 'opensource' | 'marketplace';
     debug: boolean;
   };
 
@@ -42,9 +43,15 @@ export interface AppConfig {
     enableAnalytics: boolean;
     enableErrorReporting: boolean;
     maxJobsPerSession: number;
-    enableGoogleAuth: boolean; // Optional: Set to true to enable Google OAuth
+    enableGoogleAuth: boolean;
+    enableDynamicHost: boolean;
   };
 }
+
+// Get environment and deployment mode from build process
+const environment = process.env.APP_ENV || 'development';
+const deploymentMode = process.env.DEPLOYMENT_MODE || 'opensource';
+const enableOAuth = process.env.ENABLE_OAUTH === 'true';
 
 // Default configuration (fallback)
 const defaultConfig: AppConfig = {
@@ -59,7 +66,7 @@ const defaultConfig: AppConfig = {
         apiBaseUrl: 'http://localhost:8765',
       },
     },
-    defaultProvider: 'password', // Default to password auth
+    defaultProvider: 'password',
   },
   api: {
     baseUrl: 'http://localhost:8765',
@@ -70,39 +77,27 @@ const defaultConfig: AppConfig = {
   extension: {
     name: 'Vega AI Job Capture',
     version: '0.1.0',
-    environment: 'development',
+    environment: environment as 'development' | 'production',
+    deploymentMode: deploymentMode as 'opensource' | 'marketplace',
     debug: true,
   },
   features: {
     enableAnalytics: false,
     enableErrorReporting: false,
     maxJobsPerSession: 50,
-    enableGoogleAuth: false, // Disabled by default
+    enableGoogleAuth: false,
+    enableDynamicHost: deploymentMode === 'marketplace',
   },
 };
 
 // Environment-specific configurations
 const configurations: Record<string, Partial<AppConfig>> = {
   development: {
-    extension: {
-      name: 'Vega AI Job Capture (Dev)',
-      version: '0.1.0',
-      environment: 'development',
-      debug: true,
-    },
-    features: {
-      enableAnalytics: false,
-      enableErrorReporting: false,
-      maxJobsPerSession: 10,
-      enableGoogleAuth: false, // Disabled in dev - use prod build to test OAuth
-    },
-  },
-
-  production: {
     auth: {
       providers: {
         google: {
-          clientId: 'your-prod-google-client-id.apps.googleusercontent.com', // Replace with your production client ID
+          clientId:
+            '723024681965-pptqjhqv96n7g26dn43qlrntij2v5qnf.apps.googleusercontent.com',
           scopes: ['openid', 'email', 'profile'],
           apiEndpoint: '/api/auth/google',
         },
@@ -110,10 +105,44 @@ const configurations: Record<string, Partial<AppConfig>> = {
           apiBaseUrl: 'http://localhost:8765',
         },
       },
-      defaultProvider: 'password',
+      defaultProvider: enableOAuth ? 'google' : 'password',
+    },
+    extension: {
+      name: 'Vega AI Job Capture (Dev)',
+      version: '0.1.0',
+      environment: 'development',
+      deploymentMode: deploymentMode as 'opensource' | 'marketplace',
+      debug: true,
+    },
+    features: {
+      enableAnalytics: false,
+      enableErrorReporting: false,
+      maxJobsPerSession: 10,
+      enableGoogleAuth: enableOAuth,
+      enableDynamicHost: deploymentMode === 'marketplace',
+    },
+  },
+
+  production: {
+    auth: {
+      providers: {
+        google: {
+          clientId:
+            deploymentMode === 'opensource'
+              ? '723024681965-pptqjhqv96n7g26dn43qlrntij2v5qnf.apps.googleusercontent.com'
+              : '', // No OAuth for marketplace
+          scopes: ['openid', 'email', 'profile'],
+          apiEndpoint: '/api/auth/google',
+        },
+        password: {
+          apiBaseUrl: 'http://localhost:8765', // Default for all builds
+        },
+      },
+      defaultProvider:
+        enableOAuth && deploymentMode === 'opensource' ? 'google' : 'password',
     },
     api: {
-      baseUrl: 'http://localhost:8765',
+      baseUrl: 'http://localhost:8765', // Default for all builds
       authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,
@@ -122,19 +151,18 @@ const configurations: Record<string, Partial<AppConfig>> = {
       name: 'Vega AI Job Capture',
       version: '0.1.0',
       environment: 'production',
+      deploymentMode: deploymentMode as 'opensource' | 'marketplace',
       debug: false,
     },
     features: {
       enableAnalytics: true,
       enableErrorReporting: true,
       maxJobsPerSession: 100,
-      enableGoogleAuth: false, // Set to true to enable Google OAuth (requires client ID setup)
+      enableGoogleAuth: enableOAuth && deploymentMode === 'opensource',
+      enableDynamicHost: deploymentMode === 'marketplace',
     },
   },
 };
-
-// Get environment from build process or default to development
-const environment = process.env.APP_ENV || 'development';
 
 // Merge default config with environment-specific config
 const envConfig = configurations[environment] || {};
@@ -169,13 +197,18 @@ export const apiConfig = config.api;
 export const isDevelopment = () =>
   config.extension.environment === 'development';
 
+export const isMarketplaceMode = () =>
+  config.extension.deploymentMode === 'marketplace';
+
 if (isDevelopment()) {
   console.log('🔧 Vega AI Extension Config:', {
     environment: config.extension.environment,
+    deploymentMode: config.extension.deploymentMode,
     apiBaseUrl: config.api.baseUrl,
     authProviders: Object.keys(config.auth.providers),
     defaultProvider: config.auth.defaultProvider,
     googleAuthEnabled: config.features.enableGoogleAuth,
+    dynamicHostEnabled: config.features.enableDynamicHost,
     debug: config.extension.debug,
   });
 }

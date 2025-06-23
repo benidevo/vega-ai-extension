@@ -12,7 +12,7 @@ async function initializeWithRetry(retries = 3): Promise<void> {
       logger.info('Service manager initialized successfully');
       return;
     } catch (error) {
-      errorService.handleError(error, {
+      errorService.handleAndLogError(error, {
         action: 'initialize_background_services',
         attempt,
         maxRetries: retries,
@@ -54,7 +54,7 @@ chrome.runtime.onSuspend.addListener(async () => {
 // Global error handlers to prevent service worker crashes
 self.addEventListener('error', event => {
   const error = event.error || new Error(event.message);
-  errorService.handleError(error, {
+  errorService.handleAndLogError(error, {
     action: 'global_error_handler',
     filename: event.filename,
     lineno: event.lineno,
@@ -64,7 +64,7 @@ self.addEventListener('error', event => {
 });
 
 self.addEventListener('unhandledrejection', event => {
-  errorService.handleError(event.reason, {
+  errorService.handleAndLogError(event.reason, {
     action: 'unhandled_promise_rejection',
     promise: event.promise,
   });

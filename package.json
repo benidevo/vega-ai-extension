@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "webpack --watch --mode=development",
     "build": "webpack --mode=production",
+    "build:opensource": "webpack --mode=production --env DEPLOYMENT_MODE=opensource",
+    "build:marketplace": "webpack --mode=production --env DEPLOYMENT_MODE=marketplace",
     "clean": "rm -rf dist",
     "lint": "eslint --ext .ts src/",
     "lint:fix": "eslint --ext .ts src/ --fix",
@@ -14,7 +16,6 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
     "prepare": "husky"
   },
   "keywords": [
@@ -64,5 +65,5 @@
     ]
   },
   "author": "Benjamin Idewor",
-  "license": "MIT"
+  "license": "AGPL-3.0"
 }

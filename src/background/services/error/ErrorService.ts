@@ -35,6 +35,18 @@ export class ErrorService {
 
   handleError(error: unknown, context?: Record<string, unknown>): ErrorDetails {
     const errorDetails = this.categorizeError(error, context);
+    return errorDetails;
+  }
+
+  /**
+   * Handle and log error - use this for background processes where errors
+   * cannot be displayed to the user
+   */
+  handleAndLogError(
+    error: unknown,
+    context?: Record<string, unknown>
+  ): ErrorDetails {
+    const errorDetails = this.categorizeError(error, context);
     this.logger.error(errorDetails.message, errorDetails.originalError, {
       category: errorDetails.category,
       context: errorDetails.context,
@@ -94,10 +106,16 @@ export class ErrorService {
       message.includes('forbidden') ||
       message.includes('token')
     ) {
+      // For specific auth errors like wrong password, use the actual error message
+      const userMessage =
+        message.includes('password') || message.includes('credentials')
+          ? error.message
+          : 'Authentication failed. Please sign in again.';
+
       return {
         category: ErrorCategory.AUTH,
         message: error.message,
-        userMessage: 'Authentication failed. Please sign in again.',
+        userMessage,
         originalError: error,
         context,
         retryable: false,
@@ -177,7 +195,6 @@ export class ErrorService {
         },
       });
     } catch (notificationError) {
-      // If we can't send the message, at least log it
       this.logger.error('Failed to send error notification', notificationError);
     }
   }
