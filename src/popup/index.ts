@@ -2,6 +2,8 @@ import '@/styles/main.css';
 import { config } from '@/config';
 import { SettingsService } from '@/background/services/settings/SettingsService';
 import { UserSettings } from '@/types/settings';
+import { errorService } from '@/background/services/error';
+import { Logger } from '@/utils/logger';
 
 /**
  * Represents the popup UI logic.
@@ -15,6 +17,7 @@ class Popup {
   private isSigningIn = false;
   private currentView: 'main' | 'settings' = 'main';
   private statusTimeout: NodeJS.Timeout | null = null;
+  private logger = new Logger('Popup');
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
@@ -31,8 +34,10 @@ class Popup {
       this.attachEventListeners(isAuthenticated);
       this.attachSettingsEventListeners();
     } catch (error) {
-      console.error('Failed to initialize popup:', error);
-      this.renderError('Unable to load extension status');
+      const errorDetails = errorService.handleError(error, {
+        action: 'popup_initialize',
+      });
+      this.renderError(errorDetails.userMessage);
     }
   }
 
@@ -41,7 +46,7 @@ class Popup {
       const result = await chrome.storage.local.get(['authToken']);
       return !!result.authToken;
     } catch (error) {
-      console.error('Failed to check auth status:', error);
+      errorService.handleError(error, { action: 'check_auth_status' });
       return false;
     }
   }
@@ -259,8 +264,10 @@ class Popup {
         this.showAuthError(response?.error || 'Google sign-in failed');
       }
     } catch (error) {
-      console.error('Google auth error:', error);
-      this.showAuthError('Unable to connect to authentication service');
+      const errorDetails = errorService.handleError(error, {
+        action: 'google_auth',
+      });
+      this.showAuthError(errorDetails.userMessage);
     } finally {
       this.isSigningIn = false;
       googleBtn.disabled = false;
@@ -308,8 +315,10 @@ class Popup {
         this.showAuthError(response?.error || 'Sign in failed');
       }
     } catch (error) {
-      console.error('Password auth error:', error);
-      this.showAuthError('Unable to connect to authentication service');
+      const errorDetails = errorService.handleError(error, {
+        action: 'password_auth',
+      });
+      this.showAuthError(errorDetails.userMessage);
     } finally {
       this.isSigningIn = false;
       passwordBtn.disabled = false;
@@ -342,8 +351,10 @@ class Popup {
         this.renderError(response?.error || 'Failed to sign out');
       }
     } catch (error) {
-      console.error('Sign out error:', error);
-      this.renderError('Unable to sign out');
+      const errorDetails = errorService.handleError(error, {
+        action: 'sign_out',
+      });
+      this.renderError(errorDetails.userMessage);
     }
   }
 
@@ -463,8 +474,11 @@ class Popup {
       // Go back to main view after a short delay
       setTimeout(() => this.showMainView(), 1500);
     } catch (error) {
-      console.error('Failed to save settings:', error);
-      this.showSettingsStatus('Failed to save settings', 'error');
+      const errorDetails = errorService.handleError(error, {
+        action: 'save_settings',
+        settings,
+      });
+      this.showSettingsStatus(errorDetails.userMessage, 'error');
     }
   }
 

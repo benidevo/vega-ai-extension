@@ -14,6 +14,10 @@ import { MultiProviderAuthService } from './services/auth/MultiProviderAuthServi
 import { DynamicConfig } from '@/config/dynamicConfig';
 import { JobListing, AuthProviderType } from '@/types';
 import { AuthCredentials } from './services/auth/IAuthProvider';
+import { errorService } from './services/error';
+import { Logger } from '@/utils/logger';
+import { keepAliveService } from './services/KeepAliveService';
+import { connectionManager } from './services/ConnectionManager';
 
 /**
  * Service Manager to coordinate all background services
@@ -25,6 +29,7 @@ export class ServiceManager {
   private storageService: IStorageService;
   private badgeService: IBadgeService;
   private isInitialized = false;
+  private logger = new Logger('ServiceManager');
 
   constructor() {
     this.storageService = new StorageService('local');
@@ -77,7 +82,9 @@ export class ServiceManager {
         if (token) {
           this.apiService.setAuthToken(token);
         } else {
-          console.warn('Authentication state is true but no token available');
+          this.logger.warn(
+            'Authentication state is true but no token available'
+          );
         }
       } else {
         this.apiService.setAuthToken(null);
@@ -92,16 +99,6 @@ export class ServiceManager {
     this.isInitialized = true;
   }
 
-  async destroy(): Promise<void> {
-    await this.badgeService.destroy();
-    await this.messageService.destroy();
-    await this.apiService.destroy();
-    await this.authService.destroy();
-    await this.storageService.destroy();
-
-    this.isInitialized = false;
-  }
-
   private setupAuthHandlers(): void {
     // Default login handler (uses Google OAuth)
     this.messageService.on(
@@ -113,10 +110,12 @@ export class ServiceManager {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Login error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'login',
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Login failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -139,10 +138,13 @@ export class ServiceManager {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Provider login error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'provider_login',
+              provider,
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Login failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -165,10 +167,12 @@ export class ServiceManager {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Password login error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'password_login',
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Login failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -195,10 +199,12 @@ export class ServiceManager {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Logout error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'logout',
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Logout failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -213,7 +219,9 @@ export class ServiceManager {
     });
 
     this.messageService.on(MessageType.JOB_EXTRACTED, () => {
-      this.badgeService.showSuccess().catch(console.error);
+      this.badgeService.showSuccess().catch(error => {
+        errorService.handleError(error, { action: 'badge_show_success' });
+      });
       return false;
     });
 
@@ -228,7 +236,10 @@ export class ServiceManager {
             sendResponse({ success: true, data: response });
           })
           .catch(async error => {
-            console.error('Save job error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'save_job',
+              job,
+            });
             await this.badgeService.showError();
             // Handle API errors with custom messages
             const errorMessage =
@@ -236,7 +247,7 @@ export class ServiceManager {
                 ? error.message
                 : error.code === 'AUTH_REFRESH_FAILED'
                   ? error.message
-                  : error.message || 'Save failed';
+                  : errorDetails.userMessage;
             sendResponse({ success: false, error: errorMessage });
           });
         return true;
@@ -279,11 +290,12 @@ export class ServiceManager {
 
       sendResponse({ success: true });
     } catch (error) {
-      console.error('Failed to reload settings:', error);
+      const errorDetails = errorService.handleError(error, {
+        action: 'reload_settings',
+      });
       sendResponse({
         success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to reload settings',
+        error: errorDetails.userMessage,
       });
     }
   }
@@ -329,7 +341,9 @@ export class ServiceManager {
         if (token) {
           this.apiService.setAuthToken(token);
         } else {
-          console.warn('Authentication state is true but no token available');
+          this.logger.warn(
+            'Authentication state is true but no token available'
+          );
         }
       } else {
         this.apiService.setAuthToken(null);
@@ -360,5 +374,15 @@ export class ServiceManager {
 
   get badge(): IBadgeService {
     return this.badgeService;
+  }
+
+  async destroy(): Promise<void> {
+    await keepAliveService.destroy();
+    connectionManager.destroy();
+    await this.authService?.destroy();
+    await this.apiService?.destroy();
+    await this.messageService?.destroy();
+    await this.badgeService?.destroy();
+    this.isInitialized = false;
   }
 }

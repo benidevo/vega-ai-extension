@@ -1,9 +1,13 @@
 import { extractJobData, isSupportedJobPage } from './extractors';
 import { VegaAIOverlay } from './overlay';
 import { contentLogger } from '../utils/logger';
+import { contentConnection } from './connection';
 
 let overlay: VegaAIOverlay | null = null;
 let isInitializing = false;
+
+// Establish persistent connection to service worker
+contentConnection.connect();
 
 /**
  * Debounce function to prevent multiple rapid calls
@@ -192,4 +196,5 @@ window.addEventListener('unload', () => {
     overlay = null;
   }
   mutationObserver.disconnect();
+  contentConnection.disconnect();
 });
