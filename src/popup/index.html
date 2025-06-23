@@ -9,9 +9,17 @@
 <body class="w-80 min-h-[200px] bg-slate-900 text-white">
   <div class="p-4">
     <!-- Header -->
-    <div class="flex items-center justify-center mb-6">
-      <img src="../icons/logo.svg" class="w-10 h-10 mr-3" alt="Vega AI">
-      <h1 class="text-xl font-heading font-semibold">Vega AI</h1>
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center">
+        <img src="../icons/logo.svg" class="w-10 h-10 mr-3" alt="Vega AI">
+        <h1 class="text-xl font-heading font-semibold">Vega AI</h1>
+      </div>
+      <button id="settings-btn" class="p-2 hover:bg-slate-800 rounded-md transition-colors" title="Settings" aria-label="Settings">
+        <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
     </div>
 
     <!-- Status -->
@@ -22,6 +30,46 @@
     <!-- CTA -->
     <div id="cta">
       <!-- Dynamic CTA will be inserted here -->
+    </div>
+
+    <!-- Settings View (Hidden by default) -->
+    <div id="settings-view" class="hidden">
+      <div class="mb-4">
+        <button id="back-btn" class="flex items-center text-sm text-gray-400 hover:text-white transition-colors">
+          <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+      </div>
+      <h2 class="text-lg font-semibold mb-4">API Settings</h2>
+      <div class="space-y-4">
+        <div>
+          <label for="api-protocol" class="block text-sm font-medium text-gray-300 mb-1">Protocol</label>
+          <select id="api-protocol" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+          </select>
+        </div>
+        <div>
+          <label for="api-host" class="block text-sm font-medium text-gray-300 mb-1">Host</label>
+          <input
+            type="text"
+            id="api-host"
+            placeholder="localhost:8765"
+            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+          >
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="test-connection-btn" class="px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors">
+            Test Connection
+          </button>
+          <button id="save-settings-btn" class="px-3 py-2 text-sm bg-primary hover:bg-primary/80 text-white rounded-md transition-colors">
+            Save Settings
+          </button>
+        </div>
+        <div id="settings-status" class="hidden"></div>
+      </div>
     </div>
   </div>
 

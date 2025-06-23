@@ -2,6 +2,9 @@ import { JobListing } from '@/types';
 import { IJobExtractor } from './IJobExtractor';
 import { LinkedInExtractor } from './linkedin';
 import { isValidJobListing, sanitizeJobListing } from '../../utils/validation';
+import { Logger } from '@/utils/logger';
+
+const extractorLogger = new Logger('Extractors');
 
 const extractors: IJobExtractor[] = [new LinkedInExtractor()];
 
@@ -19,15 +22,14 @@ export function extractJobData(): JobListing | null {
         if (jobData && isValidJobListing(jobData)) {
           return sanitizeJobListing(jobData);
         } else {
-          console.warn(
-            'Vega AI: Extracted job data failed validation:',
-            jobData
-          );
+          extractorLogger.warn('Extracted job data failed validation', {
+            jobData,
+          });
           return null;
         }
       } catch (error) {
-        console.error(
-          `Vega AI: Error in ${extractor.siteName} extractor:`,
+        extractorLogger.error(
+          `Error in ${extractor.siteName} extractor`,
           error
         );
         return null;

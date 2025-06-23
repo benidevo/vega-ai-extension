@@ -27,32 +27,47 @@ jobs:
       run: npm ci
 
     - name: Build extension
-      run: npm run build
+      run: npm run build -- --env DEPLOYMENT_MODE=opensource
 
     - name: Create release zip
       run: |
         cd dist
-        zip -r ../vega-extension-${{ github.ref_name }}.zip .
+        zip -r ../vega-ai-job-capture-${{ github.ref_name }}.zip .
         cd ..
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: vega-extension-${{ github.ref_name }}.zip
+        files: vega-ai-job-capture-${{ github.ref_name }}.zip
         generate_release_notes: true
         body: |
-          ## Chrome Extension Release
+          ## Vega AI Job Capture Extension - ${{ github.ref_name }}
 
-          This release includes the built extension ready for installation.
+          ### 📦 Downloads
+          - **Chrome/Edge Extension**: `vega-ai-job-capture-${{ github.ref_name }}.zip`
 
-          ### Installation Instructions
+          ### 🚀 Installation Options
 
-          1. Download the `vega-extension-${{ github.ref_name }}.zip` file
-          2. Extract the contents to a folder
-          3. Open Chrome and navigate to `chrome://extensions/`
+          #### Option 1: Self-Hosted (Recommended for developers)
+          1. Download and extract `vega-ai-job-capture-${{ github.ref_name }}.zip`
+          2. Run your own backend server at `http://localhost:8765`
+          3. Open Chrome/Edge and navigate to `chrome://extensions/` or `edge://extensions/`
           4. Enable "Developer mode"
           5. Click "Load unpacked" and select the extracted folder
 
-          ### What's Changed
+          #### Option 2: Chrome/Edge Web Store (Coming Soon)
+          - Install directly from the web store
+          - Configure your own API host in the extension settings
+          - No backend setup required if you have a hosted instance
 
-          See the auto-generated release notes below.
+          ### ⚙️ Configuration
+          - **Default API Host**: `http://localhost:8765`
+          - **Custom Host**: Can be configured in extension settings (marketplace version)
+
+          ### 📋 Requirements
+          - Chrome 88+ or Edge 88+
+          - Backend API server (for self-hosted setup)
+
+          ### 🆕 What's Changed
+
+          See the auto-generated release notes below for detailed changes.

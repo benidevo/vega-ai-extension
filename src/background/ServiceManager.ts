@@ -11,8 +11,13 @@ import {
   MessageType,
 } from './services';
 import { MultiProviderAuthService } from './services/auth/MultiProviderAuthService';
-import { authConfig, apiConfig } from '@/config';
+import { DynamicConfig } from '@/config/dynamicConfig';
 import { JobListing, AuthProviderType } from '@/types';
+import { AuthCredentials } from './services/auth/IAuthProvider';
+import { errorService } from './services/error';
+import { Logger } from '@/utils/logger';
+import { keepAliveService } from './services/KeepAliveService';
+import { connectionManager } from './services/ConnectionManager';
 
 /**
  * Service Manager to coordinate all background services
@@ -24,19 +29,30 @@ export class ServiceManager {
   private storageService: IStorageService;
   private badgeService: IBadgeService;
   private isInitialized = false;
+  private logger = new Logger('ServiceManager');
 
   constructor() {
     this.storageService = new StorageService('local');
+    this.authService = null!; // Will be initialized with dynamic config
+    this.apiService = null!; // Will be initialized with dynamic config
+    this.messageService = new MessageService();
+    this.badgeService = new BadgeService();
+  }
+
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    const dynamicConfig = await DynamicConfig.getConfig();
 
     this.authService = new MultiProviderAuthService(
       {
         google: {
-          clientId: authConfig.providers.google.clientId,
-          scopes: authConfig.providers.google.scopes,
-          apiEndpoint: `${apiConfig.baseUrl}${authConfig.providers.google.apiEndpoint}`,
+          clientId: dynamicConfig.auth.providers.google.clientId,
+          scopes: dynamicConfig.auth.providers.google.scopes,
+          apiEndpoint: `${dynamicConfig.api.baseUrl}${dynamicConfig.auth.providers.google.apiEndpoint}`,
         },
         password: {
-          apiBaseUrl: authConfig.providers.password.apiBaseUrl,
+          apiBaseUrl: dynamicConfig.auth.providers.password.apiBaseUrl,
         },
       },
       this.storageService
@@ -44,19 +60,12 @@ export class ServiceManager {
 
     this.apiService = new APIService(
       {
-        baseUrl: apiConfig.baseUrl,
-        timeout: apiConfig.timeout,
-        retryAttempts: apiConfig.retryAttempts,
+        baseUrl: dynamicConfig.api.baseUrl,
+        timeout: dynamicConfig.api.timeout,
+        retryAttempts: dynamicConfig.api.retryAttempts,
       },
       this.authService
     );
-
-    this.messageService = new MessageService();
-    this.badgeService = new BadgeService();
-  }
-
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return;
 
     await this.storageService.initialize();
     await this.authService.initialize();
@@ -70,7 +79,13 @@ export class ServiceManager {
     this.authService.onAuthStateChange(async isAuthenticated => {
       if (isAuthenticated) {
         const token = await this.authService.getAuthToken();
-        this.apiService.setAuthToken(token);
+        if (token) {
+          this.apiService.setAuthToken(token);
+        } else {
+          this.logger.warn(
+            'Authentication state is true but no token available'
+          );
+        }
       } else {
         this.apiService.setAuthToken(null);
       }
@@ -84,16 +99,6 @@ export class ServiceManager {
     this.isInitialized = true;
   }
 
-  async destroy(): Promise<void> {
-    await this.badgeService.destroy();
-    await this.messageService.destroy();
-    await this.apiService.destroy();
-    await this.authService.destroy();
-    await this.storageService.destroy();
-
-    this.isInitialized = false;
-  }
-
   private setupAuthHandlers(): void {
     // Default login handler (uses Google OAuth)
     this.messageService.on(
@@ -105,10 +110,12 @@ export class ServiceManager {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Login error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'login',
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Login failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -121,20 +128,23 @@ export class ServiceManager {
       (message, sender, sendResponse) => {
         const { provider, credentials } = message.payload as {
           provider: AuthProviderType;
-          credentials?: unknown;
+          credentials?: AuthCredentials[AuthProviderType];
         };
 
         const authService = this.authService as MultiProviderAuthService;
         authService
-          .loginWithProvider(provider, credentials as never)
+          .loginWithProvider(provider, credentials)
           .then(() => {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Provider login error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'provider_login',
+              provider,
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Login failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -157,10 +167,12 @@ export class ServiceManager {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Password login error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'password_login',
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Login failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -187,10 +199,12 @@ export class ServiceManager {
             sendResponse({ success: true });
           })
           .catch(error => {
-            console.error('Logout error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'logout',
+            });
             sendResponse({
               success: false,
-              error: error instanceof Error ? error.message : 'Logout failed',
+              error: errorDetails.userMessage,
             });
           });
         return true;
@@ -205,7 +219,9 @@ export class ServiceManager {
     });
 
     this.messageService.on(MessageType.JOB_EXTRACTED, () => {
-      this.badgeService.showSuccess().catch(console.error);
+      this.badgeService.showSuccess().catch(error => {
+        errorService.handleError(error, { action: 'badge_show_success' });
+      });
       return false;
     });
 
@@ -220,7 +236,10 @@ export class ServiceManager {
             sendResponse({ success: true, data: response });
           })
           .catch(async error => {
-            console.error('Save job error:', error);
+            const errorDetails = errorService.handleError(error, {
+              action: 'save_job',
+              job,
+            });
             await this.badgeService.showError();
             // Handle API errors with custom messages
             const errorMessage =
@@ -228,7 +247,7 @@ export class ServiceManager {
                 ? error.message
                 : error.code === 'AUTH_REFRESH_FAILED'
                   ? error.message
-                  : error.message || 'Save failed';
+                  : errorDetails.userMessage;
             sendResponse({ success: false, error: errorMessage });
           });
         return true;
@@ -250,6 +269,91 @@ export class ServiceManager {
         return false;
       }
     );
+
+    // Handle settings reload
+    this.messageService.on(
+      'RELOAD_SETTINGS',
+      (message, sender, sendResponse) => {
+        this.handleReloadSettings(sendResponse);
+        return true; // Will respond asynchronously
+      }
+    );
+  }
+
+  private async handleReloadSettings(
+    sendResponse: (response?: unknown) => void
+  ): Promise<void> {
+    try {
+      DynamicConfig.clearCache();
+
+      await this.reinitialize();
+
+      sendResponse({ success: true });
+    } catch (error) {
+      const errorDetails = errorService.handleError(error, {
+        action: 'reload_settings',
+      });
+      sendResponse({
+        success: false,
+        error: errorDetails.userMessage,
+      });
+    }
+  }
+
+  private async reinitialize(): Promise<void> {
+    // Destroy existing services (except storage and message service)
+    if (this.authService) await this.authService.destroy();
+    if (this.apiService) await this.apiService.destroy();
+
+    const dynamicConfig = await DynamicConfig.getConfig();
+
+    this.authService = new MultiProviderAuthService(
+      {
+        google: {
+          clientId: dynamicConfig.auth.providers.google.clientId,
+          scopes: dynamicConfig.auth.providers.google.scopes,
+          apiEndpoint: `${dynamicConfig.api.baseUrl}${dynamicConfig.auth.providers.google.apiEndpoint}`,
+        },
+        password: {
+          apiBaseUrl: dynamicConfig.auth.providers.password.apiBaseUrl,
+        },
+      },
+      this.storageService
+    );
+
+    this.apiService = new APIService(
+      {
+        baseUrl: dynamicConfig.api.baseUrl,
+        timeout: dynamicConfig.api.timeout,
+        retryAttempts: dynamicConfig.api.retryAttempts,
+      },
+      this.authService
+    );
+
+    await this.authService.initialize();
+    await this.apiService.initialize();
+
+    this.setupAuthHandlers();
+
+    this.authService.onAuthStateChange(async isAuthenticated => {
+      if (isAuthenticated) {
+        const token = await this.authService.getAuthToken();
+        if (token) {
+          this.apiService.setAuthToken(token);
+        } else {
+          this.logger.warn(
+            'Authentication state is true but no token available'
+          );
+        }
+      } else {
+        this.apiService.setAuthToken(null);
+      }
+    });
+
+    const token = await this.authService.getAuthToken();
+    if (token) {
+      this.apiService.setAuthToken(token);
+    }
   }
 
   get auth(): IAuthService {
@@ -270,5 +374,15 @@ export class ServiceManager {
 
   get badge(): IBadgeService {
     return this.badgeService;
+  }
+
+  async destroy(): Promise<void> {
+    await keepAliveService.destroy();
+    connectionManager.destroy();
+    await this.authService?.destroy();
+    await this.apiService?.destroy();
+    await this.messageService?.destroy();
+    await this.badgeService?.destroy();
+    this.isInitialized = false;
   }
 }

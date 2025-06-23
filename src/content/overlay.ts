@@ -2,6 +2,8 @@ import { JobListing } from '@/types';
 import { extractJobData } from './extractors';
 import { overlayStyles } from './styles/overlay.styles';
 import { overlayLogger } from '../utils/logger';
+import { errorService } from '@/background/services/error';
+import { sendMessage } from '@/utils/messageWrapper';
 
 /**
  * Provides a floating overlay UI for capturing and displaying job listing information on a web page.
@@ -74,7 +76,10 @@ export class VegaAIOverlay {
       const result = await chrome.storage.local.get('authToken');
       this.isAuthenticated = !!result.authToken;
     } catch (error) {
-      console.error('Vega AI: Failed to check authentication:', error);
+      errorService.handleError(error, {
+        action: 'check_authentication',
+        context: 'overlay',
+      });
       this.isAuthenticated = false;
     }
   }
@@ -245,7 +250,10 @@ export class VegaAIOverlay {
         await chrome.storage.local.set({ currentJob: this.extractedJob });
 
         // Send to background for API call
-        const response = await chrome.runtime.sendMessage({
+        const response = await sendMessage<{
+          success: boolean;
+          error?: string;
+        }>({
           type: 'SAVE_JOB',
           payload: this.extractedJob,
         });
@@ -257,7 +265,10 @@ export class VegaAIOverlay {
           this.showError(this.getErrorMessage(errorMessage));
         }
       } catch (error) {
-        console.error('Vega AI: Failed to save job:', error);
+        errorService.handleError(error, {
+          action: 'save_job',
+          context: 'overlay',
+        });
 
         // Handle specific error types without suggesting page reload
         if (
@@ -573,7 +584,7 @@ export class VegaAIOverlay {
   private attachEventListeners(): void {
     if (this.button) {
       const clickHandler = () => {
-        overlayLogger.track('overlay_button_clicked');
+        overlayLogger.info('User interaction: overlay_button_clicked');
         this.togglePanel();
       };
       this.button.addEventListener('click', clickHandler);
@@ -594,7 +605,7 @@ export class VegaAIOverlay {
       if (e.key === 'Escape' && this.isVisible) {
         e.preventDefault();
         e.stopPropagation();
-        overlayLogger.track('keyboard_shortcut_escape');
+        overlayLogger.info('User interaction: keyboard_shortcut_escape');
         this.hidePanel();
         return;
       }
@@ -608,7 +619,7 @@ export class VegaAIOverlay {
       ) {
         e.preventDefault();
         e.stopPropagation();
-        overlayLogger.track('keyboard_shortcut_save');
+        overlayLogger.info('User interaction: keyboard_shortcut_save');
         this.handleSaveJob();
         return;
       }
@@ -617,7 +628,7 @@ export class VegaAIOverlay {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
         e.preventDefault();
         e.stopPropagation();
-        overlayLogger.track('keyboard_shortcut_toggle');
+        overlayLogger.info('User interaction: keyboard_shortcut_toggle');
         this.togglePanel();
         return;
       }
@@ -718,8 +729,11 @@ export class VegaAIOverlay {
           );
         }
       } catch (error) {
-        console.error('Vega AI: Error extracting job data:', error);
-        this.updatePanelContent(content, 'error', 'Failed to extract job data');
+        const errorDetails = errorService.handleError(error, {
+          action: 'extract_job_data',
+          context: 'overlay',
+        });
+        this.updatePanelContent(content, 'error', errorDetails.userMessage);
       }
     }, 300);
   }
@@ -854,7 +868,10 @@ export class VegaAIOverlay {
         [`notes_${window.location.href}`]: this.extractedJob.notes,
       });
     } catch (error) {
-      console.error('Failed to auto-save notes:', error);
+      errorService.handleError(error, {
+        action: 'auto_save_notes',
+        context: 'overlay',
+      });
     }
   }
 

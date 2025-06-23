@@ -5,7 +5,7 @@ export enum LogLevel {
   ERROR = 3,
 }
 
-export interface LogEntry {
+interface LogEntry {
   timestamp: number;
   level: LogLevel;
   context: string;
@@ -26,14 +26,6 @@ export class Logger {
 
   static setLogLevel(level: LogLevel): void {
     Logger.logLevel = level;
-  }
-
-  static getLogs(): LogEntry[] {
-    return [...Logger.logs];
-  }
-
-  static clearLogs(): void {
-    Logger.logs = [];
   }
 
   debug(message: string, data?: unknown): void {
@@ -157,11 +149,6 @@ export class Logger {
       });
       throw error;
     }
-  }
-
-  // Method for tracking user interactions
-  track(event: string, properties?: Record<string, unknown>): void {
-    this.info(`User interaction: ${event}`, properties);
   }
 }
 

@@ -1,6 +1,7 @@
 import { IAuthService, GoogleAuthConfig } from './IAuthService';
 import { IStorageService } from '../storage/IStorageService';
 import { AuthToken } from '@/types';
+import { Logger } from '@/utils/logger';
 
 export class GoogleAuthService implements IAuthService {
   private config: GoogleAuthConfig;
@@ -8,6 +9,7 @@ export class GoogleAuthService implements IAuthService {
   private authStateListeners: Array<(isAuthenticated: boolean) => void> = [];
   private isInitialized = false;
   private isLoginInProgress = false;
+  private logger = new Logger('GoogleAuthService');
 
   constructor(config: GoogleAuthConfig, storageService: IStorageService) {
     this.config = config;
@@ -32,7 +34,7 @@ export class GoogleAuthService implements IAuthService {
 
   async login(): Promise<void> {
     if (this.isLoginInProgress) {
-      console.warn('Login already in progress, ignoring duplicate request');
+      this.logger.warn('Login already in progress, ignoring duplicate request');
       return;
     }
 

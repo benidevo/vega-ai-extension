@@ -16,7 +16,6 @@ export class MultiProviderAuthService implements IAuthService {
   private authStateListeners: Array<(isAuthenticated: boolean) => void> = [];
   private isInitialized = false;
   private isLoginInProgress = false;
-  private currentProvider: AuthProviderType | null = null;
 
   constructor(config: AuthProviderConfig, storageService: IStorageService) {
     this.factory = new AuthProviderFactory(config);
@@ -27,8 +26,7 @@ export class MultiProviderAuthService implements IAuthService {
     if (this.isInitialized) return;
 
     const authToken = await this.getAuthToken();
-    this.currentProvider =
-      await this.storageService.get<AuthProviderType>('authProvider');
+    await this.storageService.get<AuthProviderType>('authProvider');
 
     if (authToken) {
       this.notifyAuthStateChange(true);
@@ -103,7 +101,6 @@ export class MultiProviderAuthService implements IAuthService {
       await this.storageService.remove('authTokenData');
       await this.storageService.remove('authProvider');
 
-      this.currentProvider = null;
       this.notifyAuthStateChange(false);
       authLogger.info('Logout completed');
     } catch (error) {
@@ -199,8 +196,6 @@ export class MultiProviderAuthService implements IAuthService {
     await this.storageService.set('authTokenData', tokens);
     await this.storageService.set('authProvider', provider);
     await this.storageService.set('authToken', tokens.access_token);
-
-    this.currentProvider = provider;
   }
 
   private notifyAuthStateChange(isAuthenticated: boolean): void {
