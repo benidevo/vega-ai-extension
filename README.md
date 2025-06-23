@@ -123,7 +123,26 @@ npm run typecheck   # Run TypeScript type checking
 
 - **CI**: Runs on every push/PR (quality checks + build verification)
 - **Manual Build**: Trigger from GitHub Actions for testing
-- **Release**: Auto-triggered by git tags (`git tag v1.0.0 && git push origin v1.0.0`)
+- **Release**: Auto-triggered by git tags
+
+**Creating a New Release:**
+
+```bash
+# 1. Commit your changes and merge to master branch
+git checkout master
+git merge your-feature-branch
+git push origin master
+
+# 2. Create version and tag (automatically updates package.json)
+npm version patch   # for bug fixes (0.1.0 → 0.1.1)
+npm version minor   # for new features (0.1.0 → 0.2.0)
+npm version major   # for breaking changes (0.1.0 → 1.0.0)
+
+# 3. Push the tag to trigger release workflow
+git push origin --tags
+```
+
+GitHub Actions will automatically build the extension and create a release with the zip file.
 
 ### Code Quality
 
@@ -134,12 +153,6 @@ Pre-commit hooks run ESLint, Prettier, TypeScript checks, and tests automaticall
 1. Create extractor in `src/content/extractors/` implementing `IJobExtractor`
 2. Register in `src/content/extractors/index.ts`
 3. Content script auto-detects and uses it
-
-### Configuration
-
-- **Backend API**: Update `api.baseUrl` in `src/config/index.ts`
-- **Google OAuth**: Set `features.enableGoogleAuth: true` + provide OAuth credentials (optional)
-- **Feature Flags**: Control analytics, session limits, etc. in config
 
 </details>
 
