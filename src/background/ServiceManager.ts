@@ -11,8 +11,9 @@ import {
   MessageType,
 } from './services';
 import { MultiProviderAuthService } from './services/auth/MultiProviderAuthService';
-import { authConfig, apiConfig } from '@/config';
+import { DynamicConfig } from '@/config/dynamicConfig';
 import { JobListing, AuthProviderType } from '@/types';
+import { AuthCredentials } from './services/auth/IAuthProvider';
 
 /**
  * Service Manager to coordinate all background services
@@ -27,16 +28,26 @@ export class ServiceManager {
 
   constructor() {
     this.storageService = new StorageService('local');
+    this.authService = null!; // Will be initialized with dynamic config
+    this.apiService = null!; // Will be initialized with dynamic config
+    this.messageService = new MessageService();
+    this.badgeService = new BadgeService();
+  }
+
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    const dynamicConfig = await DynamicConfig.getConfig();
 
     this.authService = new MultiProviderAuthService(
       {
         google: {
-          clientId: authConfig.providers.google.clientId,
-          scopes: authConfig.providers.google.scopes,
-          apiEndpoint: `${apiConfig.baseUrl}${authConfig.providers.google.apiEndpoint}`,
+          clientId: dynamicConfig.auth.providers.google.clientId,
+          scopes: dynamicConfig.auth.providers.google.scopes,
+          apiEndpoint: `${dynamicConfig.api.baseUrl}${dynamicConfig.auth.providers.google.apiEndpoint}`,
         },
         password: {
-          apiBaseUrl: authConfig.providers.password.apiBaseUrl,
+          apiBaseUrl: dynamicConfig.auth.providers.password.apiBaseUrl,
         },
       },
       this.storageService
@@ -44,19 +55,12 @@ export class ServiceManager {
 
     this.apiService = new APIService(
       {
-        baseUrl: apiConfig.baseUrl,
-        timeout: apiConfig.timeout,
-        retryAttempts: apiConfig.retryAttempts,
+        baseUrl: dynamicConfig.api.baseUrl,
+        timeout: dynamicConfig.api.timeout,
+        retryAttempts: dynamicConfig.api.retryAttempts,
       },
       this.authService
     );
-
-    this.messageService = new MessageService();
-    this.badgeService = new BadgeService();
-  }
-
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return;
 
     await this.storageService.initialize();
     await this.authService.initialize();
@@ -70,7 +74,11 @@ export class ServiceManager {
     this.authService.onAuthStateChange(async isAuthenticated => {
       if (isAuthenticated) {
         const token = await this.authService.getAuthToken();
-        this.apiService.setAuthToken(token);
+        if (token) {
+          this.apiService.setAuthToken(token);
+        } else {
+          console.warn('Authentication state is true but no token available');
+        }
       } else {
         this.apiService.setAuthToken(null);
       }
@@ -121,12 +129,12 @@ export class ServiceManager {
       (message, sender, sendResponse) => {
         const { provider, credentials } = message.payload as {
           provider: AuthProviderType;
-          credentials?: unknown;
+          credentials?: AuthCredentials[AuthProviderType];
         };
 
         const authService = this.authService as MultiProviderAuthService;
         authService
-          .loginWithProvider(provider, credentials as never)
+          .loginWithProvider(provider, credentials)
           .then(() => {
             sendResponse({ success: true });
           })
@@ -250,6 +258,88 @@ export class ServiceManager {
         return false;
       }
     );
+
+    // Handle settings reload
+    this.messageService.on(
+      'RELOAD_SETTINGS',
+      (message, sender, sendResponse) => {
+        this.handleReloadSettings(sendResponse);
+        return true; // Will respond asynchronously
+      }
+    );
+  }
+
+  private async handleReloadSettings(
+    sendResponse: (response?: unknown) => void
+  ): Promise<void> {
+    try {
+      DynamicConfig.clearCache();
+
+      await this.reinitialize();
+
+      sendResponse({ success: true });
+    } catch (error) {
+      console.error('Failed to reload settings:', error);
+      sendResponse({
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to reload settings',
+      });
+    }
+  }
+
+  private async reinitialize(): Promise<void> {
+    // Destroy existing services (except storage and message service)
+    if (this.authService) await this.authService.destroy();
+    if (this.apiService) await this.apiService.destroy();
+
+    const dynamicConfig = await DynamicConfig.getConfig();
+
+    this.authService = new MultiProviderAuthService(
+      {
+        google: {
+          clientId: dynamicConfig.auth.providers.google.clientId,
+          scopes: dynamicConfig.auth.providers.google.scopes,
+          apiEndpoint: `${dynamicConfig.api.baseUrl}${dynamicConfig.auth.providers.google.apiEndpoint}`,
+        },
+        password: {
+          apiBaseUrl: dynamicConfig.auth.providers.password.apiBaseUrl,
+        },
+      },
+      this.storageService
+    );
+
+    this.apiService = new APIService(
+      {
+        baseUrl: dynamicConfig.api.baseUrl,
+        timeout: dynamicConfig.api.timeout,
+        retryAttempts: dynamicConfig.api.retryAttempts,
+      },
+      this.authService
+    );
+
+    await this.authService.initialize();
+    await this.apiService.initialize();
+
+    this.setupAuthHandlers();
+
+    this.authService.onAuthStateChange(async isAuthenticated => {
+      if (isAuthenticated) {
+        const token = await this.authService.getAuthToken();
+        if (token) {
+          this.apiService.setAuthToken(token);
+        } else {
+          console.warn('Authentication state is true but no token available');
+        }
+      } else {
+        this.apiService.setAuthToken(null);
+      }
+    });
+
+    const token = await this.authService.getAuthToken();
+    if (token) {
+      this.apiService.setAuthToken(token);
+    }
   }
 
   get auth(): IAuthService {

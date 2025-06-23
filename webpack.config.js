@@ -29,7 +29,7 @@ module.exports = (env, argv) => {
 
   return {
     mode: argv.mode || 'development',
-    devtool: 'source-map',
+    devtool: isProduction ? false : 'inline-source-map',
   entry: {
     background: './src/background/index.ts',
     content: './src/content/index.ts',

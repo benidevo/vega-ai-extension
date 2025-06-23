@@ -1,5 +1,7 @@
 import '@/styles/main.css';
 import { config } from '@/config';
+import { SettingsService } from '@/background/services/settings/SettingsService';
+import { UserSettings } from '@/types/settings';
 
 /**
  * Represents the popup UI logic.
@@ -9,11 +11,15 @@ import { config } from '@/config';
 class Popup {
   private statusElement: HTMLElement;
   private ctaElement: HTMLElement;
+  private settingsView: HTMLElement;
   private isSigningIn = false;
+  private currentView: 'main' | 'settings' = 'main';
+  private statusTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
     this.ctaElement = document.getElementById('cta')!;
+    this.settingsView = document.getElementById('settings-view')!;
   }
 
   async initialize(): Promise<void> {
@@ -23,6 +29,7 @@ class Popup {
 
       this.render(isAuthenticated, isJobPage);
       this.attachEventListeners(isAuthenticated);
+      this.attachSettingsEventListeners();
     } catch (error) {
       console.error('Failed to initialize popup:', error);
       this.renderError('Unable to load extension status');
@@ -73,7 +80,8 @@ class Popup {
     if (isAuthenticated) {
       this.ctaElement.innerHTML = `
         <a
-          href="http://localhost:8765/jobs"
+          href="#"
+          id="dashboard-link"
           target="_blank"
           class="vega-btn vega-btn-primary w-full block text-center"
         >
@@ -336,6 +344,181 @@ class Popup {
     } catch (error) {
       console.error('Sign out error:', error);
       this.renderError('Unable to sign out');
+    }
+  }
+
+  private attachSettingsEventListeners(): void {
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => this.showSettings());
+    }
+
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => this.showMainView());
+    }
+
+    const testBtn = document.getElementById('test-connection-btn');
+    if (testBtn) {
+      testBtn.addEventListener('click', () => this.testConnection());
+    }
+
+    const saveBtn = document.getElementById('save-settings-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => this.saveSettings());
+    }
+
+    this.updateDashboardLink();
+  }
+
+  private async showSettings(): Promise<void> {
+    this.currentView = 'settings';
+
+    this.statusElement.classList.add('hidden');
+    this.ctaElement.classList.add('hidden');
+
+    this.settingsView.classList.remove('hidden');
+
+    const settings = await SettingsService.getSettings();
+    const protocolSelect = document.getElementById(
+      'api-protocol'
+    ) as HTMLSelectElement;
+    const hostInput = document.getElementById('api-host') as HTMLInputElement;
+
+    if (protocolSelect) protocolSelect.value = settings.apiProtocol;
+    if (hostInput) hostInput.value = settings.apiHost;
+  }
+
+  private showMainView(): void {
+    this.currentView = 'main';
+
+    this.statusElement.classList.remove('hidden');
+    this.ctaElement.classList.remove('hidden');
+
+    this.settingsView.classList.add('hidden');
+
+    this.hideSettingsStatus();
+  }
+
+  private async testConnection(): Promise<void> {
+    const protocolSelect = document.getElementById(
+      'api-protocol'
+    ) as HTMLSelectElement;
+    const hostInput = document.getElementById('api-host') as HTMLInputElement;
+
+    if (!protocolSelect || !hostInput) return;
+
+    const protocol = protocolSelect.value as 'http' | 'https';
+    const host = hostInput.value.trim();
+
+    if (!host) {
+      this.showSettingsStatus('Please enter a host', 'error');
+      return;
+    }
+
+    this.showSettingsStatus('Testing connection...', 'info');
+
+    const isConnected = await SettingsService.testConnection(host, protocol);
+
+    if (isConnected) {
+      this.showSettingsStatus('Connection successful!', 'success');
+    } else {
+      this.showSettingsStatus(
+        'Connection failed. Please check the host and try again.',
+        'error'
+      );
+    }
+  }
+
+  private async saveSettings(): Promise<void> {
+    const protocolSelect = document.getElementById(
+      'api-protocol'
+    ) as HTMLSelectElement;
+    const hostInput = document.getElementById('api-host') as HTMLInputElement;
+
+    if (!protocolSelect || !hostInput) return;
+
+    const protocol = protocolSelect.value as 'http' | 'https';
+    const host = hostInput.value.trim();
+
+    if (!host) {
+      this.showSettingsStatus('Please enter a host', 'error');
+      return;
+    }
+
+    const settings: UserSettings = {
+      apiProtocol: protocol,
+      apiHost: host,
+    };
+
+    try {
+      await SettingsService.saveSettings(settings);
+      this.showSettingsStatus('Settings saved successfully!', 'success');
+
+      this.updateDashboardLink();
+
+      // Notify background script to reload services with new settings
+      await chrome.runtime.sendMessage({ type: 'RELOAD_SETTINGS' });
+
+      // Go back to main view after a short delay
+      setTimeout(() => this.showMainView(), 1500);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      this.showSettingsStatus('Failed to save settings', 'error');
+    }
+  }
+
+  private showSettingsStatus(
+    message: string,
+    type: 'info' | 'success' | 'error'
+  ): void {
+    const statusDiv = document.getElementById('settings-status');
+    if (!statusDiv) return;
+
+    // Clear any existing timeout
+    if (this.statusTimeout) {
+      clearTimeout(this.statusTimeout);
+      this.statusTimeout = null;
+    }
+
+    const colorClasses = {
+      info: 'bg-blue-900/50 border-blue-500/50 text-blue-400',
+      success: 'bg-green-900/50 border-green-500/50 text-green-400',
+      error: 'bg-red-900/50 border-red-500/50 text-red-400',
+    };
+
+    statusDiv.className = `p-2 border rounded-md ${colorClasses[type]}`;
+    statusDiv.textContent = message;
+    statusDiv.classList.remove('hidden');
+
+    // Auto-hide success and info messages after 3 seconds
+    if (type === 'success' || type === 'info') {
+      this.statusTimeout = setTimeout(() => {
+        this.hideSettingsStatus();
+      }, 3000);
+    }
+    // Auto-hide error messages after 5 seconds
+    else if (type === 'error') {
+      this.statusTimeout = setTimeout(() => {
+        this.hideSettingsStatus();
+      }, 5000);
+    }
+  }
+
+  private hideSettingsStatus(): void {
+    const statusDiv = document.getElementById('settings-status');
+    if (statusDiv) {
+      statusDiv.classList.add('hidden');
+    }
+  }
+
+  private async updateDashboardLink(): Promise<void> {
+    const dashboardLink = document.getElementById(
+      'dashboard-link'
+    ) as HTMLAnchorElement;
+    if (dashboardLink) {
+      const baseUrl = await SettingsService.getApiBaseUrl();
+      dashboardLink.href = `${baseUrl}/jobs`;
     }
   }
 }
