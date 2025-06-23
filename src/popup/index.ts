@@ -16,7 +16,7 @@ class Popup {
   private settingsView: HTMLElement;
   private isSigningIn = false;
   private currentView: 'main' | 'settings' = 'main';
-  private statusTimeout: NodeJS.Timeout | null = null;
+  private statusTimeout: number | null = null;
   private logger = new Logger('Popup');
 
   constructor() {
@@ -507,13 +507,13 @@ class Popup {
 
     // Auto-hide success and info messages after 3 seconds
     if (type === 'success' || type === 'info') {
-      this.statusTimeout = setTimeout(() => {
+      this.statusTimeout = window.setTimeout(() => {
         this.hideSettingsStatus();
       }, 3000);
     }
     // Auto-hide error messages after 5 seconds
     else if (type === 'error') {
-      this.statusTimeout = setTimeout(() => {
+      this.statusTimeout = window.setTimeout(() => {
         this.hideSettingsStatus();
       }, 5000);
     }

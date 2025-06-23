@@ -8,6 +8,10 @@ export class DynamicConfig {
   private static cachedConfig: AppConfig | null = null;
 
   static async getConfig(): Promise<AppConfig> {
+    if (this.cachedConfig !== null) {
+      return this.cachedConfig;
+    }
+
     const userSettings = await SettingsService.getSettings();
     const apiBaseUrl = `${userSettings.apiProtocol}://${userSettings.apiHost}`;
 
