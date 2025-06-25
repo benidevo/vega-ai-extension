@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vega AI Job Capture",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Capture job listings while browsing",
   "permissions": ["storage", "identity", "activeTab", "alarms"],
   "host_permissions": ["https://*.linkedin.com/*", "http://localhost:*/*"],
@@ -28,9 +28,5 @@
       "resources": ["icons/logo.svg"],
       "matches": ["https://*.linkedin.com/*"]
     }
-  ],
-  "oauth2": {
-    "client_id": "WILL_BE_INJECTED_BY_WEBPACK",
-    "scopes": ["openid", "email", "profile"]
-  }
+  ]
 }

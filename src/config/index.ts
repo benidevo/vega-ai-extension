@@ -6,7 +6,6 @@
  */
 
 export interface AppConfig {
-  // Authentication Configuration (optional)
   auth: {
     providers: {
       google: {
@@ -52,64 +51,36 @@ export interface AppConfig {
 const environment = process.env.APP_ENV || 'development';
 const deploymentMode = process.env.DEPLOYMENT_MODE || 'opensource';
 const enableOAuth = process.env.ENABLE_OAUTH === 'true';
-
-// Default configuration (fallback)
-const defaultConfig: AppConfig = {
-  auth: {
-    providers: {
-      google: {
-        clientId: 'your-google-client-id.apps.googleusercontent.com',
-        scopes: ['openid', 'email', 'profile'],
-        apiEndpoint: '/api/auth/google',
-      },
-      password: {
-        apiBaseUrl: 'http://localhost:8765',
-      },
-    },
-    defaultProvider: 'password',
-  },
-  api: {
-    baseUrl: 'http://localhost:8765',
-    authEndpoint: '/api/auth',
-    timeout: 30000,
-    retryAttempts: 3,
-  },
-  extension: {
-    name: 'Vega AI Job Capture',
-    version: '0.1.0',
-    environment: environment as 'development' | 'production',
-    deploymentMode: deploymentMode as 'opensource' | 'marketplace',
-    debug: true,
-  },
-  features: {
-    enableAnalytics: false,
-    enableErrorReporting: false,
-    maxJobsPerSession: 50,
-    enableGoogleAuth: false,
-    enableDynamicHost: deploymentMode === 'marketplace',
-  },
-};
+const googleClientId =
+  process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID_HERE';
+const defaultApiBaseUrl = 'http://localhost:8765';
+const appVersion = process.env.APP_VERSION || '0.0.0';
 
 // Environment-specific configurations
-const configurations: Record<string, Partial<AppConfig>> = {
+const configurations: Record<string, AppConfig> = {
   development: {
     auth: {
       providers: {
         google: {
-          clientId:
-            '723024681965-pptqjhqv96n7g26dn43qlrntij2v5qnf.apps.googleusercontent.com',
+          clientId: googleClientId,
           scopes: ['openid', 'email', 'profile'],
           apiEndpoint: '/api/auth/google',
         },
         password: {
-          apiBaseUrl: 'http://localhost:8765',
+          apiBaseUrl: defaultApiBaseUrl,
         },
       },
       defaultProvider: enableOAuth ? 'google' : 'password',
     },
+    api: {
+      baseUrl: defaultApiBaseUrl,
+      authEndpoint: '/api/auth',
+      timeout: 30000,
+      retryAttempts: 3,
+    },
     extension: {
       name: 'Vega AI Job Capture (Dev)',
-      version: '0.1.0',
+      version: appVersion,
       environment: 'development',
       deploymentMode: deploymentMode as 'opensource' | 'marketplace',
       debug: true,
@@ -127,29 +98,26 @@ const configurations: Record<string, Partial<AppConfig>> = {
     auth: {
       providers: {
         google: {
-          clientId:
-            deploymentMode === 'opensource'
-              ? '723024681965-pptqjhqv96n7g26dn43qlrntij2v5qnf.apps.googleusercontent.com'
-              : '', // No OAuth for marketplace
+          clientId: deploymentMode === 'opensource' ? googleClientId : '',
           scopes: ['openid', 'email', 'profile'],
           apiEndpoint: '/api/auth/google',
         },
         password: {
-          apiBaseUrl: 'http://localhost:8765', // Default for all builds
+          apiBaseUrl: defaultApiBaseUrl,
         },
       },
       defaultProvider:
         enableOAuth && deploymentMode === 'opensource' ? 'google' : 'password',
     },
     api: {
-      baseUrl: 'http://localhost:8765', // Default for all builds
+      baseUrl: defaultApiBaseUrl,
       authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,
     },
     extension: {
       name: 'Vega AI Job Capture',
-      version: '0.1.0',
+      version: appVersion,
       environment: 'production',
       deploymentMode: deploymentMode as 'opensource' | 'marketplace',
       debug: false,
@@ -164,31 +132,10 @@ const configurations: Record<string, Partial<AppConfig>> = {
   },
 };
 
-// Merge default config with environment-specific config
-const envConfig = configurations[environment] || {};
-export const config: AppConfig = {
-  ...defaultConfig,
-  ...envConfig,
-  auth: {
-    ...defaultConfig.auth,
-    ...envConfig.auth,
-    providers: {
-      ...defaultConfig.auth.providers,
-      ...envConfig.auth?.providers,
-      google: {
-        ...defaultConfig.auth.providers.google,
-        ...envConfig.auth?.providers?.google,
-      },
-      password: {
-        ...defaultConfig.auth.providers.password,
-        ...envConfig.auth?.providers?.password,
-      },
-    },
-  },
-  api: { ...defaultConfig.api, ...envConfig.api },
-  extension: { ...defaultConfig.extension, ...envConfig.extension },
-  features: { ...defaultConfig.features, ...envConfig.features },
-};
+// Get the configuration for the current environment
+export const config: AppConfig =
+  (configurations[environment] as AppConfig) ||
+  (configurations.development as AppConfig);
 
 // Export individual sections for convenience
 export const authConfig = config.auth;

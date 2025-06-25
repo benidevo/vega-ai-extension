@@ -161,12 +161,13 @@ export class ServiceManager {
         };
 
         const authService = this.authService as MultiProviderAuthService;
-        authService
-          .loginWithPassword(username, password)
-          .then(() => {
+
+        // Wrap in immediate promise to ensure response is sent
+        (async () => {
+          try {
+            await authService.loginWithPassword(username, password);
             sendResponse({ success: true });
-          })
-          .catch(error => {
+          } catch (error) {
             const errorDetails = errorService.handleError(error, {
               action: 'password_login',
             });
@@ -174,7 +175,9 @@ export class ServiceManager {
               success: false,
               error: errorDetails.userMessage,
             });
-          });
+          }
+        })();
+
         return true;
       }
     );

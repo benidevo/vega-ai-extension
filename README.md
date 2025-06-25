@@ -104,57 +104,12 @@ auth: {
 
 ### Technical Documentation
 
-📋 **[Technical Design Document](docs/TECHNICAL_DESIGN.md)** - Detailed architecture, security, and implementation details</details>
-
-<details>
-<summary>🔧 Advanced Developer Information</summary>
-
-### Available Scripts
-
-```bash
-npm run dev         # Development build with watch mode
-npm run build       # Production build
-npm run lint        # Run ESLint
-npm run test        # Run Jest tests
-npm run typecheck   # Run TypeScript type checking
-```
-
-### Build & Release
-
-- **CI**: Runs on every push/PR (quality checks + build verification)
-- **Manual Build**: Trigger from GitHub Actions for testing
-- **Release**: Auto-triggered by git tags
-
-**Creating a New Release:**
-
-```bash
-# 1. Commit your changes and merge to master branch
-git checkout master
-git merge your-feature-branch
-git push origin master
-
-# 2. Create version and tag (automatically updates package.json)
-npm version patch   # for bug fixes (0.1.0 → 0.1.1)
-npm version minor   # for new features (0.1.0 → 0.2.0)
-npm version major   # for breaking changes (0.1.0 → 1.0.0)
-
-# 3. Push the tag to trigger release workflow
-git push origin --tags
-```
-
-GitHub Actions will automatically build the extension and create a release with the zip file.
-
-### Code Quality
-
-Pre-commit hooks run ESLint, Prettier, TypeScript checks, and tests automatically.
-
-### Adding New Job Sites
-
-1. Create extractor in `src/content/extractors/` implementing `IJobExtractor`
-2. Register in `src/content/extractors/index.ts`
-3. Content script auto-detects and uses it
-
 </details>
+
+## 💻 For Developers
+
+- 📖 **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Setup, build instructions, and contribution guidelines
+- 📋 **[Technical Design Document](docs/TECHNICAL_DESIGN.md)** - Architecture, security, and implementation details
 
 ## ❓ Need Help?
 
@@ -163,18 +118,6 @@ Pre-commit hooks run ESLint, Prettier, TypeScript checks, and tests automaticall
 - 📖 **[Setup Guide & FAQ](https://vega.benidevo.com/#faq)** for installation and common questions
 - 🐛 **[Report a Bug](https://github.com/benidevo/vega-ai-extension/issues)** if something isn't working
 - 💡 **[Request a Feature](https://github.com/benidevo/vega-ai-extension/issues)** to suggest improvements
-
-## 🤝 Contributing
-
-Love using the extension? Help make it better:
-
-1. **Report bugs** or suggest features via GitHub issues
-2. **Add support** for new job sites by contributing extractors
-3. **Improve the code**:
-   - Fork the repository
-   - Create a feature branch (`git checkout -b feature/your-feature`)
-   - Make your changes and test them
-   - Submit a pull request with a clear description
 
 ## 📝 License
 

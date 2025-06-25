@@ -2,11 +2,12 @@ const path = require('path');
 const webpack = require('webpack');
 const CopyPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const packageJson = require('./package.json');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
   const deploymentMode = env?.DEPLOYMENT_MODE || 'opensource'; // 'opensource' or 'marketplace'
-  
+
   console.log('🔧 Building with:', {
     mode: argv.mode || 'development',
     deploymentMode,
@@ -16,16 +17,14 @@ module.exports = (env, argv) => {
   // Configuration based on deployment mode
   const config = {
     development: {
-      clientId: '723024681965-pptqjhqv96n7g26dn43qlrntij2v5qnf.apps.googleusercontent.com',
+      clientId: 'YOUR_GOOGLE_CLIENT_ID_HERE',
       apiBaseUrl: 'http://localhost:8765',
-      enableOAuth: true
+      enableOAuth: false
     },
     production: {
-      clientId: deploymentMode === 'opensource' 
-        ? '723024681965-pptqjhqv96n7g26dn43qlrntij2v5qnf.apps.googleusercontent.com'
-        : '', // Marketplace doesn't include OAuth
-      apiBaseUrl: 'http://localhost:8765', // Default for all builds
-      enableOAuth: deploymentMode === 'opensource'
+      clientId: 'YOUR_GOOGLE_CLIENT_ID_HERE', 
+      apiBaseUrl: 'http://localhost:8765',
+      enableOAuth: false
     }
   };
 
@@ -86,6 +85,8 @@ module.exports = (env, argv) => {
         'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
         'process.env.DEPLOYMENT_MODE': JSON.stringify(deploymentMode),
         'process.env.ENABLE_OAUTH': JSON.stringify(currentConfig.enableOAuth),
+        'process.env.GOOGLE_CLIENT_ID': JSON.stringify(currentConfig.clientId),
+        'process.env.APP_VERSION': JSON.stringify(packageJson.version),
       }),
       new MiniCssExtractPlugin({
         filename: 'styles/[name].css',
@@ -97,17 +98,16 @@ module.exports = (env, argv) => {
             to: 'manifest.json',
             transform(content) {
               const manifest = JSON.parse(content.toString());
-              
-              // Handle OAuth configuration based on deployment mode
-              if (deploymentMode === 'marketplace' || !currentConfig.enableOAuth) {
-                // Remove OAuth for marketplace builds
-                delete manifest.oauth2;
-                delete manifest.key;
-              } else if (manifest.oauth2 && currentConfig.clientId) {
-                // Include OAuth for open source builds
-                manifest.oauth2.client_id = currentConfig.clientId;
+              // Update version from package.json
+              manifest.version = packageJson.version;
+
+              if (currentConfig.enableOAuth && currentConfig.clientId) {
+                manifest.oauth2 = {
+                  client_id: currentConfig.clientId,
+                  scopes: ["openid", "email", "profile"]
+                };
               }
-              
+
               return JSON.stringify(manifest, null, 2);
             },
           },

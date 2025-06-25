@@ -44,8 +44,10 @@ export class PasswordAuthService implements IAuthProvider {
       if (!response.ok) {
         const errorData = await response
           .json()
-          .catch(() => ({ message: 'Authentication failed' }));
-        throw new Error(errorData.message || 'Authentication failed');
+          .catch(() => ({ error: 'Authentication failed' }));
+        throw new Error(
+          errorData.error || errorData.message || 'Authentication failed'
+        );
       }
 
       const data = await response.json();
