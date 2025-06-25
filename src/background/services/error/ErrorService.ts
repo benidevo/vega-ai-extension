@@ -104,11 +104,15 @@ export class ErrorService {
       message.includes('401') ||
       message.includes('403') ||
       message.includes('forbidden') ||
-      message.includes('token')
+      message.includes('token') ||
+      message.includes('invalid username') ||
+      message.includes('invalid password')
     ) {
       // For specific auth errors like wrong password, use the actual error message
       const userMessage =
-        message.includes('password') || message.includes('credentials')
+        message.includes('password') ||
+        message.includes('credentials') ||
+        message.includes('invalid username')
           ? error.message
           : 'Authentication failed. Please sign in again.';
 
@@ -172,7 +176,6 @@ export class ErrorService {
       };
     }
 
-    // Default to unknown
     return {
       category: ErrorCategory.UNKNOWN,
       message: error.message,

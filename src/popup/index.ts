@@ -310,6 +310,8 @@ class Popup {
       });
 
       if (response && response.success) {
+        // Small delay to ensure storage is synced
+        await new Promise(resolve => setTimeout(resolve, 100));
         await this.initialize();
       } else {
         this.showAuthError(response?.error || 'Sign in failed');

@@ -193,9 +193,15 @@ export class MultiProviderAuthService implements IAuthService {
     tokens: AuthToken,
     provider: AuthProviderType
   ): Promise<void> {
-    await this.storageService.set('authTokenData', tokens);
-    await this.storageService.set('authProvider', provider);
-    await this.storageService.set('authToken', tokens.access_token);
+    // Store all auth data in parallel for consistency
+    await Promise.all([
+      this.storageService.set('authTokenData', tokens),
+      this.storageService.set('authProvider', provider),
+      this.storageService.set('authToken', tokens.access_token),
+    ]);
+
+    // Ensure storage is synced
+    await chrome.storage.local.get(['authToken']);
   }
 
   private notifyAuthStateChange(isAuthenticated: boolean): void {
