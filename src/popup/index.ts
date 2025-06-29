@@ -310,6 +310,26 @@ class Popup {
     }
   }
 
+  private updateValidationUI(
+    input: HTMLInputElement,
+    errorElement: HTMLElement,
+    helpElement: HTMLElement,
+    validation: ValidationResult
+  ): void {
+    if (validation.isValid) {
+      input.classList.remove('border-red-500');
+      input.classList.add('border-green-500');
+      errorElement.classList.add('hidden');
+      helpElement.classList.remove('hidden');
+    } else {
+      input.classList.remove('border-green-500');
+      input.classList.add('border-red-500');
+      errorElement.textContent = validation.error || '';
+      errorElement.classList.remove('hidden');
+      helpElement.classList.add('hidden');
+    }
+  }
+
   private validateUsernameInput(): ValidationResult {
     const usernameInput = document.getElementById(
       'username-input'
@@ -322,20 +342,12 @@ class Popup {
     }
 
     const validation = validateUsername(usernameInput.value);
-
-    if (validation.isValid) {
-      usernameInput.classList.remove('border-red-500');
-      usernameInput.classList.add('border-green-500');
-      usernameError.classList.add('hidden');
-      usernameHelp.classList.remove('hidden');
-    } else {
-      usernameInput.classList.remove('border-green-500');
-      usernameInput.classList.add('border-red-500');
-      usernameError.textContent = validation.error || '';
-      usernameError.classList.remove('hidden');
-      usernameHelp.classList.add('hidden');
-    }
-
+    this.updateValidationUI(
+      usernameInput,
+      usernameError,
+      usernameHelp,
+      validation
+    );
     return validation;
   }
 
@@ -351,20 +363,12 @@ class Popup {
     }
 
     const validation = validatePassword(passwordInput.value);
-
-    if (validation.isValid) {
-      passwordInput.classList.remove('border-red-500');
-      passwordInput.classList.add('border-green-500');
-      passwordError.classList.add('hidden');
-      passwordHelp.classList.remove('hidden');
-    } else {
-      passwordInput.classList.remove('border-green-500');
-      passwordInput.classList.add('border-red-500');
-      passwordError.textContent = validation.error || '';
-      passwordError.classList.remove('hidden');
-      passwordHelp.classList.add('hidden');
-    }
-
+    this.updateValidationUI(
+      passwordInput,
+      passwordError,
+      passwordHelp,
+      validation
+    );
     return validation;
   }
 
