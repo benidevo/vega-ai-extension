@@ -1,6 +1,6 @@
 {
   "name": "vega-ai-extension",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Browser extension for capturing job listings",
   "private": true,
   "scripts": {
