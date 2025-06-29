@@ -3,6 +3,11 @@
   "name": "Vega AI Job Capture",
   "version": "0.1.1",
   "description": "Capture job listings while browsing",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": ["storage", "identity", "activeTab", "alarms"],
   "host_permissions": ["https://*.linkedin.com/*", "http://localhost:*/*"],
   "background": {

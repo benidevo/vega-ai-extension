@@ -4,6 +4,11 @@ import { SettingsService } from '@/background/services/settings/SettingsService'
 import { UserSettings } from '@/types/settings';
 import { errorService } from '@/background/services/error';
 import { Logger } from '@/utils/logger';
+import {
+  validatePassword,
+  validateUsername,
+  ValidationResult,
+} from '@/utils/validation';
 
 /**
  * Represents the popup UI logic.
@@ -168,21 +173,30 @@ class Popup {
 
         <!-- Username/Password Form -->
         <div class="space-y-3">
-          <input
-            type="text"
-            id="username-input"
-            placeholder="Username"
-            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-          >
-          <input
-            type="password"
-            id="password-input"
-            placeholder="Password"
-            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-          >
+          <div>
+            <input
+              type="text"
+              id="username-input"
+              placeholder="Username (3-50 characters)"
+              class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            >
+            <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
+            <div id="username-help" class="mt-1 text-xs text-gray-500">Letters, numbers, periods, underscores, and hyphens allowed</div>
+          </div>
+          <div>
+            <input
+              type="password"
+              id="password-input"
+              placeholder="Password (8-64 characters)"
+              class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            >
+            <div id="password-error" class="hidden mt-1 text-xs text-red-400"></div>
+            <div id="password-help" class="mt-1 text-xs text-gray-500">Use a strong, unique password for security</div>
+          </div>
           <button
             id="password-signin-btn"
             class="vega-btn vega-btn-primary w-full text-sm"
+            disabled
           >
             Sign In
           </button>
@@ -223,21 +237,42 @@ class Popup {
       }
     }
 
+    const usernameInput = document.getElementById(
+      'username-input'
+    ) as HTMLInputElement;
+    if (usernameInput) {
+      usernameInput.addEventListener('input', () => {
+        this.validateUsernameInput();
+        this.updateSignInButtonState();
+      });
+      usernameInput.addEventListener('blur', () => {
+        this.validateUsernameInput();
+      });
+    }
+
+    const passwordInput = document.getElementById(
+      'password-input'
+    ) as HTMLInputElement;
+    if (passwordInput) {
+      passwordInput.addEventListener('input', () => {
+        this.validatePasswordInput();
+        this.updateSignInButtonState();
+      });
+      passwordInput.addEventListener('blur', () => {
+        this.validatePasswordInput();
+      });
+      passwordInput.addEventListener('keypress', async e => {
+        if (e.key === 'Enter' && this.isFormValid()) {
+          await this.handlePasswordSignIn();
+        }
+      });
+    }
+
     // Password sign in button
     const passwordBtn = document.getElementById('password-signin-btn');
     if (passwordBtn) {
       passwordBtn.addEventListener('click', async () => {
         await this.handlePasswordSignIn();
-      });
-    }
-
-    // Enter key on password field
-    const passwordInput = document.getElementById('password-input');
-    if (passwordInput) {
-      passwordInput.addEventListener('keypress', async e => {
-        if (e.key === 'Enter') {
-          await this.handlePasswordSignIn();
-        }
       });
     }
   }
@@ -275,8 +310,98 @@ class Popup {
     }
   }
 
+  private validateUsernameInput(): ValidationResult {
+    const usernameInput = document.getElementById(
+      'username-input'
+    ) as HTMLInputElement;
+    const usernameError = document.getElementById('username-error');
+    const usernameHelp = document.getElementById('username-help');
+
+    if (!usernameInput || !usernameError || !usernameHelp) {
+      return { isValid: false };
+    }
+
+    const validation = validateUsername(usernameInput.value);
+
+    if (validation.isValid) {
+      usernameInput.classList.remove('border-red-500');
+      usernameInput.classList.add('border-green-500');
+      usernameError.classList.add('hidden');
+      usernameHelp.classList.remove('hidden');
+    } else {
+      usernameInput.classList.remove('border-green-500');
+      usernameInput.classList.add('border-red-500');
+      usernameError.textContent = validation.error || '';
+      usernameError.classList.remove('hidden');
+      usernameHelp.classList.add('hidden');
+    }
+
+    return validation;
+  }
+
+  private validatePasswordInput(): ValidationResult {
+    const passwordInput = document.getElementById(
+      'password-input'
+    ) as HTMLInputElement;
+    const passwordError = document.getElementById('password-error');
+    const passwordHelp = document.getElementById('password-help');
+
+    if (!passwordInput || !passwordError || !passwordHelp) {
+      return { isValid: false };
+    }
+
+    const validation = validatePassword(passwordInput.value);
+
+    if (validation.isValid) {
+      passwordInput.classList.remove('border-red-500');
+      passwordInput.classList.add('border-green-500');
+      passwordError.classList.add('hidden');
+      passwordHelp.classList.remove('hidden');
+    } else {
+      passwordInput.classList.remove('border-green-500');
+      passwordInput.classList.add('border-red-500');
+      passwordError.textContent = validation.error || '';
+      passwordError.classList.remove('hidden');
+      passwordHelp.classList.add('hidden');
+    }
+
+    return validation;
+  }
+
+  private isFormValid(): boolean {
+    const usernameInput = document.getElementById(
+      'username-input'
+    ) as HTMLInputElement;
+    const passwordInput = document.getElementById(
+      'password-input'
+    ) as HTMLInputElement;
+
+    if (!usernameInput || !passwordInput) return false;
+
+    const usernameValid = validateUsername(usernameInput.value).isValid;
+    const passwordValid = validatePassword(passwordInput.value).isValid;
+
+    return usernameValid && passwordValid;
+  }
+
+  private updateSignInButtonState(): void {
+    const passwordBtn = document.getElementById(
+      'password-signin-btn'
+    ) as HTMLButtonElement;
+    if (!passwordBtn) return;
+
+    const isValid = this.isFormValid();
+    passwordBtn.disabled = !isValid || this.isSigningIn;
+
+    if (isValid) {
+      passwordBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      passwordBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
   private async handlePasswordSignIn(): Promise<void> {
-    if (this.isSigningIn) return;
+    if (this.isSigningIn || !this.isFormValid()) return;
 
     const usernameInput = document.getElementById(
       'username-input'
@@ -293,8 +418,17 @@ class Popup {
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
 
-    if (!username || !password) {
-      this.showAuthError('Please enter both username and password');
+    // Final validation before submission
+    const usernameValidation = validateUsername(username);
+    const passwordValidation = validatePassword(password);
+
+    if (!usernameValidation.isValid) {
+      this.showAuthError(usernameValidation.error || 'Invalid username');
+      return;
+    }
+
+    if (!passwordValidation.isValid) {
+      this.showAuthError(passwordValidation.error || 'Invalid password');
       return;
     }
 
@@ -323,7 +457,7 @@ class Popup {
       this.showAuthError(errorDetails.userMessage);
     } finally {
       this.isSigningIn = false;
-      passwordBtn.disabled = false;
+      this.updateSignInButtonState();
       passwordBtn.textContent = originalText;
     }
   }

@@ -38,6 +38,73 @@ export function sanitizeJobListing(job: JobListing): JobListing {
 }
 
 /**
+ * Validation result interface
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+/**
+ * Validates password according to requirements
+ * @param password - The password to validate
+ * @returns Validation result with error message if invalid
+ */
+export function validatePassword(password: string): ValidationResult {
+  if (!password) {
+    return { isValid: false, error: 'Password is required' };
+  }
+
+  if (password.length < 8) {
+    return {
+      isValid: false,
+      error: 'Password must be at least 8 characters long',
+    };
+  }
+
+  if (password.length > 64) {
+    return { isValid: false, error: 'Password must be 64 characters or less' };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates username according to requirements
+ * @param username - The username to validate
+ * @returns Validation result with error message if invalid
+ */
+export function validateUsername(username: string): ValidationResult {
+  if (!username) {
+    return { isValid: false, error: 'Username is required' };
+  }
+
+  const trimmed = username.trim();
+
+  if (trimmed.length < 3) {
+    return {
+      isValid: false,
+      error: 'Username must be at least 3 characters long',
+    };
+  }
+
+  if (trimmed.length > 50) {
+    return { isValid: false, error: 'Username must be 50 characters or less' };
+  }
+
+  const validPattern = /^[a-zA-Z0-9._-]+$/;
+  if (!validPattern.test(trimmed)) {
+    return {
+      isValid: false,
+      error:
+        'Username can only contain letters, numbers, periods, underscores, and hyphens',
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
  * Cleans a URL by removing tracking parameters and ensuring it's valid
  * @param url - The URL to clean
  * @returns The cleaned URL
