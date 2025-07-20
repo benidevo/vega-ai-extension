@@ -1,5 +1,5 @@
 import { IService } from '../IService';
-import { JobListing } from '@/types';
+import { JobListing, ActivePreferencesResponse } from '@/types';
 
 /**
  * API service interface for backend communication
@@ -14,6 +14,16 @@ export interface IAPIService extends IService {
    * Set authentication token for API requests
    */
   setAuthToken(token: string | null): void;
+
+  /**
+   * Get active job search preferences
+   */
+  getActivePreferences(): Promise<ActivePreferencesResponse | null>;
+
+  /**
+   * Record search results for a preference
+   */
+  recordSearchResults(preferenceId: string, jobsFound: number): Promise<void>;
 }
 
 /**

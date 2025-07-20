@@ -186,6 +186,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'REINITIALIZE') {
     debouncedInitialize();
     sendResponse({ success: true });
+  } else if (message.type === 'EXTRACT_SEARCH_RESULTS') {
+    handleSearchExtraction(message.payload)
+      .then(result => sendResponse(result))
+      .catch(error => {
+        contentLogger.error('Search extraction failed', error);
+        sendResponse({ jobsFound: 0, error: error.message });
+      });
+    return true; // Keep channel open for async response
   }
   return true; // Keep the message channel open for async response
 });
@@ -198,3 +206,138 @@ window.addEventListener('unload', () => {
   mutationObserver.disconnect();
   contentConnection.disconnect();
 });
+
+/**
+ * Handle search result extraction for automated searches
+ */
+async function handleSearchExtraction(params: {
+  preferenceId: string;
+  maxAge: number;
+  jobTitle: string;
+  location: string;
+}): Promise<{ jobsFound: number }> {
+  contentLogger.info('Starting search extraction', params);
+
+  try {
+    // Wait for search results to load
+    await waitForSearchResults();
+
+    // Count job cards that match criteria
+    const jobCards = document.querySelectorAll(
+      '[data-job-id], .job-card-container, .jobs-search-results__list-item'
+    );
+    let validJobs = 0;
+
+    for (const card of jobCards) {
+      if (isJobWithinAge(card as HTMLElement, params.maxAge)) {
+        validJobs++;
+      }
+    }
+
+    contentLogger.info(`Found ${validJobs} jobs within age limit`, {
+      maxAge: params.maxAge,
+      totalCards: jobCards.length,
+    });
+
+    return { jobsFound: validJobs };
+  } catch (error) {
+    contentLogger.error('Search extraction error', error);
+    return { jobsFound: 0 };
+  }
+}
+
+/**
+ * Wait for search results to load on the page
+ */
+async function waitForSearchResults(timeout = 10000): Promise<void> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const jobCards = document.querySelectorAll(
+      '[data-job-id], .job-card-container, .jobs-search-results__list-item'
+    );
+
+    if (jobCards.length > 0) {
+      // Wait a bit more for all results to render
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return;
+    }
+
+    // Check for "no results" message
+    const noResults = document.querySelector('.jobs-search-no-results');
+    if (noResults) {
+      contentLogger.info('No search results found');
+      return;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  throw new Error('Search results did not load in time');
+}
+
+/**
+ * Check if a job card is within the specified age limit
+ */
+function isJobWithinAge(card: HTMLElement, maxAgeSeconds: number): boolean {
+  // Extract posting time
+  const timeElement = card.querySelector('time');
+  const timeText =
+    timeElement?.getAttribute('datetime') ||
+    timeElement?.textContent ||
+    card.querySelector('.job-card-list__listed-time')?.textContent ||
+    '';
+
+  if (!timeText) {
+    contentLogger.debug('No time found for job card', {
+      cardHTML: card.outerHTML.substring(0, 200),
+    });
+    return true; // Include if we can't determine age
+  }
+
+  const jobAgeSeconds = parseJobAge(timeText);
+  return jobAgeSeconds <= maxAgeSeconds;
+}
+
+/**
+ * Parse job age from various time formats
+ */
+function parseJobAge(timeText: string): number {
+  const now = Date.now();
+
+  // Handle "X hours/days/weeks ago" format
+  const matches = timeText.match(/(\d+)\s*(hour|day|week|month)/i);
+  if (matches) {
+    const [, amount, unit] = matches;
+    const value = parseInt(amount);
+
+    switch (unit.toLowerCase()) {
+      case 'hour':
+        return value * 3600;
+      case 'day':
+        return value * 86400;
+      case 'week':
+        return value * 604800;
+      case 'month':
+        return value * 2592000;
+    }
+  }
+
+  // Handle "Just now" or "Recently posted"
+  if (timeText.match(/just now|recently/i)) {
+    return 0;
+  }
+
+  // Try to parse ISO date
+  try {
+    const postedDate = new Date(timeText);
+    if (!isNaN(postedDate.getTime())) {
+      return Math.floor((now - postedDate.getTime()) / 1000);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+
+  // Default to 0 (assume recent)
+  return 0;
+}
