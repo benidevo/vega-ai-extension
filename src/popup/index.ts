@@ -1,12 +1,11 @@
 import '@/styles/main.css';
-import { config } from '@/config';
 import { SettingsService } from '@/background/services/settings/SettingsService';
-import { UserSettings } from '@/types/settings';
 import { errorService } from '@/background/services/error';
 import { Logger } from '@/utils/logger';
 import {
   validatePassword,
   validateUsername,
+  validateHost,
   ValidationResult,
 } from '@/utils/validation';
 
@@ -35,7 +34,7 @@ class Popup {
       const isJobPage = await this.checkIfJobPage();
       const isAuthenticated = await this.checkAuthStatus();
 
-      this.render(isAuthenticated, isJobPage);
+      await this.render(isAuthenticated, isJobPage);
       this.attachEventListeners(isAuthenticated);
       this.attachSettingsEventListeners();
     } catch (error) {
@@ -63,10 +62,15 @@ class Popup {
     });
     const url = tab.url || '';
 
+    // Currently only LinkedIn is supported
+    // TODO: Add support for Indeed and Glassdoor job pages
     return url.includes('linkedin.com/jobs/view/');
   }
 
-  private render(isAuthenticated: boolean, isJobPage: boolean): void {
+  private async render(
+    isAuthenticated: boolean,
+    isJobPage: boolean
+  ): Promise<void> {
     if (isJobPage) {
       this.statusElement.innerHTML = `
         <div class="flex items-center justify-center p-3 bg-primary bg-opacity-10 rounded-lg border border-primary border-opacity-30">
@@ -108,7 +112,7 @@ class Popup {
         </div>
       `;
     } else {
-      this.renderAuthOptions();
+      await this.renderAuthOptions();
     }
   }
 
@@ -139,108 +143,146 @@ class Popup {
     }
   }
 
-  private renderAuthOptions(): void {
-    const googleAuthSection = config.features.enableGoogleAuth
-      ? `
-        <!-- Google OAuth Button -->
-        <button
-          id="google-signin-btn"
-          class="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center justify-center"
-        >
-          <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Continue with Google
-        </button>
+  private async renderAuthOptions(): Promise<void> {
+    const isOAuthEnabled = await SettingsService.isOAuthEnabled();
 
-        <!-- Divider -->
-        <div class="relative">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-600"></div>
-          </div>
-          <div class="relative flex justify-center text-sm">
-            <span class="px-2 bg-slate-900 text-gray-400">or</span>
-          </div>
-        </div>`
-      : '';
-
-    this.ctaElement.innerHTML = `
-      <div class="space-y-4">
-        ${googleAuthSection}
-
-        <!-- Username/Password Form -->
-        <div class="space-y-3">
-          <div>
-            <input
-              type="text"
-              id="username-input"
-              placeholder="Username (3-50 characters)"
-              class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-            >
-            <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
-            <div id="username-help" class="mt-1 text-xs text-gray-500">Letters, numbers, periods, underscores, and hyphens allowed</div>
-          </div>
-          <div>
-            <input
-              type="password"
-              id="password-input"
-              placeholder="Password (8-64 characters)"
-              class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-            >
-            <div id="password-error" class="hidden mt-1 text-xs text-red-400"></div>
-            <div id="password-help" class="mt-1 text-xs text-gray-500">Use a strong, unique password for security</div>
-          </div>
+    if (isOAuthEnabled) {
+      // Cloud mode - show OAuth
+      this.ctaElement.innerHTML = `
+        <div class="space-y-4">
+          <!-- Google OAuth Button -->
           <button
-            id="password-signin-btn"
-            class="vega-btn vega-btn-primary w-full text-sm"
-            disabled
+            id="google-signin-btn"
+            class="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center justify-center"
           >
-            Sign In
-          </button>
-        </div>
-
-        <!-- Registration Link -->
-        <div class="text-center">
-          <a
-            href="https://vega.benidevo.com"
-            target="_blank"
-            class="text-xs text-gray-400 hover:text-gray-300 transition-colors"
-          >
-            Don't have an account, get started
-          </a>
-        </div>
-
-        <!-- Error Display -->
-        <div id="auth-error" class="hidden p-2 bg-red-900/50 border border-red-500/50 rounded-md">
-          <div class="flex items-center">
-            <svg class="w-4 h-4 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            <span id="auth-error-text" class="text-xs text-red-400"></span>
+            Continue with Google
+          </button>
+
+          <!-- Registration Link -->
+          <div class="text-center">
+            <a
+              href="https://vega.benidevo.com"
+              target="_blank"
+              class="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+            >
+              Don't have an account, get started
+            </a>
+          </div>
+
+          <!-- Error Display -->
+          <div id="auth-error" class="hidden p-2 bg-red-900/50 border border-red-500/50 rounded-md">
+            <div class="flex items-center">
+              <svg class="w-4 h-4 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span id="auth-error-text" class="text-xs text-red-400"></span>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      // Local mode - show username/password form
+      this.ctaElement.innerHTML = `
+        <div class="space-y-4">
+          <!-- Username/Password Form -->
+          <div class="space-y-3">
+            <div>
+              <input
+                type="text"
+                id="username-input"
+                placeholder="Username (3-50 characters)"
+                class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              >
+              <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
+              <div id="username-help" class="mt-1 text-xs text-gray-500">Letters, numbers, periods, underscores, and hyphens allowed</div>
+            </div>
+            <div>
+              <div class="relative">
+                <input
+                  type="password"
+                  id="password-input"
+                  placeholder="Password (8-64 characters)"
+                  class="w-full px-3 py-2 pr-10 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                >
+                <button
+                  type="button"
+                  id="password-toggle"
+                  class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-300"
+                  aria-label="Toggle password visibility"
+                >
+                  <svg id="password-show-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <svg id="password-hide-icon" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                </button>
+              </div>
+              <div id="password-error" class="hidden mt-1 text-xs text-red-400"></div>
+              <div id="password-help" class="mt-1 text-xs text-gray-500">Use a strong, unique password for security</div>
+            </div>
+            <button
+              id="password-signin-btn"
+              class="vega-btn vega-btn-primary w-full text-sm"
+              disabled
+            >
+              Sign In
+            </button>
+          </div>
+
+          <!-- Registration Link -->
+          <div class="text-center">
+            <a
+              href="https://vega.benidevo.com"
+              target="_blank"
+              class="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+            >
+              Don't have an account, get started
+            </a>
+          </div>
+
+          <!-- Error Display -->
+          <div id="auth-error" class="hidden p-2 bg-red-900/50 border border-red-500/50 rounded-md">
+            <div class="flex items-center">
+              <svg class="w-4 h-4 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span id="auth-error-text" class="text-xs text-red-400"></span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
   }
 
   private attachAuthEventListeners(): void {
-    // Google OAuth button (only if enabled)
-    if (config.features.enableGoogleAuth) {
-      const googleBtn = document.getElementById('google-signin-btn');
-      if (googleBtn) {
-        googleBtn.addEventListener('click', async () => {
-          await this.handleGoogleSignIn();
-        });
-      }
+    // Attach Google OAuth listener if present
+    const googleBtn = document.getElementById('google-signin-btn');
+    if (googleBtn) {
+      googleBtn.setAttribute('aria-label', 'Sign in with Google account');
+      googleBtn.addEventListener('click', async () => {
+        await this.handleGoogleSignIn();
+      });
     }
 
+    // Attach password form listeners if present
     const usernameInput = document.getElementById(
       'username-input'
     ) as HTMLInputElement;
     if (usernameInput) {
+      usernameInput.setAttribute('aria-label', 'Username');
+      usernameInput.setAttribute(
+        'aria-describedby',
+        'username-help username-error'
+      );
+      usernameInput.setAttribute('aria-required', 'true');
       usernameInput.addEventListener('input', () => {
         this.validateUsernameInput();
         this.updateSignInButtonState();
@@ -254,6 +296,12 @@ class Popup {
       'password-input'
     ) as HTMLInputElement;
     if (passwordInput) {
+      passwordInput.setAttribute('aria-label', 'Password');
+      passwordInput.setAttribute(
+        'aria-describedby',
+        'password-help password-error'
+      );
+      passwordInput.setAttribute('aria-required', 'true');
       passwordInput.addEventListener('input', () => {
         this.validatePasswordInput();
         this.updateSignInButtonState();
@@ -268,12 +316,42 @@ class Popup {
       });
     }
 
+    // Password visibility toggle
+    const passwordToggle = document.getElementById('password-toggle');
+    if (passwordToggle && passwordInput) {
+      passwordToggle.addEventListener('click', () => {
+        const showIcon = document.getElementById('password-show-icon');
+        const hideIcon = document.getElementById('password-hide-icon');
+
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          showIcon?.classList.add('hidden');
+          hideIcon?.classList.remove('hidden');
+        } else {
+          passwordInput.type = 'password';
+          showIcon?.classList.remove('hidden');
+          hideIcon?.classList.add('hidden');
+        }
+      });
+    }
+
     // Password sign in button
     const passwordBtn = document.getElementById('password-signin-btn');
     if (passwordBtn) {
+      passwordBtn.setAttribute(
+        'aria-label',
+        'Sign in with username and password'
+      );
       passwordBtn.addEventListener('click', async () => {
         await this.handlePasswordSignIn();
       });
+    }
+
+    // Set up aria-live regions
+    const authError = document.getElementById('auth-error');
+    if (authError) {
+      authError.setAttribute('role', 'alert');
+      authError.setAttribute('aria-live', 'polite');
     }
   }
 
@@ -474,10 +552,10 @@ class Popup {
       errorText.textContent = message;
       errorDiv.classList.remove('hidden');
 
-      // Auto-hide after 5 seconds
+      // Auto-hide after 3 seconds
       setTimeout(() => {
         errorDiv.classList.add('hidden');
-      }, 5000);
+      }, 3000);
     }
   }
 
@@ -509,14 +587,42 @@ class Popup {
       backBtn.addEventListener('click', () => this.showMainView());
     }
 
-    const testBtn = document.getElementById('test-connection-btn');
-    if (testBtn) {
-      testBtn.addEventListener('click', () => this.testConnection());
-    }
-
     const saveBtn = document.getElementById('save-settings-btn');
     if (saveBtn) {
       saveBtn.addEventListener('click', () => this.saveSettings());
+    }
+
+    // Add event listeners for backend mode radio buttons
+    const cloudRadio = document.getElementById(
+      'backend-cloud'
+    ) as HTMLInputElement;
+    const localRadio = document.getElementById(
+      'backend-local'
+    ) as HTMLInputElement;
+    if (cloudRadio) {
+      cloudRadio.addEventListener('change', () =>
+        this.toggleLocalBackendSettings()
+      );
+    }
+    if (localRadio) {
+      localRadio.addEventListener('change', () =>
+        this.toggleLocalBackendSettings()
+      );
+    }
+
+    // Add event listener for custom host input validation
+    const customHostInput = document.getElementById(
+      'custom-host'
+    ) as HTMLInputElement;
+    if (customHostInput) {
+      customHostInput.addEventListener('input', () => this.validateHostInput());
+      customHostInput.addEventListener('blur', () => this.validateHostInput());
+    }
+
+    // Add test connection button listener
+    const testConnectionBtn = document.getElementById('test-connection-btn');
+    if (testConnectionBtn) {
+      testConnectionBtn.addEventListener('click', () => this.testConnection());
     }
 
     this.updateDashboardLink();
@@ -531,13 +637,47 @@ class Popup {
     this.settingsView.classList.remove('hidden');
 
     const settings = await SettingsService.getSettings();
-    const protocolSelect = document.getElementById(
-      'api-protocol'
-    ) as HTMLSelectElement;
-    const hostInput = document.getElementById('api-host') as HTMLInputElement;
+    const backendMode = settings.backendMode;
 
-    if (protocolSelect) protocolSelect.value = settings.apiProtocol;
-    if (hostInput) hostInput.value = settings.apiHost;
+    // Set the appropriate radio button
+    const cloudRadio = document.getElementById(
+      'backend-cloud'
+    ) as HTMLInputElement;
+    const localRadio = document.getElementById(
+      'backend-local'
+    ) as HTMLInputElement;
+
+    if (cloudRadio && localRadio) {
+      cloudRadio.checked = backendMode === 'cloud';
+      localRadio.checked = backendMode === 'local';
+    }
+
+    // Set custom host and scheme values
+    const customHostInput = document.getElementById(
+      'custom-host'
+    ) as HTMLInputElement;
+    const customSchemeSelect = document.getElementById(
+      'custom-scheme'
+    ) as HTMLSelectElement;
+
+    if (customHostInput && customSchemeSelect) {
+      // If in local mode, show the current settings
+      // Otherwise, show the default local settings
+      if (backendMode === 'local') {
+        customHostInput.value = settings.apiHost;
+        customSchemeSelect.value = settings.apiProtocol;
+      } else {
+        // Show default local settings when not in local mode
+        customHostInput.value = 'localhost:8765';
+        customSchemeSelect.value = 'http';
+      }
+    }
+
+    // Show/hide local backend settings based on current mode
+    this.toggleLocalBackendSettings();
+
+    // Re-attach event listeners after showing settings
+    this.attachSettingsEventListeners();
   }
 
   private showMainView(): void {
@@ -551,72 +691,87 @@ class Popup {
     this.hideSettingsStatus();
   }
 
-  private async testConnection(): Promise<void> {
-    const protocolSelect = document.getElementById(
-      'api-protocol'
-    ) as HTMLSelectElement;
-    const hostInput = document.getElementById('api-host') as HTMLInputElement;
-
-    if (!protocolSelect || !hostInput) return;
-
-    const protocol = protocolSelect.value as 'http' | 'https';
-    const host = hostInput.value.trim();
-
-    if (!host) {
-      this.showSettingsStatus('Please enter a host', 'error');
-      return;
-    }
-
-    this.showSettingsStatus('Testing connection...', 'info');
-
-    const isConnected = await SettingsService.testConnection(host, protocol);
-
-    if (isConnected) {
-      this.showSettingsStatus('Connection successful!', 'success');
-    } else {
-      this.showSettingsStatus(
-        'Connection failed. Please check the host and try again.',
-        'error'
-      );
-    }
-  }
-
   private async saveSettings(): Promise<void> {
-    const protocolSelect = document.getElementById(
-      'api-protocol'
+    const cloudRadio = document.getElementById(
+      'backend-cloud'
+    ) as HTMLInputElement;
+    const localRadio = document.getElementById(
+      'backend-local'
+    ) as HTMLInputElement;
+    const customHostInput = document.getElementById(
+      'custom-host'
+    ) as HTMLInputElement;
+    const customSchemeSelect = document.getElementById(
+      'custom-scheme'
     ) as HTMLSelectElement;
-    const hostInput = document.getElementById('api-host') as HTMLInputElement;
 
-    if (!protocolSelect || !hostInput) return;
+    if (!cloudRadio || !localRadio) return;
 
-    const protocol = protocolSelect.value as 'http' | 'https';
-    const host = hostInput.value.trim();
+    const newMode = cloudRadio.checked ? 'cloud' : 'local';
+    const currentSettings = await SettingsService.getSettings();
+    const currentMode = currentSettings.backendMode;
 
-    if (!host) {
-      this.showSettingsStatus('Please enter a host', 'error');
-      return;
+    // Validate custom host for local mode
+    if (newMode === 'local' && customHostInput) {
+      const hostValidation = this.validateHostInput();
+      if (!hostValidation.isValid) {
+        this.showSettingsStatus(
+          hostValidation.error || 'Invalid host',
+          'error'
+        );
+        return;
+      }
     }
-
-    const settings: UserSettings = {
-      apiProtocol: protocol,
-      apiHost: host,
-    };
 
     try {
-      await SettingsService.saveSettings(settings);
+      // Save the backend mode with custom settings if local
+      if (newMode === 'local' && customHostInput && customSchemeSelect) {
+        await SettingsService.setBackendMode(
+          newMode,
+          customHostInput.value.trim(),
+          customSchemeSelect.value as 'http' | 'https'
+        );
+      } else {
+        await SettingsService.setBackendMode(newMode);
+      }
+
       this.showSettingsStatus('Settings saved successfully!', 'success');
 
+      // Update dashboard link
       this.updateDashboardLink();
 
       // Notify background script to reload services with new settings
       await chrome.runtime.sendMessage({ type: 'RELOAD_SETTINGS' });
 
-      // Go back to main view after a short delay
-      setTimeout(() => this.showMainView(), 1500);
+      // Check if significant settings changed
+      const settingsChanged =
+        currentMode !== newMode ||
+        (newMode === 'local' &&
+          (currentSettings.apiHost !== customHostInput?.value.trim() ||
+            currentSettings.apiProtocol !== customSchemeSelect?.value));
+
+      if (settingsChanged) {
+        const isAuthenticated = await this.checkAuthStatus();
+        if (isAuthenticated) {
+          this.showSettingsStatus(
+            'Backend settings changed. Please sign out and sign in again.',
+            'info'
+          );
+          setTimeout(() => this.showMainView(), 3000);
+        } else {
+          // Reinitialize to show the correct auth form
+          setTimeout(async () => {
+            await this.initialize();
+          }, 1500);
+        }
+      } else {
+        // Go back to main view after a short delay
+        setTimeout(() => this.showMainView(), 1500);
+      }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'save_settings',
-        settings,
+        newMode,
       });
       this.showSettingsStatus(errorDetails.userMessage, 'error');
     }
@@ -651,11 +806,11 @@ class Popup {
         this.hideSettingsStatus();
       }, 3000);
     }
-    // Auto-hide error messages after 5 seconds
+    // Auto-hide error messages after 3 seconds
     else if (type === 'error') {
       this.statusTimeout = window.setTimeout(() => {
         this.hideSettingsStatus();
-      }, 5000);
+      }, 3000);
     }
   }
 
@@ -664,6 +819,148 @@ class Popup {
     if (statusDiv) {
       statusDiv.classList.add('hidden');
     }
+  }
+
+  private toggleLocalBackendSettings(): void {
+    const localRadio = document.getElementById(
+      'backend-local'
+    ) as HTMLInputElement;
+    const localSettingsDiv = document.getElementById('local-backend-settings');
+    const customHostInput = document.getElementById(
+      'custom-host'
+    ) as HTMLInputElement;
+    const customSchemeSelect = document.getElementById(
+      'custom-scheme'
+    ) as HTMLSelectElement;
+
+    if (localRadio && localSettingsDiv) {
+      if (localRadio.checked) {
+        localSettingsDiv.classList.remove('hidden');
+
+        // When switching to local mode, if the fields are empty or have cloud values,
+        // set them to default local values
+        if (customHostInput && customSchemeSelect) {
+          if (
+            !customHostInput.value ||
+            customHostInput.value === 'vega.benidevo.com'
+          ) {
+            customHostInput.value = 'localhost:8765';
+            customSchemeSelect.value = 'http';
+          }
+        }
+      } else {
+        localSettingsDiv.classList.add('hidden');
+      }
+    }
+  }
+
+  private validateHostInput(): ValidationResult {
+    const hostInput = document.getElementById(
+      'custom-host'
+    ) as HTMLInputElement;
+    const hostError = document.getElementById('host-error');
+    const hostHelp = document.getElementById('host-help');
+
+    if (!hostInput || !hostError || !hostHelp) {
+      return { isValid: false };
+    }
+
+    const validation = validateHost(hostInput.value);
+
+    if (validation.isValid) {
+      hostInput.classList.remove('border-red-500');
+      hostInput.classList.add('border-green-500');
+      hostError.classList.add('hidden');
+      hostHelp.classList.remove('hidden');
+    } else {
+      hostInput.classList.remove('border-green-500');
+      hostInput.classList.add('border-red-500');
+      hostError.textContent = validation.error || '';
+      hostError.classList.remove('hidden');
+      hostHelp.classList.add('hidden');
+    }
+
+    return validation;
+  }
+
+  private async testConnection(): Promise<void> {
+    const connectionStatus = document.getElementById('connection-status');
+    const testBtn = document.getElementById(
+      'test-connection-btn'
+    ) as HTMLButtonElement;
+    if (!connectionStatus || !testBtn) return;
+
+    // Clear previous status
+    connectionStatus.className = 'hidden';
+    connectionStatus.innerHTML = '';
+
+    // Disable button during test
+    testBtn.disabled = true;
+
+    try {
+      // Get current settings based on mode
+      const cloudRadio = document.getElementById(
+        'backend-cloud'
+      ) as HTMLInputElement;
+      const localRadio = document.getElementById(
+        'backend-local'
+      ) as HTMLInputElement;
+      const customHostInput = document.getElementById(
+        'custom-host'
+      ) as HTMLInputElement;
+      const customSchemeSelect = document.getElementById(
+        'custom-scheme'
+      ) as HTMLSelectElement;
+
+      let host: string;
+      let protocol: 'http' | 'https';
+
+      if (cloudRadio?.checked) {
+        // Use cloud settings
+        host = 'vega.benidevo.com';
+        protocol = 'https';
+      } else if (localRadio?.checked && customHostInput && customSchemeSelect) {
+        // Validate custom host first
+        const hostValidation = validateHost(customHostInput.value);
+        if (!hostValidation.isValid) {
+          throw new Error(hostValidation.error || 'Invalid host');
+        }
+        host = customHostInput.value.trim();
+        protocol = customSchemeSelect.value as 'http' | 'https';
+      } else {
+        throw new Error('Invalid configuration');
+      }
+
+      // Test the connection
+      const isConnected = await SettingsService.testConnection(host, protocol);
+
+      // Show result
+      if (isConnected) {
+        connectionStatus.className =
+          'p-2 bg-green-900/50 border border-green-500/50 rounded-md text-sm';
+        connectionStatus.innerHTML =
+          '<span class="text-green-400">Connection successful!</span>';
+      } else {
+        throw new Error('Connection failed. Please check your settings.');
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Connection test failed';
+      connectionStatus.className =
+        'p-2 bg-red-900/50 border border-red-500/50 rounded-md text-sm';
+      connectionStatus.innerHTML = `<span class="text-red-400">${errorMessage}</span>`;
+    } finally {
+      // Re-enable button
+      testBtn.disabled = false;
+    }
+
+    // Show status (outside of try-catch to ensure it always shows)
+    connectionStatus.classList.remove('hidden');
+
+    // Auto-hide status after 3 seconds
+    setTimeout(() => {
+      connectionStatus.classList.add('hidden');
+    }, 3000);
   }
 
   private async updateDashboardLink(): Promise<void> {

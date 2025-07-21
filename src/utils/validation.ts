@@ -105,6 +105,55 @@ export function validateUsername(username: string): ValidationResult {
 }
 
 /**
+ * Validates host input for backend configuration
+ * @param host - The host to validate
+ * @returns Validation result with error message if invalid
+ */
+export function validateHost(host: string): ValidationResult {
+  if (!host) {
+    return { isValid: false, error: 'Host is required' };
+  }
+
+  const trimmed = host.trim();
+
+  if (trimmed.length < 1) {
+    return { isValid: false, error: 'Host cannot be empty' };
+  }
+
+  // Basic pattern for hostname with optional port
+  // Allows: localhost, localhost:8080, api.example.com, 192.168.1.1:3000
+  const hostPattern =
+    /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(:\d{1,5})?$/;
+  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?$/;
+
+  if (
+    !hostPattern.test(trimmed) &&
+    !ipPattern.test(trimmed) &&
+    trimmed !== 'localhost' &&
+    !trimmed.startsWith('localhost:')
+  ) {
+    return {
+      isValid: false,
+      error:
+        'Invalid host format. Use format like localhost:8080 or api.example.com',
+    };
+  }
+
+  // Check port range if port is specified
+  if (trimmed.includes(':')) {
+    const port = parseInt(trimmed.split(':').pop() || '0');
+    if (isNaN(port) || port < 1 || port > 65535) {
+      return {
+        isValid: false,
+        error: 'Port must be between 1 and 65535',
+      };
+    }
+  }
+
+  return { isValid: true };
+}
+
+/**
  * Cleans a URL by removing tracking parameters and ensuring it's valid
  * @param url - The URL to clean
  * @returns The cleaned URL

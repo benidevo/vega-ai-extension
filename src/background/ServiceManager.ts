@@ -73,6 +73,12 @@ export class ServiceManager {
     await this.messageService.initialize();
     await this.badgeService.initialize();
 
+    // Initialize connection manager
+    connectionManager.initialize();
+
+    // Initialize keep-alive service
+    await keepAliveService.initialize();
+
     this.setupAuthHandlers();
     this.setupMessageHandlers();
 

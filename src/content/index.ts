@@ -36,6 +36,13 @@ function debounce<T extends (...args: unknown[]) => unknown>(
  * updating the extension badge, and managing the overlay UI.
  */
 async function initialize(): Promise<void> {
+  // Check if extension context is still valid
+  if (!isContextValid()) {
+    contentLogger.warn('Extension context is invalid, skipping initialization');
+    cleanup();
+    return;
+  }
+
   // Prevent concurrent initializations
   if (isInitializing) {
     contentLogger.debug('Initialization already in progress, skipping');
@@ -64,23 +71,51 @@ async function initialize(): Promise<void> {
         );
 
         if (jobData) {
-          await chrome.storage.local.set({ currentJob: jobData });
-          contentLogger.info('Job data extracted and cached', {
-            title: jobData.title,
-            company: jobData.company,
-          });
+          try {
+            await chrome.storage.local.set({ currentJob: jobData });
+            contentLogger.info('Job data extracted and cached', {
+              title: jobData.title,
+              company: jobData.company,
+            });
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message.includes('Extension context invalidated')
+            ) {
+              contentLogger.warn(
+                'Extension context invalidated while saving job data'
+              );
+              cleanup();
+              return;
+            }
+            contentLogger.error('Failed to save job data', error);
+          }
 
-          chrome.action.setBadgeText({ text: '1' });
-          chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
+          try {
+            chrome.action.setBadgeText({ text: '1' });
+            chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
+          } catch (error) {
+            contentLogger.warn('Failed to update badge', error);
+          }
 
-          chrome.runtime
-            .sendMessage({
+          try {
+            await chrome.runtime.sendMessage({
               type: 'JOB_EXTRACTED',
               payload: jobData,
-            })
-            .catch(err => {
-              contentLogger.error('Failed to send message to background', err);
             });
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message.includes('Extension context invalidated')
+            ) {
+              contentLogger.warn(
+                'Extension context invalidated while sending message'
+              );
+              cleanup();
+              return;
+            }
+            contentLogger.error('Failed to send message to background', error);
+          }
         } else {
           contentLogger.warn('No job data extracted from current page');
         }
@@ -102,8 +137,39 @@ async function initialize(): Promise<void> {
 
 const debouncedInitialize = debounce(initialize, 500);
 
+/**
+ * Check if extension context is still valid
+ */
+function isContextValid(): boolean {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Clean up resources when context is invalidated
+ */
+function cleanup(): void {
+  if (overlay) {
+    overlay.destroy();
+    overlay = null;
+  }
+  mutationObserver.disconnect();
+  contentConnection.disconnect();
+  contentLogger.info('Cleaned up due to invalid extension context');
+}
+
 let hasInitialized = false;
 const initializeWhenVisible = () => {
+  // Check context validity first
+  if (!isContextValid()) {
+    contentLogger.warn('Extension context is invalid');
+    cleanup();
+    return;
+  }
+
   if (!hasInitialized && isSupportedJobPage()) {
     // Look for main content areas that would contain job information
     const contentSelectors = [
@@ -183,6 +249,14 @@ if (document.readyState === 'loading') {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Check context validity before processing messages
+  if (!isContextValid()) {
+    contentLogger.warn('Extension context is invalid, ignoring message');
+    sendResponse({ success: false, error: 'Extension context invalidated' });
+    cleanup();
+    return false;
+  }
+
   if (message.type === 'REINITIALIZE') {
     debouncedInitialize();
     sendResponse({ success: true });
