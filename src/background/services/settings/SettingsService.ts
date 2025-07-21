@@ -1,4 +1,9 @@
-import { UserSettings, DEFAULT_SETTINGS } from '../../../types/settings';
+import {
+  UserSettings,
+  DEFAULT_SETTINGS,
+  BACKEND_CONFIGS,
+  BackendMode,
+} from '../../../types/settings';
 
 export class SettingsService {
   private static readonly STORAGE_KEY = 'userSettings';
@@ -6,7 +11,14 @@ export class SettingsService {
   static async getSettings(): Promise<UserSettings> {
     try {
       const result = await chrome.storage.sync.get(this.STORAGE_KEY);
-      return result[this.STORAGE_KEY] || DEFAULT_SETTINGS;
+      const settings = result[this.STORAGE_KEY] || DEFAULT_SETTINGS;
+
+      // Ensure backendMode exists for migration
+      if (!settings.backendMode) {
+        settings.backendMode = 'cloud';
+      }
+
+      return settings;
     } catch (error) {
       console.error('Error loading settings:', error);
       return DEFAULT_SETTINGS;
@@ -21,7 +33,48 @@ export class SettingsService {
 
   static async getApiBaseUrl(): Promise<string> {
     const settings = await this.getSettings();
-    return `${settings.apiProtocol}://${settings.apiHost}`;
+
+    // For local mode, use the custom host/protocol if set
+    if (settings.backendMode === 'local') {
+      return `${settings.apiProtocol}://${settings.apiHost}`;
+    }
+
+    // For cloud mode, always use the predefined config
+    const config = BACKEND_CONFIGS[settings.backendMode];
+    return `${config.apiProtocol}://${config.apiHost}`;
+  }
+
+  static async setBackendMode(
+    mode: BackendMode,
+    customHost?: string,
+    customProtocol?: 'http' | 'https'
+  ): Promise<void> {
+    const settings = await this.getSettings();
+    const config = BACKEND_CONFIGS[mode];
+
+    settings.backendMode = mode;
+
+    if (mode === 'local' && customHost && customProtocol) {
+      // For local mode with custom settings
+      settings.apiHost = customHost;
+      settings.apiProtocol = customProtocol;
+    } else {
+      // Use default config for the mode
+      settings.apiHost = config.apiHost;
+      settings.apiProtocol = config.apiProtocol;
+    }
+
+    await this.saveSettings(settings);
+  }
+
+  static async getBackendMode(): Promise<BackendMode> {
+    const settings = await this.getSettings();
+    return settings.backendMode;
+  }
+
+  static async isOAuthEnabled(): Promise<boolean> {
+    const mode = await this.getBackendMode();
+    return BACKEND_CONFIGS[mode].enableOAuth;
   }
 
   static async testConnection(

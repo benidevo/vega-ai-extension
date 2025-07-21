@@ -4,11 +4,7 @@ import {
   APIConfig,
   APIError,
 } from './IAPIService';
-import {
-  JobListing,
-  ActivePreferencesResponse,
-  RecordSearchResultsResponse,
-} from '@/types';
+import { JobListing } from '@/types';
 import { IAuthService } from '../auth/IAuthService';
 import { apiLogger } from '../../../utils/logger';
 
@@ -63,69 +59,6 @@ export class APIService implements IAPIService {
       jobId: response.id || 'unknown',
     });
     return response;
-  }
-
-  async getActivePreferences(): Promise<ActivePreferencesResponse | null> {
-    try {
-      apiLogger.info('Fetching active preferences');
-
-      const response = await apiLogger.time('get_preferences_request', () =>
-        this.request<ActivePreferencesResponse>('/api/preferences/active', {
-          method: 'GET',
-        })
-      );
-
-      if (!response.preferences || !response.quota_status) {
-        apiLogger.warn('Invalid preferences response structure');
-        return null;
-      }
-
-      // Only return if quota is available
-      if (response.quota_status.search_runs.remaining <= 0) {
-        apiLogger.info('No search quota remaining');
-        return null;
-      }
-
-      apiLogger.info('Preferences fetched successfully', {
-        count: response.preferences.length,
-        quotaRemaining: response.quota_status.search_runs.remaining,
-      });
-
-      return response;
-    } catch (error) {
-      apiLogger.error('Failed to fetch preferences', error);
-      return null;
-    }
-  }
-
-  async recordSearchResults(
-    preferenceId: string,
-    jobsFound: number
-  ): Promise<void> {
-    try {
-      apiLogger.info('Recording search results', { preferenceId, jobsFound });
-
-      await apiLogger.time('record_results_request', () =>
-        this.request<RecordSearchResultsResponse>(
-          '/api/preferences/search-results',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              preference_id: preferenceId,
-              jobs_found: Math.min(jobsFound, 100), // Cap at 100
-            }),
-          }
-        )
-      );
-
-      apiLogger.info('Search results recorded successfully');
-    } catch (error) {
-      apiLogger.error('Failed to record search results', error, {
-        preferenceId,
-        jobsFound,
-      });
-      // Don't throw - we don't want to break the search flow
-    }
   }
 
   private async request<T = unknown>(

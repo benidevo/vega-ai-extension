@@ -4,12 +4,10 @@ import {
   IMessageService,
   IStorageService,
   IBadgeService,
-  IPreferencesService,
   APIService,
   MessageService,
   StorageService,
   BadgeService,
-  PreferencesService,
   MessageType,
 } from './services';
 import { MultiProviderAuthService } from './services/auth/MultiProviderAuthService';
@@ -21,6 +19,8 @@ import { Logger } from '@/utils/logger';
 import { keepAliveService } from './services/KeepAliveService';
 import { connectionManager } from './services/ConnectionManager';
 
+const logger = new Logger('ServiceManager');
+
 /**
  * Service Manager to coordinate all background services
  */
@@ -30,7 +30,6 @@ export class ServiceManager {
   private messageService: IMessageService;
   private storageService: IStorageService;
   private badgeService: IBadgeService;
-  private preferencesService: IPreferencesService;
   private isInitialized = false;
   private logger = new Logger('ServiceManager');
 
@@ -38,7 +37,6 @@ export class ServiceManager {
     this.storageService = new StorageService('local');
     this.authService = null!; // Will be initialized with dynamic config
     this.apiService = null!; // Will be initialized with dynamic config
-    this.preferencesService = null!; // Will be initialized with dynamic config
     this.messageService = new MessageService();
     this.badgeService = new BadgeService();
   }
@@ -71,14 +69,17 @@ export class ServiceManager {
       this.authService
     );
 
-    this.preferencesService = new PreferencesService(this.apiService);
-
     await this.storageService.initialize();
     await this.authService.initialize();
     await this.apiService.initialize();
     await this.messageService.initialize();
     await this.badgeService.initialize();
-    await this.preferencesService.initialize();
+
+    // Initialize connection manager
+    connectionManager.initialize();
+
+    // Initialize keep-alive service
+    await keepAliveService.initialize();
 
     this.setupAuthHandlers();
     this.setupMessageHandlers();
@@ -314,7 +315,6 @@ export class ServiceManager {
     // Destroy existing services (except storage and message service)
     if (this.authService) await this.authService.destroy();
     if (this.apiService) await this.apiService.destroy();
-    if (this.preferencesService) await this.preferencesService.destroy();
 
     const dynamicConfig = await DynamicConfig.getConfig();
 
@@ -341,11 +341,8 @@ export class ServiceManager {
       this.authService
     );
 
-    this.preferencesService = new PreferencesService(this.apiService);
-
     await this.authService.initialize();
     await this.apiService.initialize();
-    await this.preferencesService.initialize();
 
     this.setupAuthHandlers();
 
@@ -390,10 +387,6 @@ export class ServiceManager {
     return this.badgeService;
   }
 
-  get preferences(): IPreferencesService {
-    return this.preferencesService;
-  }
-
   async destroy(): Promise<void> {
     await keepAliveService.destroy();
     connectionManager.destroy();
@@ -401,7 +394,6 @@ export class ServiceManager {
     await this.apiService?.destroy();
     await this.messageService?.destroy();
     await this.badgeService?.destroy();
-    await this.preferencesService?.destroy();
     this.isInitialized = false;
   }
 }

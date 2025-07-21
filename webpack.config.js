@@ -6,29 +6,11 @@ const packageJson = require('./package.json');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
-  const deploymentMode = env?.DEPLOYMENT_MODE || 'opensource'; // 'opensource' or 'marketplace'
 
   console.log('🔧 Building with:', {
     mode: argv.mode || 'development',
-    deploymentMode,
     isProduction
   });
-
-  // Configuration based on deployment mode
-  const config = {
-    development: {
-      clientId: 'YOUR_GOOGLE_CLIENT_ID_HERE',
-      apiBaseUrl: 'http://localhost:8765',
-      enableOAuth: false
-    },
-    production: {
-      clientId: 'YOUR_GOOGLE_CLIENT_ID_HERE', 
-      apiBaseUrl: 'http://localhost:8765',
-      enableOAuth: false
-    }
-  };
-
-  const currentConfig = isProduction ? config.production : config.development;
 
   return {
     mode: argv.mode || 'development',
@@ -83,9 +65,7 @@ module.exports = (env, argv) => {
       new webpack.DefinePlugin({
         'process.env.APP_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
         'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
-        'process.env.DEPLOYMENT_MODE': JSON.stringify(deploymentMode),
-        'process.env.ENABLE_OAUTH': JSON.stringify(currentConfig.enableOAuth),
-        'process.env.GOOGLE_CLIENT_ID': JSON.stringify(currentConfig.clientId),
+        'process.env.GOOGLE_CLIENT_ID': JSON.stringify('460747486884-p36vju3iqsmtgg8968jqnck6s4ga296r.apps.googleusercontent.com'),
         'process.env.APP_VERSION': JSON.stringify(packageJson.version),
       }),
       new MiniCssExtractPlugin({
@@ -101,12 +81,18 @@ module.exports = (env, argv) => {
               // Update version from package.json
               manifest.version = packageJson.version;
 
-              if (currentConfig.enableOAuth && currentConfig.clientId) {
-                manifest.oauth2 = {
-                  client_id: currentConfig.clientId,
-                  scopes: ["openid", "email", "profile"]
-                };
-              }
+              // Always include OAuth config
+              manifest.oauth2 = {
+                client_id: '460747486884-p36vju3iqsmtgg8968jqnck6s4ga296r.apps.googleusercontent.com',
+                scopes: ["openid", "email", "profile"]
+              };
+
+              // Include both local and production host permissions
+              manifest.host_permissions = [
+                "https://*.linkedin.com/*",
+                "https://vega.benidevo.com/*",
+                "http://localhost:*/*"
+              ];
 
               return JSON.stringify(manifest, null, 2);
             },

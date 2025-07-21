@@ -64,17 +64,43 @@ export class GoogleAuthProvider implements IAuthProvider {
       });
 
       // Exchange auth code for tokens
-      const response = await fetch(this.apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: authCode,
-          redirect_uri: redirectUri,
-        }),
+      authLogger.info('Exchanging auth code for tokens', {
+        endpoint: this.apiEndpoint,
+        redirectUri: redirectUri,
       });
 
+      let response;
+      try {
+        response = await fetch(this.apiEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: authCode,
+            redirect_uri: redirectUri,
+          }),
+        });
+      } catch (fetchError) {
+        authLogger.error('Failed to connect to backend', fetchError, {
+          endpoint: this.apiEndpoint,
+        });
+        throw new Error(
+          `Unable to connect to authentication server at ${this.apiEndpoint}. Please check your backend configuration and ensure the server is running.`
+        );
+      }
+
       if (!response.ok) {
-        throw new Error(`Token exchange failed: ${response.statusText}`);
+        const errorText = await response
+          .text()
+          .catch(() => response.statusText);
+        authLogger.error('Token exchange failed', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+          endpoint: this.apiEndpoint,
+        });
+        throw new Error(
+          `Token exchange failed (${response.status}): ${errorText || response.statusText}`
+        );
       }
 
       const data = await response.json();
@@ -106,19 +132,38 @@ export class GoogleAuthProvider implements IAuthProvider {
     authLogger.info('Refreshing Google OAuth tokens');
 
     try {
-      const response = await fetch(`${this.apiEndpoint}/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          refresh_token: refreshToken,
-        }),
-      });
+      let response;
+      try {
+        response = await fetch(`${this.apiEndpoint}/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            refresh_token: refreshToken,
+          }),
+        });
+      } catch (fetchError) {
+        authLogger.error(
+          'Failed to connect to backend for token refresh',
+          fetchError,
+          {
+            endpoint: `${this.apiEndpoint}/refresh`,
+          }
+        );
+        throw new Error(
+          `Unable to connect to authentication server at ${this.apiEndpoint}. Please check your backend configuration.`
+        );
+      }
 
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Refresh token expired');
         }
-        throw new Error(`Token refresh failed: ${response.statusText}`);
+        const errorText = await response
+          .text()
+          .catch(() => response.statusText);
+        throw new Error(
+          `Token refresh failed (${response.status}): ${errorText || response.statusText}`
+        );
       }
 
       const data = await response.json();

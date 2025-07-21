@@ -44,28 +44,6 @@ chrome.runtime.onInstalled.addListener(async details => {
   if (details.reason === 'install') {
     await serviceManager.badge.showSuccess();
   }
-
-  // Set up job search alarm
-  chrome.alarms.create('job-search', { periodInMinutes: 60 });
-  logger.info('Job search alarm created');
-});
-
-// Listen for alarms
-chrome.alarms.onAlarm.addListener(async alarm => {
-  if (alarm.name === 'job-search') {
-    logger.info('Job search alarm triggered');
-    try {
-      const isAuthenticated = await serviceManager.auth.isAuthenticated();
-      if (isAuthenticated) {
-        logger.info('Running automated job search');
-        await serviceManager.preferences.runAutomatedSearch();
-      } else {
-        logger.info('Skipping job search - user not authenticated');
-      }
-    } catch (error) {
-      logger.error('Error in job search alarm handler', error);
-    }
-  }
 });
 
 chrome.runtime.onSuspend.addListener(async () => {

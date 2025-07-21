@@ -36,6 +36,13 @@ function debounce<T extends (...args: unknown[]) => unknown>(
  * updating the extension badge, and managing the overlay UI.
  */
 async function initialize(): Promise<void> {
+  // Check if extension context is still valid
+  if (!isContextValid()) {
+    contentLogger.warn('Extension context is invalid, skipping initialization');
+    cleanup();
+    return;
+  }
+
   // Prevent concurrent initializations
   if (isInitializing) {
     contentLogger.debug('Initialization already in progress, skipping');
@@ -64,23 +71,51 @@ async function initialize(): Promise<void> {
         );
 
         if (jobData) {
-          await chrome.storage.local.set({ currentJob: jobData });
-          contentLogger.info('Job data extracted and cached', {
-            title: jobData.title,
-            company: jobData.company,
-          });
+          try {
+            await chrome.storage.local.set({ currentJob: jobData });
+            contentLogger.info('Job data extracted and cached', {
+              title: jobData.title,
+              company: jobData.company,
+            });
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message.includes('Extension context invalidated')
+            ) {
+              contentLogger.warn(
+                'Extension context invalidated while saving job data'
+              );
+              cleanup();
+              return;
+            }
+            contentLogger.error('Failed to save job data', error);
+          }
 
-          chrome.action.setBadgeText({ text: '1' });
-          chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
+          try {
+            chrome.action.setBadgeText({ text: '1' });
+            chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
+          } catch (error) {
+            contentLogger.warn('Failed to update badge', error);
+          }
 
-          chrome.runtime
-            .sendMessage({
+          try {
+            await chrome.runtime.sendMessage({
               type: 'JOB_EXTRACTED',
               payload: jobData,
-            })
-            .catch(err => {
-              contentLogger.error('Failed to send message to background', err);
             });
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message.includes('Extension context invalidated')
+            ) {
+              contentLogger.warn(
+                'Extension context invalidated while sending message'
+              );
+              cleanup();
+              return;
+            }
+            contentLogger.error('Failed to send message to background', error);
+          }
         } else {
           contentLogger.warn('No job data extracted from current page');
         }
@@ -102,8 +137,39 @@ async function initialize(): Promise<void> {
 
 const debouncedInitialize = debounce(initialize, 500);
 
+/**
+ * Check if extension context is still valid
+ */
+function isContextValid(): boolean {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Clean up resources when context is invalidated
+ */
+function cleanup(): void {
+  if (overlay) {
+    overlay.destroy();
+    overlay = null;
+  }
+  mutationObserver.disconnect();
+  contentConnection.disconnect();
+  contentLogger.info('Cleaned up due to invalid extension context');
+}
+
 let hasInitialized = false;
 const initializeWhenVisible = () => {
+  // Check context validity first
+  if (!isContextValid()) {
+    contentLogger.warn('Extension context is invalid');
+    cleanup();
+    return;
+  }
+
   if (!hasInitialized && isSupportedJobPage()) {
     // Look for main content areas that would contain job information
     const contentSelectors = [
@@ -183,17 +249,17 @@ if (document.readyState === 'loading') {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Check context validity before processing messages
+  if (!isContextValid()) {
+    contentLogger.warn('Extension context is invalid, ignoring message');
+    sendResponse({ success: false, error: 'Extension context invalidated' });
+    cleanup();
+    return false;
+  }
+
   if (message.type === 'REINITIALIZE') {
     debouncedInitialize();
     sendResponse({ success: true });
-  } else if (message.type === 'EXTRACT_SEARCH_RESULTS') {
-    handleSearchExtraction(message.payload)
-      .then(result => sendResponse(result))
-      .catch(error => {
-        contentLogger.error('Search extraction failed', error);
-        sendResponse({ jobsFound: 0, error: error.message });
-      });
-    return true; // Keep channel open for async response
   }
   return true; // Keep the message channel open for async response
 });
@@ -206,138 +272,3 @@ window.addEventListener('unload', () => {
   mutationObserver.disconnect();
   contentConnection.disconnect();
 });
-
-/**
- * Handle search result extraction for automated searches
- */
-async function handleSearchExtraction(params: {
-  preferenceId: string;
-  maxAge: number;
-  jobTitle: string;
-  location: string;
-}): Promise<{ jobsFound: number }> {
-  contentLogger.info('Starting search extraction', params);
-
-  try {
-    // Wait for search results to load
-    await waitForSearchResults();
-
-    // Count job cards that match criteria
-    const jobCards = document.querySelectorAll(
-      '[data-job-id], .job-card-container, .jobs-search-results__list-item'
-    );
-    let validJobs = 0;
-
-    for (const card of jobCards) {
-      if (isJobWithinAge(card as HTMLElement, params.maxAge)) {
-        validJobs++;
-      }
-    }
-
-    contentLogger.info(`Found ${validJobs} jobs within age limit`, {
-      maxAge: params.maxAge,
-      totalCards: jobCards.length,
-    });
-
-    return { jobsFound: validJobs };
-  } catch (error) {
-    contentLogger.error('Search extraction error', error);
-    return { jobsFound: 0 };
-  }
-}
-
-/**
- * Wait for search results to load on the page
- */
-async function waitForSearchResults(timeout = 10000): Promise<void> {
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeout) {
-    const jobCards = document.querySelectorAll(
-      '[data-job-id], .job-card-container, .jobs-search-results__list-item'
-    );
-
-    if (jobCards.length > 0) {
-      // Wait a bit more for all results to render
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return;
-    }
-
-    // Check for "no results" message
-    const noResults = document.querySelector('.jobs-search-no-results');
-    if (noResults) {
-      contentLogger.info('No search results found');
-      return;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
-
-  throw new Error('Search results did not load in time');
-}
-
-/**
- * Check if a job card is within the specified age limit
- */
-function isJobWithinAge(card: HTMLElement, maxAgeSeconds: number): boolean {
-  // Extract posting time
-  const timeElement = card.querySelector('time');
-  const timeText =
-    timeElement?.getAttribute('datetime') ||
-    timeElement?.textContent ||
-    card.querySelector('.job-card-list__listed-time')?.textContent ||
-    '';
-
-  if (!timeText) {
-    contentLogger.debug('No time found for job card', {
-      cardHTML: card.outerHTML.substring(0, 200),
-    });
-    return true; // Include if we can't determine age
-  }
-
-  const jobAgeSeconds = parseJobAge(timeText);
-  return jobAgeSeconds <= maxAgeSeconds;
-}
-
-/**
- * Parse job age from various time formats
- */
-function parseJobAge(timeText: string): number {
-  const now = Date.now();
-
-  // Handle "X hours/days/weeks ago" format
-  const matches = timeText.match(/(\d+)\s*(hour|day|week|month)/i);
-  if (matches) {
-    const [, amount, unit] = matches;
-    const value = parseInt(amount);
-
-    switch (unit.toLowerCase()) {
-      case 'hour':
-        return value * 3600;
-      case 'day':
-        return value * 86400;
-      case 'week':
-        return value * 604800;
-      case 'month':
-        return value * 2592000;
-    }
-  }
-
-  // Handle "Just now" or "Recently posted"
-  if (timeText.match(/just now|recently/i)) {
-    return 0;
-  }
-
-  // Try to parse ISO date
-  try {
-    const postedDate = new Date(timeText);
-    if (!isNaN(postedDate.getTime())) {
-      return Math.floor((now - postedDate.getTime()) / 1000);
-    }
-  } catch {
-    // Ignore parse errors
-  }
-
-  // Default to 0 (assume recent)
-  return 0;
-}

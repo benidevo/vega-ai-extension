@@ -11,9 +11,17 @@ export class ContentConnection {
   private readonly RECONNECT_DELAY = 1000; // 1 second
   private readonly PING_INTERVAL = 20000; // 20 seconds
   private pingTimer: number | null = null;
+  private isContextValid = true;
 
   connect(): void {
     if (this.isConnected) return;
+
+    // Check if extension context is still valid
+    if (!this.checkContextValidity()) {
+      this.logger.warn('Extension context is invalid, cannot connect');
+      this.cleanup();
+      return;
+    }
 
     try {
       this.port = chrome.runtime.connect({ name: 'content-script' });
@@ -24,8 +32,33 @@ export class ContentConnection {
 
       this.logger.info('Connected to service worker');
     } catch (error) {
-      this.logger.error('Failed to connect to service worker', error);
-      this.scheduleReconnect();
+      // Check if it's a context invalidated error
+      if (
+        error instanceof Error &&
+        error.message.includes('Extension context invalidated')
+      ) {
+        this.logger.warn('Extension context invalidated during connection');
+        this.isContextValid = false;
+        this.cleanup();
+      } else {
+        this.logger.error('Failed to connect to service worker', error);
+        this.scheduleReconnect();
+      }
+    }
+  }
+
+  private checkContextValidity(): boolean {
+    try {
+      // chrome.runtime.id is undefined when context is invalidated
+      if (!chrome.runtime?.id) {
+        this.isContextValid = false;
+        return false;
+      }
+      return true;
+    } catch (error) {
+      // Any error accessing chrome.runtime means context is invalid
+      this.isContextValid = false;
+      return false;
     }
   }
 
@@ -36,11 +69,17 @@ export class ContentConnection {
       this.isConnected = false;
       this.stopPingInterval();
 
-      if (chrome.runtime.lastError) {
-        this.logger.error(
-          'Disconnected from service worker',
-          chrome.runtime.lastError
-        );
+      const error = chrome.runtime.lastError;
+      if (error) {
+        const errorMessage =
+          typeof error === 'object' && error.message
+            ? error.message
+            : typeof error === 'string'
+              ? error
+              : 'Unknown error';
+        this.logger.error('Disconnected from service worker', errorMessage);
+      } else {
+        this.logger.info('Disconnected from service worker');
       }
 
       this.scheduleReconnect();
@@ -59,13 +98,29 @@ export class ContentConnection {
     this.stopPingInterval();
 
     this.pingTimer = window.setInterval(() => {
+      // Check context validity before sending ping
+      if (!this.checkContextValidity()) {
+        this.logger.warn('Context invalidated during ping interval');
+        this.cleanup();
+        return;
+      }
+
       if (this.isConnected && this.port) {
         try {
           this.port.postMessage({ type: 'PING' });
         } catch (error) {
-          this.logger.error('Failed to send ping', error);
-          this.isConnected = false;
-          this.scheduleReconnect();
+          if (
+            error instanceof Error &&
+            error.message.includes('Extension context invalidated')
+          ) {
+            this.logger.warn('Extension context invalidated during ping');
+            this.isContextValid = false;
+            this.cleanup();
+          } else {
+            this.logger.error('Failed to send ping', error);
+            this.isConnected = false;
+            this.scheduleReconnect();
+          }
         }
       }
     }, this.PING_INTERVAL);
@@ -81,21 +136,46 @@ export class ContentConnection {
   private scheduleReconnect(): void {
     if (this.reconnectTimer !== null) return;
 
+    // Don't attempt to reconnect if context is invalid
+    if (!this.isContextValid) {
+      this.logger.info('Skipping reconnect - context is invalid');
+      return;
+    }
+
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
+
+      // Check context validity before attempting reconnect
+      if (!this.checkContextValidity()) {
+        this.logger.warn('Context invalidated, stopping reconnection attempts');
+        this.cleanup();
+        return;
+      }
+
       this.logger.info('Attempting to reconnect...');
       this.connect();
     }, this.RECONNECT_DELAY);
   }
 
   sendMessage(message: { type: string; [key: string]: unknown }): void {
+    // Check context validity first
+    if (!this.checkContextValidity()) {
+      this.logger.warn('Cannot send message - extension context is invalid');
+      this.cleanup();
+      return;
+    }
+
     if (!this.isConnected || !this.port) {
       this.logger.warn('Not connected, attempting to connect...');
       this.connect();
 
       setTimeout(() => {
-        if (this.isConnected && this.port) {
-          this.port.postMessage(message);
+        if (this.isConnected && this.port && this.checkContextValidity()) {
+          try {
+            this.port.postMessage(message);
+          } catch (error) {
+            this.handleMessageError(error);
+          }
         }
       }, 500);
       return;
@@ -104,6 +184,19 @@ export class ContentConnection {
     try {
       this.port.postMessage(message);
     } catch (error) {
+      this.handleMessageError(error);
+    }
+  }
+
+  private handleMessageError(error: unknown): void {
+    if (
+      error instanceof Error &&
+      error.message.includes('Extension context invalidated')
+    ) {
+      this.logger.warn('Extension context invalidated while sending message');
+      this.isContextValid = false;
+      this.cleanup();
+    } else {
       this.logger.error('Failed to send message', error);
       this.isConnected = false;
       this.scheduleReconnect();
@@ -111,6 +204,11 @@ export class ContentConnection {
   }
 
   disconnect(): void {
+    this.cleanup();
+    this.logger.info('Disconnected');
+  }
+
+  private cleanup(): void {
     this.stopPingInterval();
 
     if (this.reconnectTimer !== null) {
@@ -128,7 +226,15 @@ export class ContentConnection {
     }
 
     this.isConnected = false;
-    this.logger.info('Disconnected');
+
+    // If context is invalid, notify that cleanup is complete
+    if (!this.isContextValid) {
+      this.logger.info('Cleaned up due to invalid extension context');
+    }
+  }
+
+  isValidContext(): boolean {
+    return this.isContextValid && this.checkContextValidity();
   }
 }
 
