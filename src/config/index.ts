@@ -143,15 +143,4 @@ export const isDevelopment = () =>
 export const isMarketplaceMode = () =>
   config.extension.deploymentMode === 'marketplace';
 
-if (isDevelopment()) {
-  console.log('🔧 Vega AI Extension Config:', {
-    environment: config.extension.environment,
-    deploymentMode: config.extension.deploymentMode,
-    apiBaseUrl: config.api.baseUrl,
-    authProviders: Object.keys(config.auth.providers),
-    defaultProvider: config.auth.defaultProvider,
-    googleAuthEnabled: config.features.enableGoogleAuth,
-    dynamicHostEnabled: config.features.enableDynamicHost,
-    debug: config.extension.debug,
-  });
-}
+// Config logging removed for production security

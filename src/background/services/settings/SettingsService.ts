@@ -4,6 +4,9 @@ import {
   BACKEND_CONFIGS,
   BackendMode,
 } from '../../../types/settings';
+import { Logger } from '@/utils/logger';
+
+const logger = new Logger('SettingsService');
 
 export class SettingsService {
   private static readonly STORAGE_KEY = 'userSettings';
@@ -20,7 +23,7 @@ export class SettingsService {
 
       return settings;
     } catch (error) {
-      console.error('Error loading settings:', error);
+      logger.error('Error loading settings', error);
       return DEFAULT_SETTINGS;
     }
   }
@@ -92,7 +95,7 @@ export class SettingsService {
       });
       return response.ok;
     } catch (error) {
-      console.error('Connection test failed:', error);
+      logger.error('Connection test failed', error);
       return false;
     }
   }

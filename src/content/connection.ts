@@ -55,7 +55,7 @@ export class ContentConnection {
         return false;
       }
       return true;
-    } catch (error) {
+    } catch {
       // Any error accessing chrome.runtime means context is invalid
       this.isContextValid = false;
       return false;

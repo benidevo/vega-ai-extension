@@ -1,7 +1,7 @@
 {
   "name": "vega-ai-extension",
   "version": "0.1.3",
-  "description": "Browser extension for capturing job listings",
+  "description": "Capture job listings from LinkedIn, Indeed & Glassdoor (LinkedIn available now, others coming soon)",
   "private": true,
   "scripts": {
     "dev": "webpack --watch --mode=development",

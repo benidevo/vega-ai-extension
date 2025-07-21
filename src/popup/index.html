@@ -55,6 +55,7 @@
                 value="cloud"
                 id="backend-cloud"
                 class="text-primary focus:ring-primary"
+                aria-label="Cloud Mode - Use Google OAuth with cloud backend"
               >
               <div class="ml-3">
                 <div class="text-sm font-medium text-white">Cloud Mode</div>
@@ -68,6 +69,7 @@
                 value="local"
                 id="backend-local"
                 class="text-primary focus:ring-primary"
+                aria-label="Local Mode - Use username/password with local backend"
               >
               <div class="ml-3">
                 <div class="text-sm font-medium text-white">Local Mode</div>
@@ -84,6 +86,7 @@
             <select
               id="custom-scheme"
               class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              aria-label="Protocol scheme for local backend"
             >
               <option value="http">HTTP</option>
               <option value="https">HTTPS</option>
@@ -96,6 +99,8 @@
               id="custom-host"
               placeholder="localhost:8765"
               class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              aria-label="Host address for local backend"
+              aria-describedby="host-help host-error"
             >
             <div id="host-error" class="hidden mt-1 text-xs text-red-400"></div>
             <div id="host-help" class="mt-1 text-xs text-gray-500">Example: localhost:8765 or api.example.com</div>
@@ -104,19 +109,19 @@
         
         <!-- Test Connection Button -->
         <div class="pt-3">
-          <button id="test-connection-btn" class="w-full px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors">
+          <button id="test-connection-btn" class="w-full px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors" aria-label="Test connection to selected backend">
             Test Connection
           </button>
-          <div id="connection-status" class="hidden mt-2"></div>
+          <div id="connection-status" class="hidden mt-2" role="status" aria-live="polite"></div>
         </div>
         
         <div class="border-t border-slate-700 pt-4">
-          <button id="save-settings-btn" class="w-full px-3 py-2 text-sm bg-primary hover:bg-primary/80 text-white rounded-md transition-colors">
+          <button id="save-settings-btn" class="w-full px-3 py-2 text-sm bg-primary hover:bg-primary/80 text-white rounded-md transition-colors" aria-label="Save backend settings">
             Save Settings
           </button>
         </div>
         
-        <div id="settings-status" class="hidden"></div>
+        <div id="settings-status" class="hidden" role="status" aria-live="polite"></div>
       </div>
     </div>
   </div>

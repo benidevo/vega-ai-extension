@@ -70,7 +70,7 @@ export class APIService implements IAPIService {
       const timeSinceLastFailure = Date.now() - this.lastFailureTime;
       if (timeSinceLastFailure < this.CIRCUIT_BREAKER_TIMEOUT) {
         const error = new Error(
-          'Service temporarily unavailable. Please try again later.'
+          'Service is temporarily unavailable due to multiple failed attempts. Please try again in a minute.'
         );
         (error as Error & { code: string }).code = 'CIRCUIT_BREAKER_OPEN';
         throw error;
@@ -285,7 +285,9 @@ export class APIService implements IAPIService {
       if (error.message.includes('fetch')) {
         return {
           code: 'NETWORK_ERROR',
-          message: `Cannot connect to backend (${this.config.baseUrl}). Is it running?`,
+          message: this.config.baseUrl.includes('localhost')
+            ? 'Cannot connect to local backend. Please ensure your local server is running.'
+            : 'Cannot connect to server. Please check your internet connection.',
         };
       }
     }
@@ -293,7 +295,9 @@ export class APIService implements IAPIService {
     return {
       code: 'NETWORK_ERROR',
       message:
-        error instanceof Error ? error.message : 'Network request failed',
+        error instanceof Error
+          ? `Connection error: ${error.message}`
+          : 'Unable to complete request. Please check your connection and try again.',
     };
   }
 }

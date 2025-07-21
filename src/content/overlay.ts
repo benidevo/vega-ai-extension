@@ -108,7 +108,11 @@ export class VegaAIOverlay {
 
     this.button = document.createElement('button');
     this.button.className = 'vega-ai-fab';
-    this.button.setAttribute('aria-label', 'Capture job listing');
+    this.button.setAttribute(
+      'aria-label',
+      'Capture job listing (Ctrl+Shift+V)'
+    );
+    this.button.setAttribute('title', 'Capture job listing (Ctrl+Shift+V)');
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '24');
@@ -174,6 +178,7 @@ export class VegaAIOverlay {
     const closeButton = document.createElement('button');
     closeButton.className = 'vega-ai-close-button';
     closeButton.setAttribute('aria-label', 'Close panel (Esc)');
+    closeButton.setAttribute('title', 'Close (Esc)');
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '20');
@@ -226,12 +231,16 @@ export class VegaAIOverlay {
       await this.checkAuthentication();
 
       if (!this.isAuthenticated) {
-        this.showError('Please sign in to save jobs');
+        this.showError(
+          'Sign in required. Click the Vega AI icon in your toolbar to sign in.'
+        );
         return;
       }
 
       if (!this.extractedJob) {
-        this.showError('No job data to save');
+        this.showError(
+          'No job information captured. Please try capturing the job again.'
+        );
         return;
       }
 
@@ -303,7 +312,7 @@ export class VegaAIOverlay {
           );
         } else {
           this.showError(
-            'Unable to save job. Please check your connection and try again.'
+            'Unable to save. Please check your internet connection and try again.'
           );
         }
       } finally {
@@ -360,7 +369,7 @@ export class VegaAIOverlay {
       const text = document.createElement('p');
       text.className = 'vega-ai-text-sm vega-ai-text-gray';
       text.style.marginTop = '16px';
-      text.textContent = 'Extracting job information...';
+      text.textContent = 'Analyzing job listing...';
 
       loadingDiv.appendChild(spinner);
       loadingDiv.appendChild(text);
@@ -402,7 +411,8 @@ export class VegaAIOverlay {
       const notesTextarea = document.createElement('textarea');
       notesTextarea.className = 'vega-ai-textarea';
       notesTextarea.id = 'vega-ai-notes-textarea';
-      notesTextarea.placeholder = 'Add your notes here...';
+      notesTextarea.placeholder = 'Add your notes about this position...';
+      notesTextarea.setAttribute('aria-label', 'Personal notes about this job');
       notesTextarea.rows = 3;
       notesTextarea.value = this.extractedJob.notes || '';
 
@@ -725,7 +735,7 @@ export class VegaAIOverlay {
           this.updatePanelContent(
             content,
             'error',
-            'No job data found on this page'
+            'No job listing found. Please navigate to a job details page.'
           );
         }
       } catch (error) {
@@ -842,12 +852,26 @@ export class VegaAIOverlay {
   private getErrorMessage(error: string): string {
     const errorMap: Record<string, string> = {
       'Network request failed':
-        'Unable to connect to Vega AI. Please check your internet connection.',
-      'Request timed out': 'The request took too long. Please try again.',
-      Unauthorized: 'Please log in to Vega AI to save jobs.',
-      'Invalid token': 'Your session has expired. Please log in again.',
-      'Server error': 'Vega AI is experiencing issues. Please try again later.',
-      'Save failed': 'Unable to save the job. Please try again.',
+        'Unable to connect to Vega AI. Please check your internet connection and try again.',
+      'Request timed out':
+        'The request took too long. Please check your connection and try again.',
+      Unauthorized: 'Please sign in to save job listings.',
+      'Invalid token': 'Your session has expired. Please sign in again.',
+      'Server error':
+        'Our servers are temporarily unavailable. Please try again in a few moments.',
+      'Save failed':
+        "Unable to save this job. Please ensure you're signed in and try again.",
+      AUTH_EXPIRED:
+        'Your session has expired. Please sign in again to continue.',
+      AUTH_REFRESH_FAILED:
+        'Unable to refresh your session. Please sign in again.',
+      fetch: 'Connection error. Please check your internet connection.',
+      'Extension context invalidated':
+        'The extension was updated. Please close and reopen this panel.',
+      'Could not establish connection':
+        'Connection lost. Please close and reopen this panel.',
+      'No job data':
+        "Unable to capture job information from this page. Please ensure you're on a job listing.",
     };
 
     for (const [key, value] of Object.entries(errorMap)) {

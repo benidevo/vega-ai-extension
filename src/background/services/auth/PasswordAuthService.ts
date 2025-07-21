@@ -45,19 +45,35 @@ export class PasswordAuthService implements IAuthProvider {
         const errorData = await response
           .json()
           .catch(() => ({ error: 'Authentication failed' }));
+
+        // Provide more user-friendly error messages
+        if (response.status === 401) {
+          throw new Error(
+            'Invalid username or password. Please check your credentials.'
+          );
+        } else if (response.status === 404) {
+          throw new Error(
+            'Authentication service not found. Please check your backend configuration.'
+          );
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.');
+        }
+
         throw new Error(
-          errorData.error || errorData.message || 'Authentication failed'
+          errorData.error ||
+            errorData.message ||
+            'Unable to sign in. Please try again.'
         );
       }
 
       const data = await response.json();
 
       if (!data.token) {
-        throw new Error('Invalid authentication response');
+        throw new Error('Incomplete response from server. Please try again.');
       }
 
       if (!data.refresh_token) {
-        throw new Error('Invalid authentication response');
+        throw new Error('Incomplete response from server. Please try again.');
       }
 
       const tokens: AuthToken = {
@@ -76,7 +92,9 @@ export class PasswordAuthService implements IAuthProvider {
         throw error;
       }
 
-      throw new Error('Authentication failed');
+      throw new Error(
+        'Unable to sign in. Please check your connection and try again.'
+      );
     }
   }
 
@@ -94,9 +112,11 @@ export class PasswordAuthService implements IAuthProvider {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Refresh token expired');
+          throw new Error('Your session has expired. Please sign in again.');
         }
-        throw new Error('Failed to refresh tokens');
+        throw new Error(
+          'Unable to refresh your session. Please sign in again.'
+        );
       }
 
       const data = await response.json();

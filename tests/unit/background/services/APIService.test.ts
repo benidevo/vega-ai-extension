@@ -109,7 +109,7 @@ describe('APIService', () => {
       await apiService.initialize();
       await expect(apiService.saveJob(mockJob)).rejects.toMatchObject({
         code: 'NETWORK_ERROR',
-        message: 'Network error'
+        message: 'Connection error: Network error'
       });
     });
   });

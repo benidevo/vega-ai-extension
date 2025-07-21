@@ -19,8 +19,6 @@ import { Logger } from '@/utils/logger';
 import { keepAliveService } from './services/KeepAliveService';
 import { connectionManager } from './services/ConnectionManager';
 
-const logger = new Logger('ServiceManager');
-
 /**
  * Service Manager to coordinate all background services
  */

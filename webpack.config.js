@@ -7,10 +7,7 @@ const packageJson = require('./package.json');
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
 
-  console.log('🔧 Building with:', {
-    mode: argv.mode || 'development',
-    isProduction
-  });
+  // Build configuration logging removed for production
 
   return {
     mode: argv.mode || 'development',
