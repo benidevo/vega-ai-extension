@@ -27,7 +27,7 @@ jobs:
       run: npm ci
 
     - name: Build extension
-      run: npm run build -- --env DEPLOYMENT_MODE=opensource
+      run: npm run build
 
     - name: Create release zip
       run: |
@@ -41,32 +41,38 @@ jobs:
         files: vega-ai-job-capture-${{ github.ref_name }}.zip
         generate_release_notes: true
         body: |
-          ## Vega AI Job Capture Extension - ${{ github.ref_name }}
+          ## Vega AI Job Capture - ${{ github.ref_name }}
+
+          Capture job listings with one click. Currently supports LinkedIn, with Indeed & Glassdoor coming soon.
 
           ### 📦 Downloads
           - **Chrome/Edge Extension**: `vega-ai-job-capture-${{ github.ref_name }}.zip`
 
-          ### 🚀 Installation Options
+          ### 🚀 Installation
 
-          #### Option 1: Self-Hosted (Recommended for developers)
           1. Download and extract `vega-ai-job-capture-${{ github.ref_name }}.zip`
-          2. Run your own backend server at `http://localhost:8765`
-          3. Open Chrome/Edge and navigate to `chrome://extensions/` or `edge://extensions/`
-          4. Enable "Developer mode"
-          5. Click "Load unpacked" and select the extracted folder
+          2. Open Chrome/Edge and navigate to `chrome://extensions/` or `edge://extensions/`
+          3. Enable "Developer mode"
+          4. Click "Load unpacked" and select the extracted folder
 
-          #### Option 2: Chrome/Edge Web Store (Coming Soon)
-          - Install directly from the web store
-          - Configure your own API host in the extension settings
-          - No backend setup required if you have a hosted instance
+          ### ⚙️ Backend Options
 
-          ### ⚙️ Configuration
-          - **Default API Host**: `http://localhost:8765`
-          - **Custom Host**: Can be configured in extension settings (marketplace version)
+          The extension supports two backend modes (configurable in settings):
+
+          #### Cloud Mode (Default)
+          - Uses Vega AI cloud service at `https://vega.benidevo.com`
+          - Sign in with Google OAuth
+          - No backend setup required
+
+          #### Local Mode
+          - For developers and self-hosting
+          - Default: `http://localhost:8765`
+          - Sign in with username/password
+          - Requires running your own backend server
 
           ### 📋 Requirements
           - Chrome 88+ or Edge 88+
-          - Backend API server (for self-hosted setup)
+          - Active LinkedIn session (for capturing jobs)
 
           ### 🆕 What's Changed
 
