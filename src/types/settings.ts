@@ -7,8 +7,8 @@ export interface UserSettings {
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
-  apiHost: 'localhost:8765',
-  apiProtocol: 'http',
+  apiHost: 'vega.benidevo.com',
+  apiProtocol: 'https',
   backendMode: 'cloud', // Default to cloud mode
 };
 

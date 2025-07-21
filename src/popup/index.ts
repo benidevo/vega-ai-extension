@@ -530,7 +530,8 @@ class Popup {
         await new Promise(resolve => setTimeout(resolve, 100));
         await this.initialize();
       } else {
-        this.showAuthError(response?.error || 'Sign in failed');
+        const errorMessage = response?.error || 'Sign in failed';
+        this.showAuthError(errorMessage);
       }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
@@ -552,10 +553,13 @@ class Popup {
       errorText.textContent = message;
       errorDiv.classList.remove('hidden');
 
-      // Auto-hide after 3 seconds
+      // Auto-hide after 5 seconds - balanced for accessibility and UX
       setTimeout(() => {
         errorDiv.classList.add('hidden');
-      }, 3000);
+      }, 5000);
+    } else {
+      // If the error elements don't exist, display error in status area as fallback
+      this.renderError(message);
     }
   }
 
@@ -804,13 +808,13 @@ class Popup {
     if (type === 'success' || type === 'info') {
       this.statusTimeout = window.setTimeout(() => {
         this.hideSettingsStatus();
-      }, 3000);
+      }, 5000);
     }
     // Auto-hide error messages after 3 seconds
     else if (type === 'error') {
       this.statusTimeout = window.setTimeout(() => {
         this.hideSettingsStatus();
-      }, 3000);
+      }, 5000);
     }
   }
 
@@ -960,7 +964,7 @@ class Popup {
     // Auto-hide status after 3 seconds
     setTimeout(() => {
       connectionStatus.classList.add('hidden');
-    }, 3000);
+    }, 5000);
   }
 
   private async updateDashboardLink(): Promise<void> {

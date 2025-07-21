@@ -68,6 +68,14 @@ export class MultiProviderAuthService implements IAuthService {
 
     this.isLoginInProgress = true;
 
+    // Set a timeout to reset the flag in case something goes wrong
+    const loginTimeout = setTimeout(() => {
+      if (this.isLoginInProgress) {
+        authLogger.warn('Login timeout - resetting login flag');
+        this.isLoginInProgress = false;
+      }
+    }, 30000); // 30 second timeout
+
     try {
       authLogger.info('Starting login process', { provider: providerType });
 
@@ -76,11 +84,13 @@ export class MultiProviderAuthService implements IAuthService {
 
       await this.storeAuthTokens(tokens, providerType);
 
+      clearTimeout(loginTimeout);
       this.isLoginInProgress = false;
       this.notifyAuthStateChange(true);
 
       authLogger.info('Login successful', { provider: providerType });
     } catch (error) {
+      clearTimeout(loginTimeout);
       this.isLoginInProgress = false;
       authLogger.error('Login failed', error, { provider: providerType });
       throw error;

@@ -92,13 +92,6 @@ async function initialize(): Promise<void> {
           }
 
           try {
-            chrome.action.setBadgeText({ text: '1' });
-            chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
-          } catch (error) {
-            contentLogger.warn('Failed to update badge', error);
-          }
-
-          try {
             await chrome.runtime.sendMessage({
               type: 'JOB_EXTRACTED',
               payload: jobData,

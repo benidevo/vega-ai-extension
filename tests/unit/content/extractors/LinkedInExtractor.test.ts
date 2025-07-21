@@ -150,7 +150,10 @@ describe('LinkedInExtractor', () => {
       const result = extractor.extract(errorDocument, 'https://www.linkedin.com/jobs/view/123456789');
 
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Error extracting LinkedIn job data:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error extracting LinkedIn job data'),
+        expect.any(Error)
+      );
 
       consoleSpy.mockRestore();
     });

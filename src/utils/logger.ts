@@ -99,14 +99,24 @@ export class Logger {
     }
 
     // Store in chrome storage for cross-context access
-    if (typeof chrome !== 'undefined' && chrome.storage) {
+    if (
+      typeof chrome !== 'undefined' &&
+      chrome.storage &&
       chrome.storage.local
-        .set({
+    ) {
+      try {
+        const promise = chrome.storage.local.set({
           vega_ai_logs: Logger.logs.slice(-100), // Store last 100 logs
-        })
-        .catch(() => {
-          // Ignore storage errors
         });
+        // Only call catch if it's a promise (not in test environment)
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch(() => {
+            // Ignore storage errors
+          });
+        }
+      } catch {
+        // Ignore any errors in test environment
+      }
     }
   }
 

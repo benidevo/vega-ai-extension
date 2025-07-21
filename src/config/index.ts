@@ -49,8 +49,7 @@ export interface AppConfig {
 
 // Get environment from build process
 const environment = process.env.APP_ENV || 'development';
-const googleClientId =
-  process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID_HERE';
+const googleClientId = process.env.GOOGLE_CLIENT_ID!; // Always provided by webpack
 const appVersion = process.env.APP_VERSION || '0.0.0';
 
 // Base configuration - will be customized based on backend mode at runtime

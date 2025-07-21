@@ -33,16 +33,30 @@ export class GoogleAuthProvider implements IAuthProvider {
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('scope', this.scopes.join(' '));
 
+      // Clear any cached auth sessions to prevent the double-click issue
+      await new Promise<void>(resolve => {
+        chrome.identity.clearAllCachedAuthTokens(() => {
+          resolve();
+        });
+      });
+
       const authCode = await new Promise<string>((resolve, reject) => {
         chrome.identity.launchWebAuthFlow(
           { url: authUrl.toString(), interactive: true },
           responseUrl => {
             if (chrome.runtime.lastError || !responseUrl) {
-              reject(
-                new Error(
-                  chrome.runtime.lastError?.message || 'OAuth flow failed'
-                )
-              );
+              const errorMessage =
+                chrome.runtime.lastError?.message || 'OAuth flow failed';
+
+              // Check if user cancelled the flow
+              if (
+                errorMessage.includes('canceled') ||
+                errorMessage.includes('closed')
+              ) {
+                reject(new Error('Sign-in was cancelled. Please try again.'));
+              } else {
+                reject(new Error(errorMessage));
+              }
               return;
             }
 

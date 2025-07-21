@@ -1,8 +1,10 @@
 import { IStorageService, StorageArea } from './IStorageService';
+import { Logger } from '@/utils/logger';
 
 export class StorageService implements IStorageService {
   private area: chrome.storage.StorageArea;
   private isInitialized = false;
+  private logger = new Logger('StorageService');
 
   constructor(area: StorageArea = 'local') {
     this.area = chrome.storage[area];
@@ -21,7 +23,7 @@ export class StorageService implements IStorageService {
     return new Promise(resolve => {
       this.area.get(key, result => {
         if (chrome.runtime.lastError) {
-          console.error('Storage get error:', chrome.runtime.lastError);
+          this.logger.error('Storage get error', chrome.runtime.lastError);
           resolve(null);
         } else {
           resolve(result[key] || null);
@@ -72,7 +74,10 @@ export class StorageService implements IStorageService {
     return new Promise(resolve => {
       this.area.get(keys, result => {
         if (chrome.runtime.lastError) {
-          console.error('Storage getMultiple error:', chrome.runtime.lastError);
+          this.logger.error(
+            'Storage getMultiple error',
+            chrome.runtime.lastError
+          );
           resolve({} as Partial<T>);
         } else {
           resolve(result as Partial<T>);

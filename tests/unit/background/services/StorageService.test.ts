@@ -7,8 +7,13 @@ describe('StorageService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    chrome.runtime.lastError = null;
     mockStorageArea = chrome.storage.local;
     storageService = new StorageService('local');
+  });
+
+  afterEach(() => {
+    chrome.runtime.lastError = null;
   });
 
   describe('get', () => {
@@ -40,7 +45,11 @@ describe('StorageService', () => {
 
       const result = await storageService.get('testKey');
       expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith('Storage get error:', chrome.runtime.lastError);
+      expect(console.error).toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Storage get error'),
+        undefined  // Logger passes undefined as second param when logging to console
+      );
 
       chrome.runtime.lastError = null;
     });
@@ -48,6 +57,7 @@ describe('StorageService', () => {
 
   describe('set', () => {
     it('should store value in storage', async () => {
+      chrome.runtime.lastError = null;
       mockStorageArea.set.mockImplementation((_items: any, callback: Function) => {
         callback();
       });
@@ -117,6 +127,7 @@ describe('StorageService', () => {
 
   describe('setMultiple', () => {
     it('should store multiple values in storage', async () => {
+      chrome.runtime.lastError = null;
       const items = { key1: 'value1', key2: 'value2' };
       mockStorageArea.set.mockImplementation((_items: any, callback: Function) => {
         callback();

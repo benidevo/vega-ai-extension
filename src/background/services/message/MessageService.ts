@@ -3,10 +3,12 @@ import {
   MessageHandler,
   ExtensionMessage,
 } from './IMessageService';
+import { Logger } from '@/utils/logger';
 
 export class MessageService implements IMessageService {
   private handlers: Map<string, Set<MessageHandler>> = new Map();
   private isInitialized = false;
+  private logger = new Logger('MessageService');
   private messageListener:
     | ((
         message: ExtensionMessage,
@@ -38,7 +40,10 @@ export class MessageService implements IMessageService {
             isAsync = true;
           }
         } catch (error) {
-          console.error(`Error in message handler for ${message.type}:`, error);
+          this.logger.error(
+            `Error in message handler for ${message.type}`,
+            error
+          );
           sendResponse({
             error: error instanceof Error ? error.message : 'Handler error',
           });

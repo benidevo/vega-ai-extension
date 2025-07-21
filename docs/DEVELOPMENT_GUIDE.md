@@ -21,23 +21,25 @@ npm install
 npm run dev
 ```
 
-### Google OAuth Configuration
+### Authentication Configuration
 
-For open source builds with OAuth:
+The extension supports two authentication modes:
 
-- Replace `YOUR_GOOGLE_CLIENT_ID_HERE` in `webpack.config.js` with your actual Google Client ID
-- Get your Client ID from [Google Cloud Console](https://console.cloud.google.com/)
+- **Cloud Mode**: Uses Google OAuth via the Vega AI cloud service
+- **Local Mode**: Uses username/password authentication for self-hosted backends
+
+The authentication mode is automatically selected based on the backend configuration in the extension settings.
 
 ### Available Scripts
 
 ```bash
 npm run dev         # Development build with watch mode
-npm run build       # Production build (standard)
-npm run build:opensource  # Build with OAuth enabled
-npm run build:marketplace # Build without OAuth (for Chrome Web Store)
+npm run build       # Production build
 npm run lint        # Run ESLint
 npm run test        # Run Jest tests
 npm run typecheck   # Run TypeScript type checking
+npm run format      # Format code with Prettier
+npm run format:check # Check code formatting
 ```
 
 ### Build & Release
@@ -93,11 +95,11 @@ git push origin --tags
 
 #### 4. GitHub Actions will automatically
 
-- Build the extension for both open source and marketplace
+- Build the extension
 - Run all tests
 - Create a GitHub release with:
   - Changelog from commit messages
-  - Built extension as `vega-extension-vX.X.X.zip`
+  - Built extension as `vega-ai-job-capture-vX.X.X.zip`
   - Source code archives
 
 #### 5. Manual verification

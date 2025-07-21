@@ -5,6 +5,7 @@ import {
   isValidJobListing,
   sanitizeJobListing,
 } from '../../utils/validation';
+import { Logger } from '@/utils/logger';
 
 /**
  * Extracts job listing information from LinkedIn job pages.
@@ -15,6 +16,7 @@ import {
  */
 export class LinkedInExtractor implements IJobExtractor {
   siteName = 'LinkedIn';
+  private logger = new Logger('LinkedInExtractor');
 
   /**
    * Determines if the given URL points to a LinkedIn job view page.
@@ -46,7 +48,7 @@ export class LinkedInExtractor implements IJobExtractor {
     try {
       return this.extractFromDOM(document, url || window.location.href);
     } catch (error) {
-      console.error('Error extracting LinkedIn job data:', error);
+      this.logger.error('Error extracting LinkedIn job data', error);
       return null;
     }
   }
@@ -114,7 +116,7 @@ export class LinkedInExtractor implements IJobExtractor {
     };
 
     if (!isValidJobListing(jobListing)) {
-      console.error('Invalid job listing extracted:', jobListing);
+      this.logger.error('Invalid job listing extracted', jobListing);
       return null;
     }
 

@@ -108,7 +108,7 @@ export class GoogleAuthService implements IAuthService {
         const refreshedTokenData = await this.getAuthTokenData();
         return refreshedTokenData?.access_token || null;
       } catch (error) {
-        console.error('Failed to refresh token:', error);
+        this.logger.error('Failed to refresh token', error);
         return null;
       }
     }
@@ -209,7 +209,7 @@ export class GoogleAuthService implements IAuthService {
       try {
         listener(isAuthenticated);
       } catch (error) {
-        console.error('Error in auth state listener:', error);
+        this.logger.error('Error in auth state listener', error);
       }
     });
   }

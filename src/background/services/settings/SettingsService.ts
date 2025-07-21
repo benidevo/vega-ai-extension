@@ -14,11 +14,30 @@ export class SettingsService {
   static async getSettings(): Promise<UserSettings> {
     try {
       const result = await chrome.storage.sync.get(this.STORAGE_KEY);
-      const settings = result[this.STORAGE_KEY] || DEFAULT_SETTINGS;
+      let settings = result[this.STORAGE_KEY];
 
-      // Ensure backendMode exists for migration
-      if (!settings.backendMode) {
-        settings.backendMode = 'cloud';
+      if (!settings) {
+        // First time - use DEFAULT_SETTINGS and save them
+        settings = { ...DEFAULT_SETTINGS };
+        await this.saveSettings(settings);
+      } else {
+        // Ensure backendMode exists for migration
+        if (!settings.backendMode) {
+          settings.backendMode = 'cloud';
+        }
+
+        // Ensure cloud mode uses correct settings
+        if (settings.backendMode === 'cloud') {
+          const cloudConfig = BACKEND_CONFIGS.cloud;
+          if (
+            settings.apiHost !== cloudConfig.apiHost ||
+            settings.apiProtocol !== cloudConfig.apiProtocol
+          ) {
+            settings.apiHost = cloudConfig.apiHost;
+            settings.apiProtocol = cloudConfig.apiProtocol;
+            await this.saveSettings(settings);
+          }
+        }
       }
 
       return settings;
