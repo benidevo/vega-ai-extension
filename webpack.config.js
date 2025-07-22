@@ -7,8 +7,6 @@ const packageJson = require('./package.json');
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
 
-  // Build configuration logging removed for production
-
   return {
     mode: argv.mode || 'development',
     devtool: isProduction ? false : 'inline-source-map',
@@ -84,12 +82,19 @@ module.exports = (env, argv) => {
                 scopes: ["openid", "email", "profile"]
               };
 
-              // Include both local and production host permissions
-              manifest.host_permissions = [
-                "https://*.linkedin.com/*",
-                "https://vega.benidevo.com/*",
-                "http://localhost:*/*"
-              ];
+              // Conditionally include host permissions based on environment
+              if (isProduction) {
+                manifest.host_permissions = [
+                  "https://*.linkedin.com/*",
+                  "https://vega.benidevo.com/*"
+                ];
+              } else {
+                manifest.host_permissions = [
+                  "https://*.linkedin.com/*",
+                  "https://vega.benidevo.com/*",
+                  "http://localhost:*/*"
+                ];
+              }
 
               return JSON.stringify(manifest, null, 2);
             },
