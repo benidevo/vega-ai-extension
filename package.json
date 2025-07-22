@@ -1,6 +1,6 @@
 {
   "name": "vega-ai-extension",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Capture job listings from LinkedIn, Indeed & Glassdoor (LinkedIn available now, others coming soon)",
   "private": true,
   "scripts": {
