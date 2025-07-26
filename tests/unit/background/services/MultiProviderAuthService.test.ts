@@ -5,9 +5,9 @@ import { IStorageService } from '../../../../src/background/services/storage/ISt
 jest.mock('../../../../src/config', () => ({
   config: {
     features: {
-      enableGoogleAuth: false
-    }
-  }
+      enableGoogleAuth: false,
+    },
+  },
 }));
 
 // Mock logger
@@ -16,8 +16,8 @@ jest.mock('../../../../src/utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
-  }
+    debug: jest.fn(),
+  },
 }));
 
 // Mock fetch globally
@@ -32,11 +32,11 @@ describe('MultiProviderAuthService', () => {
     google: {
       clientId: 'test-client-id',
       scopes: ['openid'],
-      apiEndpoint: 'http://localhost:8765/api/auth/google'
+      apiEndpoint: 'http://localhost:8765/api/auth/google',
     },
     password: {
-      apiBaseUrl: 'http://localhost:8765'
-    }
+      apiBaseUrl: 'http://localhost:8765',
+    },
   };
 
   beforeEach(() => {
@@ -58,13 +58,13 @@ describe('MultiProviderAuthService', () => {
     it('should authenticate with username and password', async () => {
       const mockTokenResponse = {
         token: 'test-access-token',
-        refresh_token: 'test-refresh-token'
+        refresh_token: 'test-refresh-token',
       };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => mockTokenResponse,
-        statusText: 'OK'
+        statusText: 'OK',
       } as Response);
 
       await authService.loginWithPassword('testuser', 'testpass');
@@ -74,50 +74,65 @@ describe('MultiProviderAuthService', () => {
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: 'testuser', password: 'testpass' })
+          body: JSON.stringify({ username: 'testuser', password: 'testpass' }),
         })
       );
 
-      expect(mockStorageService.set).toHaveBeenCalledWith('authTokenData', expect.objectContaining({
-        access_token: 'test-access-token',
-        refresh_token: 'test-refresh-token',
-        expires_at: expect.any(Number)
-      }));
-      expect(mockStorageService.set).toHaveBeenCalledWith('authProvider', 'password');
-      expect(mockStorageService.set).toHaveBeenCalledWith('authToken', 'test-access-token');
+      expect(mockStorageService.set).toHaveBeenCalledWith(
+        'authTokenData',
+        expect.objectContaining({
+          access_token: 'test-access-token',
+          refresh_token: 'test-refresh-token',
+          expires_at: expect.any(Number),
+        })
+      );
+      expect(mockStorageService.set).toHaveBeenCalledWith(
+        'authProvider',
+        'password'
+      );
+      expect(mockStorageService.set).toHaveBeenCalledWith(
+        'authToken',
+        'test-access-token'
+      );
     });
 
     it('should handle authentication errors', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         json: async () => ({ message: 'Invalid credentials' }),
-        statusText: 'Unauthorized'
+        statusText: 'Unauthorized',
       } as Response);
 
-      await expect(authService.loginWithPassword('testuser', 'wrongpass'))
-        .rejects.toThrow('Invalid credentials');
+      await expect(
+        authService.loginWithPassword('testuser', 'wrongpass')
+      ).rejects.toThrow('Invalid credentials');
     });
   });
 
   describe('loginWithProvider - Google disabled', () => {
     it('should reject Google auth when disabled', async () => {
-      await expect(authService.loginWithProvider('google'))
-        .rejects.toThrow('Google authentication is disabled');
+      await expect(authService.loginWithProvider('google')).rejects.toThrow(
+        'Google authentication is disabled'
+      );
     });
 
     it('should allow password auth when Google is disabled', async () => {
       const mockResponse = {
         token: 'token',
-        refresh_token: 'refresh'
+        refresh_token: 'refresh',
       };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       } as Response);
 
-      await expect(authService.loginWithProvider('password', { username: 'user', password: 'pass' }))
-        .resolves.not.toThrow();
+      await expect(
+        authService.loginWithProvider('password', {
+          username: 'user',
+          password: 'pass',
+        })
+      ).resolves.not.toThrow();
     });
   });
 

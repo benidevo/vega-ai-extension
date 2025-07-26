@@ -1,4 +1,7 @@
-import { validatePassword, validateUsername } from '../../../src/utils/validation';
+import {
+  validatePassword,
+  validateUsername,
+} from '../../../src/utils/validation';
 
 describe('validatePassword', () => {
   it('should require password', () => {
@@ -48,7 +51,9 @@ describe('validateUsername', () => {
   it('should reject invalid characters', () => {
     const result = validateUsername('user@name');
     expect(result.isValid).toBe(false);
-    expect(result.error).toBe('Username can only contain letters, numbers, periods, underscores, and hyphens');
+    expect(result.error).toBe(
+      'Username can only contain letters, numbers, periods, underscores, and hyphens'
+    );
   });
 
   it('should accept valid usernames', () => {

@@ -19,18 +19,32 @@ describe('LinkedInExtractor', () => {
 
   describe('canExtract', () => {
     it('should return true for LinkedIn job view URLs', () => {
-      expect(extractor.canExtract('https://www.linkedin.com/jobs/view/123456789')).toBe(true);
-      expect(extractor.canExtract('https://linkedin.com/jobs/view/987654321?tracking=abc')).toBe(true);
+      expect(
+        extractor.canExtract('https://www.linkedin.com/jobs/view/123456789')
+      ).toBe(true);
+      expect(
+        extractor.canExtract(
+          'https://linkedin.com/jobs/view/987654321?tracking=abc'
+        )
+      ).toBe(true);
     });
 
     it('should return false for non-job LinkedIn URLs', () => {
-      expect(extractor.canExtract('https://www.linkedin.com/feed/')).toBe(false);
-      expect(extractor.canExtract('https://www.linkedin.com/in/john-doe')).toBe(false);
-      expect(extractor.canExtract('https://www.linkedin.com/jobs/search/')).toBe(false);
+      expect(extractor.canExtract('https://www.linkedin.com/feed/')).toBe(
+        false
+      );
+      expect(extractor.canExtract('https://www.linkedin.com/in/john-doe')).toBe(
+        false
+      );
+      expect(
+        extractor.canExtract('https://www.linkedin.com/jobs/search/')
+      ).toBe(false);
     });
 
     it('should return false for non-LinkedIn URLs', () => {
-      expect(extractor.canExtract('https://www.indeed.com/job/123')).toBe(false);
+      expect(extractor.canExtract('https://www.indeed.com/job/123')).toBe(
+        false
+      );
       expect(extractor.canExtract('https://www.google.com')).toBe(false);
     });
   });
@@ -54,13 +68,17 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(mockDocument, 'https://www.linkedin.com/jobs/view/123456789');
+      const result = extractor.extract(
+        mockDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
 
       expect(result).toEqual({
         title: 'Senior Software Engineer',
         company: 'Tech Corp',
         location: 'San Francisco, CA',
-        description: 'We are looking for a talented engineer to join our team...',
+        description:
+          'We are looking for a talented engineer to join our team...',
         sourceUrl: 'https://www.linkedin.com/jobs/view/123456789',
         jobType: 'full_time',
       });
@@ -80,7 +98,10 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(mockDocument, 'https://www.linkedin.com/jobs/view/123456789');
+      const result = extractor.extract(
+        mockDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
 
       expect(result).toEqual({
         title: 'Product Manager',
@@ -100,7 +121,12 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      expect(extractor.extract(mockDocument, 'https://www.linkedin.com/jobs/view/123456789')).toBeNull();
+      expect(
+        extractor.extract(
+          mockDocument,
+          'https://www.linkedin.com/jobs/view/123456789'
+        )
+      ).toBeNull();
 
       // Missing company
       mockDocument.body.innerHTML = `
@@ -109,7 +135,12 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      expect(extractor.extract(mockDocument, 'https://www.linkedin.com/jobs/view/123456789')).toBeNull();
+      expect(
+        extractor.extract(
+          mockDocument,
+          'https://www.linkedin.com/jobs/view/123456789'
+        )
+      ).toBeNull();
     });
 
     it('should extract various job types correctly', () => {
@@ -131,7 +162,10 @@ describe('LinkedInExtractor', () => {
           </div>
         `;
 
-        const result = extractor.extract(mockDocument, 'https://www.linkedin.com/jobs/view/123456789');
+        const result = extractor.extract(
+          mockDocument,
+          'https://www.linkedin.com/jobs/view/123456789'
+        );
         expect(result?.jobType).toBe(expected);
       });
     });
@@ -147,7 +181,10 @@ describe('LinkedInExtractor', () => {
         }),
       } as any;
 
-      const result = extractor.extract(errorDocument, 'https://www.linkedin.com/jobs/view/123456789');
+      const result = extractor.extract(
+        errorDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
 
       expect(result).toBeNull();
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -170,7 +207,10 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(mockDocument, 'https://www.linkedin.com/jobs/view/123456789');
+      const result = extractor.extract(
+        mockDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
       expect(result?.location).toBe('London, UK');
     });
 
@@ -182,7 +222,10 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(mockDocument, 'https://www.linkedin.com/jobs/view/123456789');
+      const result = extractor.extract(
+        mockDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
       expect(result?.location).toBe('Unknown Location');
     });
   });

@@ -1,6 +1,6 @@
 import { GoogleAuthService } from '../../../../../src/background/services/auth/GoogleAuthService';
 import { StorageService } from '../../../../../src/background/services/storage/StorageService';
-import { chrome } from '../../../../mocks/chrome';
+import { mockChrome, resetChromeMocks } from '../../../../mocks/chrome';
 import { Logger } from '../../../../../src/utils/logger';
 
 jest.mock('../../../../../src/utils/logger');
@@ -15,7 +15,7 @@ describe('GoogleAuthService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    global.chrome = chrome;
+    resetChromeMocks();
 
     mockLogger = {
       info: jest.fn(),
@@ -53,12 +53,14 @@ describe('GoogleAuthService', () => {
         refresh_token: 'refresh-token',
       };
 
-      // Mock chrome.identity.launchWebAuthFlow
-      chrome.identity.launchWebAuthFlow = jest.fn((_details, callback) => {
+      // Mock mockChrome.identity.launchWebAuthFlow
+      mockChrome.identity.launchWebAuthFlow = jest.fn((_details, callback) => {
         callback(`https://redirect.url?code=${mockAuthCode}`);
       });
 
-      chrome.identity.getRedirectURL.mockReturnValue('https://redirect.url/');
+      mockChrome.identity.getRedirectURL.mockReturnValue(
+        'https://redirect.url/'
+      );
 
       // Mock successful token exchange
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -68,7 +70,7 @@ describe('GoogleAuthService', () => {
 
       await authService.login();
 
-      expect(chrome.identity.launchWebAuthFlow).toHaveBeenCalled();
+      expect(mockChrome.identity.launchWebAuthFlow).toHaveBeenCalled();
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8765/api/auth/google',
         expect.objectContaining({
@@ -91,31 +93,35 @@ describe('GoogleAuthService', () => {
     });
 
     it('should handle authentication cancellation', async () => {
-      chrome.runtime.lastError = { message: 'User cancelled' };
-      chrome.identity.launchWebAuthFlow = jest.fn((_details, callback) => {
+      mockChrome.runtime.lastError = { message: 'User cancelled' };
+      mockChrome.identity.launchWebAuthFlow = jest.fn((_details, callback) => {
         callback(undefined);
       });
 
       await expect(authService.login()).rejects.toThrow('User cancelled');
 
-      chrome.runtime.lastError = null;
+      mockChrome.runtime.lastError = null;
     });
 
     it('should handle token exchange errors', async () => {
       const mockAuthCode = 'test-auth-code';
 
-      chrome.identity.launchWebAuthFlow = jest.fn((_details, callback) => {
+      mockChrome.identity.launchWebAuthFlow = jest.fn((_details, callback) => {
         callback(`https://redirect.url?code=${mockAuthCode}`);
       });
 
-      chrome.identity.getRedirectURL.mockReturnValue('https://redirect.url/');
+      mockChrome.identity.getRedirectURL.mockReturnValue(
+        'https://redirect.url/'
+      );
 
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         statusText: 'Unauthorized',
       });
 
-      await expect(authService.login()).rejects.toThrow('Authentication failed: Unauthorized');
+      await expect(authService.login()).rejects.toThrow(
+        'Authentication failed: Unauthorized'
+      );
     });
   });
 

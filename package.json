@@ -9,8 +9,11 @@
     "clean": "rm -rf dist",
     "lint": "eslint --ext .ts src/",
     "lint:fix": "eslint --ext .ts src/ --fix",
-    "format": "prettier --write \"src/**/*.{ts,js,json,css,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js,json,css,md}\"",
+    "lint:tests": "eslint --ext .ts tests/",
+    "lint:tests:fix": "eslint --ext .ts tests/ --fix",
+    "lint:all": "eslint --ext .ts src/ tests/",
+    "format": "prettier --write \"src/**/*.{ts,js,json,css,md}\" \"tests/**/*.{ts,js,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json,css,md}\" \"tests/**/*.{ts,js,json,css,md}\"",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -58,11 +61,11 @@
     "inflight": "npm:lru-cache@^10.0.0"
   },
   "lint-staged": {
-    "src/**/*.{ts,js}": [
+    "{src,tests}/**/*.{ts,js}": [
       "eslint --fix",
       "prettier --write"
     ],
-    "src/**/*.{json,css,md}": [
+    "{src,tests}/**/*.{json,css,md}": [
       "prettier --write"
     ]
   },
