@@ -4,77 +4,50 @@
 
 ### Overview
 
-The Vega AI Browser Extension is a Chrome extension built with TypeScript and Manifest V3 that captures job listings from various job sites and posts them to the Vega AI backend service. The extension follows a modular architecture with clear separation of concerns.
+A Chrome extension that captures job listings from LinkedIn and saves them to the Vega AI backend. Built with TypeScript and Manifest V3. Supports both cloud and self-hosted backends.
 
 ## 🏗️ Architecture
 
 ### High-Level Design
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                                Chrome Browser Environment                           │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                     │
-│  ┌──────────────────────┐        ┌─────────────────────────────────────────┐        │
-│  │     Web Pages        │        │        Background Service Worker        │        │
-│  │  ┌────────────────┐  │        │                                         │        │
-│  │  │  LinkedIn Job  │  │        │  ┌─────────────────────────────────┐    │        │
-│  │  │     Page       │  │        │  │      Service Manager            │    │        │
-│  │  │                │  │        │  │   ┌──────────┬──────────────┐   │    │        │
-│  │  └───────┬────────┘  │        │  │   │   Auth   │  API Service │   │    │        │
-│  │          │           │        │  │   │ Service  │              │   │    │        │
-│  │  ┌───────▼────────┐  │        │  │   ├──────────┼──────────────┤   │    │        │
-│  │  │ Content Script │  │◄──────►│  │   │ Message  │   Storage    │   │    │        │
-│  │  │                │  │Messages│  │   │ Service  │   Service    │   │    │        │
-│  │  │ ┌────────────┐ │  │        │  │   ├──────────┼──────────────┤   │    │        │
-│  │  │ │ Job        │ │  │        │  │   │  Badge   │ Connection   │   │    │        │
-│  │  │ │ Extractor  │ │  │        │  │   │ Service  │  Manager     │   │    │        │
-│  │  │ └────────────┘ │  │        │  │   ├──────────┼──────────────┤   │    │        │
-│  │  │                │  │        │  │   │KeepAlive │   Logger     │   │    │        │
-│  │  │ ┌────────────┐ │  │        │  │   │ Service  │              │   │    │        │
-│  │  │ │  Overlay   │ │  │        │  │   └──────────┴──────────────┘   │    │        │
-│  │  │ │   (UI)     │ │  │        │  └─────────────────────────────────┘    │        │
-│  │  │ └────────────┘ │  │        │                                         │        │
-│  │  └────────────────┘  │        │         Chrome Extension APIs           │        │
-│  └──────────────────────┘        │  ┌────────────────────────────────┐     │        │
-│                                  │  │ • Runtime Messaging            │     │        │
-│  ┌──────────────────────┐        │  │ • Storage (Local/Sync)         │     │        │
-│  │    Popup UI          │        │  │ • Identity (OAuth)             │     │        │
-│  │  ┌────────────────┐  │        │  │ • Alarms (Keep-alive)          │     │        │
-│  │  │ Authentication │  │◄──────►│  │ • Tabs & Windows               │     │        │
-│  │  │    Screen      │  │        │  └────────────────────────────────┘     │        │
-│  │  └────────────────┘  │        └─────────────────────────────────────────┘        │
-│  │  ┌────────────────┐  │                              │                            │
-│  │  │   Settings     │  │                              │ HTTPS/REST                 │
-│  │  │    Screen      │  │                              │                            │
-│  │  └────────────────┘  │                              │                            │
-│  └──────────────────────┘                              │                            │
-│                                                        │                            │
-└────────────────────────────────────────────────────────┼─────────────────────────── ┘
-                                                         │
-                                                         │
-                                              ┌──────────▼──────────────┐
-                                              │   Vega AI Backend API   │
-                                              │                         │
-                                              │  ┌─────────────────┐    │
-                                              │  │ Authentication  │    │
-                                              │  │   Endpoints     │    │
-                                              │  │ • /auth/login   │    │
-                                              │  │ • /auth/refresh │    │
-                                              │  └─────────────────┘    │
-                                              │                         │
-                                              │  ┌─────────────────┐    │
-                                              │  │  Job Management │    │
-                                              │  │   Endpoints     │    │
-                                              │  │ • POST /jobs    │    │
-                                              │  └─────────────────┘    │
-                                              │                         │
-                                              └─────────────────────────┘
+```mermaid
+graph TB
+    subgraph "Chrome Browser"
+        subgraph "Web Page"
+            LP[LinkedIn Job Page]
+            CS[Content Script]
+            OV[Overlay UI]
+            LP --> CS
+            CS --> OV
+        end
 
-Message Flow Legend:
-─────► Async Chrome Runtime Messages
-═════► HTTP/HTTPS API Calls
-·····► Event-driven Updates
+        subgraph "Extension Core"
+            POP[Popup UI]
+            BG[Background Service Worker]
+
+            subgraph "Services"
+                AUTH[Auth Service]
+                API[API Service]
+                MSG[Message Service]
+                STOR[Storage Service]
+                BADGE[Badge Service]
+            end
+
+            BG --> AUTH
+            BG --> API
+            BG --> MSG
+            BG --> STOR
+            BG --> BADGE
+        end
+
+        CS <-->|Messages| BG
+        POP <-->|Messages| BG
+    end
+
+    BG -->|HTTPS| BACKEND[Vega AI Backend]
+
+    style LP fill:#f9f,stroke:#333,stroke-width:2px
+    style BACKEND fill:#9f9,stroke:#333,stroke-width:2px
 ```
 
 ### Directory Structure
@@ -116,13 +89,7 @@ src/
 
 #### Authentication Service (`MultiProviderAuthService`)
 
-- **Purpose**: Manages authentication across multiple providers
-- **Providers**: Google OAuth, Username/Password
-- **Features**:
-  - Provider abstraction via factory pattern
-  - Token management and refresh
-  - Configurable provider enablement
-  - Secure storage of auth tokens
+Handles both username/password and Google OAuth authentication. Automatically refreshes tokens when they expire. Each auth method has its own provider class, making it easy to add new methods.
 
 ```typescript
 interface IAuthService {
@@ -137,36 +104,19 @@ interface IAuthService {
 
 #### API Service
 
-- **Purpose**: Backend communication with automatic token management
-- **Features**:
-  - Automatic token refresh on 401 responses
-  - Request/response logging
-  - Error handling and retries
-  - Circuit breaker pattern for resilience
+Handles all backend communication. If a request gets a 401, it automatically refreshes the auth token and retries. Includes a circuit breaker that temporarily stops requests after multiple failures to prevent hammering a down server.
 
 #### Message Service
 
-- **Purpose**: Type-safe communication between extension components
-- **Features**:
-  - Centralized message routing
-  - Type definitions for all message types
-  - Error handling and response management
+Routes messages between the popup, content scripts, and background service worker. All message types are defined in TypeScript for type safety.
 
 #### Storage Service
 
-- **Purpose**: Abstraction over Chrome storage APIs
-- **Features**:
-  - Consistent API across local/sync storage
-  - Automatic serialization/deserialization
-  - Error handling
+Wrapper around Chrome's storage API. Makes it easy to save and load data with proper error handling.
 
 #### Badge Service
 
-- **Purpose**: Visual feedback through extension icon
-- **Features**:
-  - Success/error state indicators
-  - Temporary notifications
-  - Color coding for different states
+Shows a little green checkmark or red X on the extension icon to give quick feedback when saving jobs.
 
 ### Content Scripts
 
@@ -190,21 +140,11 @@ interface IJobExtractor {
 
 #### Overlay Manager
 
-- **Purpose**: Manages the floating capture UI on job pages
-- **Features**:
-  - Auto-positioning to avoid page conflicts
-  - Dynamic show/hide based on job detection
-  - Responsive design
-  - Accessibility support
+Creates the floating button and panel that appears on job pages. Positions itself to avoid covering page content. Shows a preview of the job data before saving.
 
 ### Popup UI
 
-- **Purpose**: Extension popup interface
-- **Features**:
-  - Multi-provider authentication UI
-  - Job capture status and controls
-  - Settings and configuration
-  - Responsive design with Tailwind CSS
+The main interface users see when they click the extension icon. Handles sign in, backend mode switching (cloud vs local), and connection testing. Built with Tailwind CSS for a clean look.
 
 ## 🛠️ Technology Stack
 
@@ -229,49 +169,91 @@ interface IJobExtractor {
 - **Automated releases**: Tag-based release creation
 - **Quality gates**: Lint, test, and typecheck on every commit
 
-## 🔒 Security Considerations
+## 🔒 Security
 
 ### Authentication
 
-- **Token-based**: Secure token storage in Chrome storage
-- **Automatic refresh**: Handles token expiration gracefully
-- **Provider isolation**: Clean separation between auth methods
-- **Configurable providers**: Disable unused auth methods
+- Tokens stored in Chrome's encrypted storage
+- Auto-refresh when tokens expire
+- OAuth follows standard security practices
+- Passwords validated before sending
 
-### Data Handling
+### Data Protection
 
-- **No local storage**: Jobs sent directly to backend
-- **Secure transmission**: HTTPS-only API communication
-- **Input validation**: Sanitization of extracted job data
-- **Error boundaries**: Graceful handling of failures
+- Jobs sent directly to backend (not stored locally)
+- All API calls use HTTPS
+- Input validation prevents malicious data
+- Content scripts run in isolated environment
+- Token auth prevents CSRF attacks
 
 ### Permissions
 
-- **Minimal permissions**: Only requests necessary Chrome permissions
-- **Content script isolation**: Limited access to page content
-- **Host permissions**: Restricted to supported job sites
+The extension only asks for what it needs:
+
+- Access to LinkedIn domains only
+- No browsing history access
+- No cookie access
+- User must click to save jobs
 
 ## 📊 Data Flow
 
 ### Job Capture Flow
 
-1. **Detection**: Content script detects job listing on page
-2. **Extraction**: Site-specific extractor pulls job data
-3. **Validation**: Data validation and sanitization
-4. **UI Display**: Overlay shows capture option
-5. **User Action**: User clicks capture button
-6. **Authentication**: Service worker checks auth status
-7. **API Call**: Job data sent to Vega AI backend
-8. **Feedback**: Success/error feedback to user
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant LP as LinkedIn Page
+    participant CS as Content Script
+    participant OV as Overlay
+    participant BG as Background Worker
+    participant API as Backend API
+
+    U->>LP: Visit job page
+    LP->>CS: Page loads
+    CS->>CS: Detect job listing
+    CS->>OV: Show floating button
+    U->>OV: Click button
+    OV->>CS: Extract job data
+    CS->>OV: Display job preview
+    U->>OV: Add notes (optional)
+    U->>OV: Click save
+    OV->>BG: Send job data
+    BG->>API: POST /api/jobs
+    API-->>BG: Success response
+    BG-->>OV: Show success
+    OV-->>U: ✓ Green checkmark
+```
 
 ### Authentication Flow
 
-1. **Provider Selection**: User chooses auth method
-2. **Credential Input**: Username/password or OAuth flow
-3. **Token Exchange**: Backend returns access/refresh tokens
-4. **Storage**: Secure token storage in Chrome storage
-5. **API Integration**: Tokens attached to all API requests
-6. **Refresh**: Automatic token refresh on expiration
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant P as Popup
+    participant BG as Background Worker
+    participant API as Backend API
+    participant CS as Chrome Storage
+
+    U->>P: Open popup
+    P->>P: Show auth options
+
+    alt Username/Password
+        U->>P: Enter credentials
+        P->>BG: Login request
+        BG->>API: POST /auth/login
+    else Google OAuth
+        U->>P: Click Google signin
+        P->>BG: OAuth request
+        BG->>chrome.identity: Launch OAuth flow
+        chrome.identity-->>BG: Auth code
+        BG->>API: Exchange for tokens
+    end
+
+    API-->>BG: Access + Refresh tokens
+    BG->>CS: Store tokens
+    BG-->>P: Auth success
+    P-->>U: Show dashboard button
+```
 
 ## 🧪 Testing Strategy
 
@@ -297,17 +279,19 @@ interface IJobExtractor {
 
 ### Build Process
 
-1. **Quality checks**: Lint, test, typecheck
-2. **Webpack build**: Bundle optimization and minification
-3. **Manifest generation**: Dynamic manifest.json creation
-4. **Asset processing**: CSS/image optimization
+1. Run quality checks (lint, test, typecheck)
+2. Webpack bundles everything
+3. Sync version numbers
+4. Optimize CSS and images
+5. Include source maps for debugging (dev only)
 
-### Release Process
+### Release Pipeline
 
-1. **Tag creation**: Semantic versioning with git tags
-2. **Automated build**: GitHub Actions triggers build
-3. **Release creation**: Automatic GitHub release with artifacts
-4. **Distribution**: Downloadable extension packages
+1. Bump version: `npm version patch`
+2. Push tag to GitHub
+3. GitHub Actions takes over
+4. Uploads to Chrome Web Store
+5. Creates GitHub release
 
 ### Environment Management
 
@@ -315,63 +299,30 @@ interface IJobExtractor {
 - **Staging**: Manual build triggers for testing
 - **Production**: Tag-based releases for users
 
-## 🔄 Configuration Management
+## 🔄 Configuration
 
-### Feature Flags
+### Config Structure
 
 ```typescript
-interface FeatureFlags {
-  enableGoogleAuth: boolean;      // Google OAuth availability
-  enableAnalytics: boolean;       // Usage tracking
-  maxJobsPerSession: number;      // Rate limiting
+interface ExtensionConfig {
+  features: {
+    enableGoogleAuth: boolean;    // Off by default
+    enableAnalytics: boolean;     // Future feature
+    debugMode: boolean;           // Extra logging
+  };
+  backend: {
+    mode: 'cloud' | 'local';
+    apiHost: string;
+    apiProtocol: 'http' | 'https';
+  };
+  limits: {
+    maxRetries: number;           // 3 by default
+    requestTimeout: number;       // 30 seconds
+    cacheExpiry: number;         // 5 minutes
+  };
 }
 ```
 
-### Environment Configuration
+### Settings Service
 
-- **Development**: Local API endpoints, debug logging
-- **Production**: Production APIs, optimized builds
-- **Configurable**: Easy environment switching
-
-## 📈 Performance Considerations
-
-### Bundle Optimization
-
-- **Code splitting**: Separate bundles for different contexts
-- **Tree shaking**: Unused code elimination
-- **Minification**: Optimized production builds
-
-### Runtime Performance
-
-- **Lazy loading**: On-demand component loading
-- **Memory management**: Proper cleanup and garbage collection
-- **Event debouncing**: Optimized user interaction handling
-
-### Monitoring
-
-- **Error tracking**: Comprehensive error logging
-- **Performance metrics**: Load time and response monitoring
-- **Usage analytics**: Feature usage tracking (when enabled)
-
-## 🔮 Future Enhancements
-
-### Planned Features
-
-- **Additional job sites**: Indeed, Glassdoor, Monster support
-- **Advanced filtering**: Custom job matching criteria
-- **Bulk operations**: Multi-job capture and management
-- **Offline support**: Local caching and sync capabilities
-
-### Technical Improvements
-
-- **Web Workers**: Heavy processing offloading
-- **IndexedDB**: Enhanced local storage capabilities
-- **PWA features**: Service worker enhancements
-- **Accessibility**: Enhanced ARIA support and keyboard navigation
-
-### Integration Opportunities
-
-- **Calendar integration**: Interview scheduling
-- **CRM integration**: Contact management
-- **Analytics dashboard**: Job search insights
-- **Mobile companion**: React Native app integration
+Settings are saved to Chrome sync storage so they follow users across devices. Users can switch between cloud and local mode in the popup, and test their connection before saving.

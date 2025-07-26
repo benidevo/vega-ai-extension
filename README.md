@@ -3,34 +3,44 @@
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=google-chrome&logoColor=white)](https://chrome.google.com/webstore)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)
+[![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
 
-**Capture job listings instantly from any job board.**
+**Save job listings from LinkedIn with one click.**
 
-The Vega AI extension automatically detects job postings and lets you capture them instantly to your Vega AI dashboard for tracking and management. Currently supports LinkedIn with more job sites coming soon.
+This Chrome extension adds a floating button to LinkedIn job pages that lets you save jobs directly to your Vega AI dashboard. Works with both the cloud service and self-hosted backends.
 
-## ✨ What it does
+## ✨ Features
 
-- 🎯 **Auto-detects** job listings on LinkedIn (more sites coming soon)
-- 💾 **One-click save** to your Vega AI account
-- 📝 **Add notes** before saving (salary expectations, interest level, etc.)
-- 🔐 **Secure login** with your Vega AI username/password
-- ✅ **Visual confirmation** when jobs are saved successfully
+- 🎯 **Auto-detects** job pages on LinkedIn
+- 💾 **One-click save** with the floating button
+- 📝 **Add notes** before saving (saved locally too)
+- 🔐 **Two auth options**: username/password or Google OAuth
+- 🌐 **Cloud or self-hosted**: your choice
+- ⚡ **Keyboard shortcuts**: Ctrl+Shift+V to toggle, Ctrl+S to save
+- 🔄 **Syncs across devices** when signed in
+- 🛡️ **Your data stays secure** with encrypted storage
 
-## 🎬 How it works
+## 🎬 How it Works
 
-1. **Browse jobs** on LinkedIn
-2. **Click the floating capture button** that appears on job listings
-3. **Add optional notes** in the popup
-4. **Hit save** and the job is instantly added to your Vega AI dashboard
+1. Go to any LinkedIn job posting
+2. Click the floating Vega AI button
+3. Add your notes (optional)
+4. Hit save and you're done
 
-No manual copy-pasting of job details. No switching between tabs. Just seamless job tracking.
+No more copy-pasting job details into spreadsheets.
 
 ## 📥 Get Started
 
 ### Install the Extension
 
-**Option 1: Direct Download** (Recommended)
+**Option 1: Chrome Web Store** (Recommended)
+
+1. Go to the [Chrome Web Store page](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)
+2. Click "Add to Chrome"
+3. Click "Add extension" in the popup
+
+**Option 2: Direct Download**
 
 1. Visit the [latest release page](https://github.com/benidevo/vega-ai-extension/releases/latest)
 2. Download the `vega-extension-*.zip` file
@@ -39,15 +49,13 @@ No manual copy-pasting of job details. No switching between tabs. Just seamless 
 5. Turn on "Developer mode" (toggle in top right)
 6. Click "Load unpacked" and select your unzipped folder
 
-**Option 2: Chrome Web Store** *(Coming Soon)*
-The extension will be available on the Chrome Web Store for one-click installation.
-
 ### Set Up Your Account
 
-1. **Set up Vega AI** by visiting [vega.benidevo.com](https://vega.benidevo.com) for setup instructions
-2. **Open the extension** (click the Vega AI icon in your browser toolbar)
-3. **Sign in** with your Vega AI username and password
-4. **Start browsing jobs** and the extension will automatically detect job listings!
+1. Create an account at [vega.benidevo.com](https://vega.benidevo.com)
+2. Click the Vega AI icon in your browser toolbar
+3. If you're using the cloud service, just sign in
+4. For self-hosted backends, switch to Local Mode in settings
+5. Browse LinkedIn jobs and start saving!
 
 ---
 
@@ -58,7 +66,7 @@ The extension will be available on the Chrome Web Store for one-click installati
 
 ### Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 22+ and npm
 - Chrome browser
 
 ### Quick Setup
@@ -75,58 +83,79 @@ npm run build
 
 Then load the `dist` folder as an unpacked extension in Chrome.
 
-### Configuration
+### Development Commands
 
-The extension uses **username/password authentication by default**. Google OAuth is available but disabled by default.
-
-**Basic Setup** - Update API endpoint in `src/config/index.ts` if needed:
-
-```typescript
-api: {
-  baseUrl: 'http://localhost:8765'  // Default port, change if your backend uses different port
-}
+```bash
+npm run dev        # Watch mode for development
+npm run build      # Production build
+npm run test       # Run tests
+npm run lint       # Check code style
+npm run typecheck  # Check TypeScript types
 ```
 
-**Optional: Enable Google OAuth** - Uncomment in production config:
+### Configuration
+
+By default, the extension uses username/password auth and connects to the cloud backend. You can change these defaults:
+
+**Backend Modes:**
+
+- Cloud Mode: `https://vega.benidevo.com` (default)
+- Local Mode: Your own backend (set host/port in settings)
+
+**Authentication:**
+
+- Username/Password (always available)
+- Google OAuth (disabled by default)
+
+To enable Google OAuth, edit `src/config/index.ts`:
 
 ```typescript
-features: {
-  enableGoogleAuth: true, // Uncomment and set to true
-},
-auth: {
-  providers: {
-    google: {
-      clientId: 'your-google-client-id.apps.googleusercontent.com' // Add your client ID
+production: {
+  features: {
+    enableGoogleAuth: true,
+  },
+  auth: {
+    providers: {
+      google: {
+        clientId: 'your-google-client-id.apps.googleusercontent.com'
+      }
     }
   }
 }
 ```
 
-### Technical Documentation
+### Project Structure
+
+The code is organized into these main parts:
+
+- **Background**: Service worker that handles auth, API calls, and messaging
+- **Content**: Scripts that run on LinkedIn pages to detect jobs
+- **Popup**: The extension popup where users sign in and change settings
+- **Services**: Reusable modules for common functionality
+
+### 📚 Documentation
+
+- 📖 **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - How to build and contribute
+- 🏗️ **[Technical Design](docs/TECHNICAL_DESIGN.md)** - Architecture and implementation details
+- 🚀 **[Chrome Store Deployment](docs/CHROME_STORE_DEPLOYMENT.md)** - How releases work
 
 </details>
 
-## 💻 For Developers
+## 🆘 Need Help?
 
-- 📖 **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Setup, build instructions, and contribution guidelines
-- 📋 **[Technical Design Document](docs/TECHNICAL_DESIGN.md)** - Architecture, security, and implementation details
-
-## ❓ Need Help?
-
-**Having trouble?** Check out these resources:
-
-- 📖 **[Setup Guide & FAQ](https://vega.benidevo.com/#faq)** for installation and common questions
-- 🐛 **[Report a Bug](https://github.com/benidevo/vega-ai-extension/issues)** if something isn't working
-- 💡 **[Request a Feature](https://github.com/benidevo/vega-ai-extension/issues)** to suggest improvements
+- 📖 **[FAQ](https://vega.benidevo.com/#faq)** - Answers to common questions
+- 🐛 **[Report a bug](https://github.com/benidevo/vega-ai-extension/issues)**
+- 💡 **[Request a feature](https://github.com/benidevo/vega-ai-extension/issues)**
+- 💬 **[Discussions](https://github.com/benidevo/vega-ai-extension/discussions)** - Chat with other users
 
 ## 📝 License
 
 This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0).
 
-**What this means:**
+What this means:
 
 - ✅ You can use, study, modify, and distribute the code
 - ✅ If you run this software on a server, you must make your source code available to users
 - ✅ Any modifications must also be released under AGPL-3.0
 
-**Commercial licensing:** For commercial use without AGPL restrictions, contact [benjaminidewor@gmail.com](mailto:benjaminidewor@gmail.com) for licensing options.
+For commercial licensing without AGPL requirements, email [benjaminidewor@gmail.com](mailto:benjaminidewor@gmail.com).

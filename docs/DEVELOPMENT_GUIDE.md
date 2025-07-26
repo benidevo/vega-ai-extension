@@ -1,45 +1,90 @@
 # Development Guide
 
-## 🛠️ Development Setup
+## 🛠️ Getting Started
 
-### Prerequisites
+### What You'll Need
 
-- Node.js 20+ and npm
-- Chrome browser for testing
+- Node.js 22+ and npm
+- Chrome browser
+- Git
+- VS Code (or any editor with TypeScript support)
 
-### Getting Started
+### Quick Setup
 
 ```bash
-# Clone the repository
+# Clone and install
 git clone https://github.com/benidevo/vega-ai-extension.git
 cd vega-ai-extension
-
-# Install dependencies
 npm install
 
-# Start development build with watch mode
+# Start development
 npm run dev
+
+# In another terminal (optional)
+npm run test:watch
 ```
 
-### Authentication Configuration
+### Loading the Extension in Chrome
 
-The extension supports two authentication modes:
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" (toggle in top right)
+3. Click "Load unpacked"
+4. Select the `dist` folder from your project directory
+5. The extension icon will appear in your toolbar
 
-- **Cloud Mode**: Uses Google OAuth via the Vega AI cloud service
-- **Local Mode**: Uses username/password authentication for self-hosted backends
+### Backend Configuration
 
-The authentication mode is automatically selected based on the backend configuration in the extension settings.
+The extension can connect to:
 
-### Available Scripts
+- **Cloud** (default): The hosted Vega AI service
+- **Local**: Your own backend
+
+Users can switch modes in the extension popup.
+
+### Authentication Options
+
+- **Username/Password**: Always available
+- **Google OAuth**: Disabled by default
+
+To enable Google OAuth, edit `src/config/index.ts`:
+
+```typescript
+production: {
+  features: {
+    enableGoogleAuth: true,
+  },
+  auth: {
+    providers: {
+      google: {
+        clientId: 'your-client-id.apps.googleusercontent.com'
+      }
+    }
+  }
+}
+```
+
+### Useful Commands
 
 ```bash
-npm run dev         # Development build with watch mode
-npm run build       # Production build
-npm run lint        # Run ESLint
-npm run test        # Run Jest tests
-npm run typecheck   # Run TypeScript type checking
-npm run format      # Format code with Prettier
-npm run format:check # Check code formatting
+# Development
+npm run dev              # Watch mode
+npm run build            # Production build
+npm run clean            # Clean dist folder
+
+# Code Quality
+npm run lint             # Check code style
+npm run lint:fix         # Fix style issues
+npm run typecheck        # Check types
+npm run format           # Format code
+
+# Testing
+npm test                 # Run tests
+npm run test:watch       # Watch mode
+
+# Releases
+npm run release:patch    # 1.0.0 → 1.0.1
+npm run release:minor    # 1.0.0 → 1.1.0
+npm run release:major    # 1.0.0 → 2.0.0
 ```
 
 ### Build & Release
@@ -48,11 +93,9 @@ npm run format:check # Check code formatting
 - **Manual Build**: Trigger from GitHub Actions for testing
 - **Release**: Auto-triggered by git tags
 
-## 📦 Creating a New Release
+## 📦 Creating Releases
 
-### Automated Release Process
-
-The project uses GitHub Actions to automatically create releases when you push a version tag. Here's the complete process:
+Releases happen automatically when you push a version tag:
 
 #### 1. Ensure your changes are merged to master
 
@@ -95,12 +138,11 @@ git push origin --tags
 
 #### 4. GitHub Actions will automatically
 
+- Run tests and linting
 - Build the extension
-- Run all tests
-- Create a GitHub release with:
-  - Changelog from commit messages
-  - Built extension as `vega-ai-job-capture-vX.X.X.zip`
-  - Source code archives
+- Create a ZIP file
+- Upload to Chrome Web Store (if configured)
+- Create a GitHub release with the ZIP
 
 #### 5. Manual verification
 
@@ -110,11 +152,7 @@ git push origin --tags
 
 ### Version Management
 
-The version is managed in a single place (`package.json`) and automatically propagated to:
-
-- `manifest.json` during build
-- GitHub release tags
-- Built extension metadata
+The version in `package.json` is the source of truth. The `prepare-release.js` script syncs it to `manifest.json`.
 
 ### Release Checklist
 
@@ -145,71 +183,124 @@ If the release workflow fails:
 
 ### Code Quality
 
-Pre-commit hooks run ESLint, Prettier, TypeScript checks, and tests automatically.
+Pre-commit hooks run automatically to check your code. They run ESLint, Prettier, and TypeScript checks. If something fails, fix it and try again.
 
 ### Adding New Job Sites
 
-1. Create extractor in `src/content/extractors/` implementing `IJobExtractor`
-2. Register in `src/content/extractors/index.ts`
-3. Content script auto-detects and uses it
+Want to add Indeed or another job site? Here's how:
+
+1. Create a new extractor in `src/content/extractors/`:
+
+   ```typescript
+   export class IndeedExtractor implements IJobExtractor {
+     canExtract(url: string): boolean {
+       return url.includes('indeed.com/viewjob');
+     }
+
+     extract(): JobListing | null {
+       // Pull data from the page
+     }
+   }
+   ```
+
+2. Add it to `src/content/extractors/index.ts`
+
+3. Add the domain to `manifest.json`:
+
+   ```json
+   "host_permissions": [
+     "https://*.linkedin.com/*",
+     "https://*.indeed.com/*"
+   ]
+   ```
 
 ## 🧪 Testing
 
+### Running Tests
+
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
+npm test              # Run once
+npm run test:watch    # Keep running
 ```
 
-## 🔧 Loading the Extension for Development
+### Writing Tests
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in top right)
-3. Click "Load unpacked" and select the `dist` folder
-4. The extension icon should appear in your toolbar
+Tests use Jest and mock the Chrome APIs. Example:
 
-## 📁 Project Structure
+```typescript
+describe('IndeedExtractor', () => {
+  it('extracts job data', () => {
+    document.body.innerHTML = '<div>Mock Indeed HTML</div>';
+    const extractor = new IndeedExtractor();
+    const job = extractor.extract();
 
-```plaintext
+    expect(job?.title).toBe('Software Engineer');
+  });
+});
+```
+
+## 🔧 Development Tips
+
+### Loading Your Changes
+
+After running `npm run dev`:
+
+1. Go to `chrome://extensions/`
+2. Click "Reload" on the Vega AI extension
+3. Refresh the LinkedIn page you're testing on
+
+### What Needs Reloading
+
+- **Content script changes**: Refresh the LinkedIn page
+- **Background changes**: Reload the extension
+- **Popup changes**: Just close and reopen the popup
+- **Manifest changes**: Always reload the extension
+
+## 📁 Code Organization
+
+```
 src/
-├── background/         # Background service worker
-│   ├── services/      # Core services (auth, API, storage, etc.)
-│   └── index.ts       # Service worker entry
-├── content/           # Content scripts
-│   ├── extractors/    # Job site extractors
-│   └── overlay.ts     # UI overlay for job capture
-├── popup/             # Extension popup
-│   ├── index.html     # Popup UI
-│   └── index.ts       # Popup logic
-├── config/            # Configuration management
-├── types/             # TypeScript type definitions
-└── utils/             # Shared utilities
+├── background/          # Service worker (runs in background)
+│   ├── services/       # All the main logic
+│   └── index.ts        # Entry point
+│
+├── content/            # Runs on LinkedIn pages
+│   ├── extractors/     # Gets job data from pages
+│   ├── overlay.ts      # The floating button/panel
+│   └── index.ts        # Entry point
+│
+├── popup/              # The extension popup
+│   ├── index.html      # UI structure
+│   └── index.ts        # Sign in logic
+│
+├── config/             # Settings
+├── types/              # TypeScript types
+├── utils/              # Helper functions
+└── styles/             # CSS files
 ```
 
 ## 🔐 Security Notes
 
-- OAuth client IDs are public (not secret)
-- Never commit actual user credentials
-- API endpoints can be configured per environment
-- All sensitive operations happen on the backend
+- OAuth client IDs are public (safe in code)
+- Never log user passwords or tokens
+- Always use HTTPS in production
+- Run `npm audit` regularly to check dependencies
+- Test with minimal permissions first
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes and test thoroughly
-4. Commit your changes (`git commit -m 'Add amazing feature'`)
-5. Push to your branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
+### How to Contribute
 
-### Pull Request Guidelines
+1. Fork the repo and clone it
+2. Create a branch: `git checkout -b feature/cool-feature`
+3. Make your changes
+4. Test everything: `npm test && npm run lint`
+5. Push and open a PR
 
-- Fill out the PR template completely
-- Ensure all tests pass
-- Update documentation if needed
-- Keep PRs focused on a single feature/fix
+### PR Guidelines
+
+Write a clear title and description. Make sure tests pass. Keep changes focused on one thing.
+
+### Getting Help
+
+Open an issue if you're stuck or have questions.
