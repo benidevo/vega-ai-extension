@@ -8,6 +8,7 @@ import {
   validateHost,
   ValidationResult,
 } from '@/utils/validation';
+import { MessageType } from '@/background/services/message/IMessageService';
 
 /**
  * Represents the popup UI logic.
@@ -37,6 +38,17 @@ class Popup {
       await this.render(isAuthenticated, isJobPage);
       this.attachEventListeners(isAuthenticated);
       this.attachSettingsEventListeners();
+
+      // Listen for auth state changes from background
+      chrome.runtime.onMessage.addListener(message => {
+        if (message.type === MessageType.AUTH_STATE_CHANGED) {
+          // Only re-initialize if we're not in the middle of signing in
+          // This prevents clearing error messages during failed login attempts
+          if (!this.isSigningIn) {
+            this.initialize();
+          }
+        }
+      });
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'popup_initialize',

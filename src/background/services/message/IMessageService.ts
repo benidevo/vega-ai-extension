@@ -49,6 +49,7 @@ export enum MessageType {
   // Auth-related messages
   LOGIN = 'LOGIN',
   LOGOUT = 'LOGOUT',
+  AUTH_STATE_CHANGED = 'AUTH_STATE_CHANGED',
 
   // UI-related messages
   OPEN_POPUP = 'OPEN_POPUP',
