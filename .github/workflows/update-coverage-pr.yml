@@ -1,0 +1,110 @@
+name: Update Coverage Badge
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  update-coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - run: npm ci
+    
+    - run: npm run test:coverage
+    
+    - name: Update coverage badge
+      run: |
+        COVERAGE=$(node -e "const c = require('./coverage/coverage-summary.json'); console.log(c.total.lines.pct.toFixed(2))")
+        
+        # Determine color based on coverage
+        if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+          COLOR="brightgreen"
+        elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+          COLOR="green"
+        elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+          COLOR="yellow"
+        elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+          COLOR="orange"
+        else
+          COLOR="red"
+        fi
+        
+        # Update both coverage percentage and color
+        sed -i -E "s/Coverage-[0-9.]*%25-[a-z]+/Coverage-${COVERAGE}%25-${COLOR}/" README.md
+        
+        # Export for use in PR comment
+        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+        echo "COLOR=$COLOR" >> $GITHUB_ENV
+    
+    - name: Check if README changed
+      id: readme-changed
+      run: |
+        if git diff --quiet README.md; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Commit changes to PR
+      if: steps.readme-changed.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git commit -m "Update coverage badge to ${{ env.COVERAGE }}%"
+        git push
+    
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const coverage = process.env.COVERAGE;
+          const color = process.env.COLOR;
+          
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('Coverage Report')
+          );
+          
+          const body = `## 📊 Coverage Report
+          
+          **Coverage:** ${coverage}% ![Coverage](https://img.shields.io/badge/Coverage-${coverage}%25-${color})
+          
+          Coverage badge has been updated in this PR.`;
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: body
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+          }

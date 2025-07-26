@@ -85,12 +85,12 @@ module.exports = (env, argv) => {
               // Conditionally include host permissions based on environment
               if (isProduction) {
                 manifest.host_permissions = [
-                  "https://*.linkedin.com/*",
+                  "https://*.linkedin.com/jobs/*",
                   "https://vega.benidevo.com/*"
                 ];
               } else {
                 manifest.host_permissions = [
-                  "https://*.linkedin.com/*",
+                  "https://*.linkedin.com/jobs/*",
                   "https://vega.benidevo.com/*",
                   "http://localhost:*/*"
                 ];

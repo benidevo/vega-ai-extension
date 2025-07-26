@@ -11,7 +11,7 @@
   },
   "permissions": ["storage", "identity", "activeTab", "alarms"],
   "optional_permissions": [],
-  "host_permissions": ["https://*.linkedin.com/*"],
+  "host_permissions": ["https://*.linkedin.com/jobs/*"],
   "background": {
     "service_worker": "background/index.js"
   },
