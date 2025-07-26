@@ -22,6 +22,8 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/**/index.ts',
     '!src/types/**',
+    '!src/**/I[A-Z]*.ts',
+    '!src/**/*.styles.ts',
   ],
   coverageProvider: 'v8',
   coverageDirectory: 'coverage',

@@ -7,6 +7,7 @@ jest.mock('@/background/services', () => ({
     initialize: jest.fn().mockResolvedValue(undefined),
     destroy: jest.fn().mockResolvedValue(undefined),
     setAuthToken: jest.fn(),
+    saveJob: jest.fn(),
     isInitialized: jest.fn().mockReturnValue(true),
   })),
   MessageService: jest.fn().mockImplementation(() => ({
@@ -29,6 +30,8 @@ jest.mock('@/background/services', () => ({
     initialize: jest.fn().mockResolvedValue(undefined),
     destroy: jest.fn().mockResolvedValue(undefined),
     updateCount: jest.fn().mockResolvedValue(undefined),
+    showSuccess: jest.fn().mockResolvedValue(undefined),
+    showError: jest.fn().mockResolvedValue(undefined),
     isInitialized: jest.fn().mockReturnValue(true),
   })),
   MessageType: {
@@ -36,6 +39,8 @@ jest.mock('@/background/services', () => ({
     LOGOUT: 'LOGOUT',
     SAVE_JOB: 'SAVE_JOB',
     AUTH_STATE_CHANGED: 'AUTH_STATE_CHANGED',
+    JOB_EXTRACTED: 'JOB_EXTRACTED',
+    OPEN_POPUP: 'OPEN_POPUP',
   },
 }));
 
@@ -45,6 +50,9 @@ jest.mock('@/background/services/auth/MultiProviderAuthService', () => ({
     destroy: jest.fn().mockResolvedValue(undefined),
     login: jest.fn(),
     logout: jest.fn(),
+    loginWithProvider: jest.fn(),
+    loginWithPassword: jest.fn(),
+    getAvailableProviders: jest.fn(),
     refreshToken: jest.fn(),
     getAuthToken: jest.fn(),
     getRefreshToken: jest.fn(),
@@ -69,9 +77,11 @@ jest.mock('@/config/dynamicConfig', () => ({
             clientId: 'test-client-id',
             redirectUri: 'test-redirect-uri',
             scopes: ['profile', 'email'],
+            apiEndpoint: '/auth/google',
           },
           password: {
             enabled: true,
+            apiBaseUrl: 'http://localhost:8765',
           },
         },
       },
@@ -79,6 +89,7 @@ jest.mock('@/config/dynamicConfig', () => ({
         syncInterval: 5,
       },
     }),
+    clearCache: jest.fn(),
   },
 }));
 
@@ -109,6 +120,7 @@ jest.mock('@/utils/logger', () => ({
 jest.mock('@/background/services/KeepAliveService', () => ({
   keepAliveService: {
     initialize: jest.fn().mockResolvedValue(undefined),
+    destroy: jest.fn().mockResolvedValue(undefined),
     start: jest.fn(),
   },
 }));
@@ -116,8 +128,18 @@ jest.mock('@/background/services/KeepAliveService', () => ({
 jest.mock('@/background/services/ConnectionManager', () => ({
   connectionManager: {
     initialize: jest.fn(),
+    destroy: jest.fn(),
   },
 }));
+
+const mockChrome = {
+  action: {
+    setBadgeText: jest.fn(),
+    setBadgeBackgroundColor: jest.fn(),
+  },
+};
+
+(global as any).chrome = mockChrome;
 
 describe('ServiceManager', () => {
   let serviceManager: ServiceManager;
@@ -303,6 +325,467 @@ describe('ServiceManager', () => {
       await authStateChangeCallback(false);
 
       expect(apiService.setAuthToken).toHaveBeenCalledWith(null);
+    });
+
+    it('should warn when auth state is true but no token available', async () => {
+      await serviceManager.initialize();
+
+      const authService = (serviceManager as any).authService;
+      const apiService = (serviceManager as any).apiService;
+      const logger = (serviceManager as any).logger;
+      const authStateChangeCallback =
+        authService.onAuthStateChange.mock.calls[0][0];
+
+      authService.getAuthToken.mockResolvedValue(null);
+
+      await authStateChangeCallback(true);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Authentication state is true but no token available'
+      );
+      expect(apiService.setAuthToken).not.toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe('additional message handlers', () => {
+    beforeEach(async () => {
+      await serviceManager.initialize();
+    });
+
+    describe('LOGIN_WITH_PROVIDER handler', () => {
+      it('should handle successful provider login', async () => {
+        const authService = (serviceManager as any).authService;
+        authService.loginWithProvider.mockResolvedValue(undefined);
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'LOGIN_WITH_PROVIDER'
+        )[1];
+
+        const message = {
+          type: 'LOGIN_WITH_PROVIDER',
+          payload: {
+            provider: 'google',
+            credentials: { token: 'test-token' },
+          },
+        };
+
+        handler(message, {}, mockSendResponse);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(authService.loginWithProvider).toHaveBeenCalledWith('google', {
+          token: 'test-token',
+        });
+        expect(mockSendResponse).toHaveBeenCalledWith({ success: true });
+      });
+
+      it('should handle provider login failure', async () => {
+        const authService = (serviceManager as any).authService;
+        authService.loginWithProvider.mockRejectedValue(
+          new Error('Provider login failed')
+        );
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'LOGIN_WITH_PROVIDER'
+        )[1];
+
+        const message = {
+          type: 'LOGIN_WITH_PROVIDER',
+          payload: {
+            provider: 'google',
+          },
+        };
+
+        handler(message, {}, mockSendResponse);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: false,
+          error: 'An error occurred',
+        });
+      });
+    });
+
+    describe('LOGIN_WITH_PASSWORD handler', () => {
+      it('should handle successful password login', async () => {
+        const authService = (serviceManager as any).authService;
+        authService.loginWithPassword.mockResolvedValue(undefined);
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'LOGIN_WITH_PASSWORD'
+        )[1];
+
+        const message = {
+          type: 'LOGIN_WITH_PASSWORD',
+          payload: {
+            username: 'testuser',
+            password: 'testpass',
+          },
+        };
+
+        const result = handler(message, {}, mockSendResponse);
+        expect(result).toBe(true);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(authService.loginWithPassword).toHaveBeenCalledWith(
+          'testuser',
+          'testpass'
+        );
+        expect(mockSendResponse).toHaveBeenCalledWith({ success: true });
+      });
+
+      it('should handle password login failure', async () => {
+        const authService = (serviceManager as any).authService;
+        authService.loginWithPassword.mockRejectedValue(
+          new Error('Invalid credentials')
+        );
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'LOGIN_WITH_PASSWORD'
+        )[1];
+
+        const message = {
+          type: 'LOGIN_WITH_PASSWORD',
+          payload: {
+            username: 'testuser',
+            password: 'wrongpass',
+          },
+        };
+
+        handler(message, {}, mockSendResponse);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: false,
+          error: 'An error occurred',
+        });
+      });
+    });
+
+    describe('GET_AUTH_PROVIDERS handler', () => {
+      it('should return available providers', () => {
+        const authService = (serviceManager as any).authService;
+        authService.getAvailableProviders.mockReturnValue([
+          'google',
+          'password',
+        ]);
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'GET_AUTH_PROVIDERS'
+        )[1];
+
+        const message = { type: 'GET_AUTH_PROVIDERS' };
+        const result = handler(message, {}, mockSendResponse);
+
+        expect(result).toBe(false);
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: true,
+          providers: ['google', 'password'],
+        });
+      });
+    });
+
+    describe('PING handler', () => {
+      it('should respond with timestamp', () => {
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'PING'
+        )[1];
+
+        const message = { type: 'PING' };
+        const result = handler(message, {}, mockSendResponse);
+
+        expect(result).toBe(false);
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: true,
+          timestamp: expect.any(Number),
+        });
+      });
+    });
+
+    describe('JOB_EXTRACTED handler', () => {
+      it('should show success badge', async () => {
+        const badgeService = (serviceManager as any).badgeService;
+        badgeService.showSuccess.mockResolvedValue(undefined);
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === MessageType.JOB_EXTRACTED
+        )[1];
+
+        const message = { type: MessageType.JOB_EXTRACTED };
+        const result = handler(message, {}, mockSendResponse);
+
+        expect(result).toBe(false);
+        expect(badgeService.showSuccess).toHaveBeenCalled();
+      });
+
+      it('should handle badge error', async () => {
+        const badgeService = (serviceManager as any).badgeService;
+        badgeService.showSuccess.mockRejectedValue(new Error('Badge error'));
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === MessageType.JOB_EXTRACTED
+        )[1];
+
+        const message = { type: MessageType.JOB_EXTRACTED };
+        handler(message, {}, mockSendResponse);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const { errorService } = require('@/background/services/error');
+        expect(errorService.handleError).toHaveBeenCalled();
+      });
+    });
+
+    describe('SAVE_JOB handler', () => {
+      it('should handle successful job save', async () => {
+        const apiService = (serviceManager as any).apiService;
+        const badgeService = (serviceManager as any).badgeService;
+        apiService.saveJob.mockResolvedValue({ id: 'job-123' });
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === MessageType.SAVE_JOB
+        )[1];
+
+        const message = {
+          type: MessageType.SAVE_JOB,
+          payload: {
+            title: 'Test Job',
+            company: 'Test Corp',
+            location: 'Test City',
+            description: 'Test description',
+            sourceUrl: 'https://test.com',
+          },
+        };
+
+        handler(message, {}, mockSendResponse);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(apiService.saveJob).toHaveBeenCalledWith(message.payload);
+        expect(badgeService.showSuccess).toHaveBeenCalled();
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: true,
+          data: { id: 'job-123' },
+        });
+      });
+
+      it('should handle job save failure with AUTH_EXPIRED', async () => {
+        const apiService = (serviceManager as any).apiService;
+        const badgeService = (serviceManager as any).badgeService;
+        const error = new Error('Auth token expired');
+        (error as any).code = 'AUTH_EXPIRED';
+        apiService.saveJob.mockRejectedValue(error);
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === MessageType.SAVE_JOB
+        )[1];
+
+        const message = {
+          type: MessageType.SAVE_JOB,
+          payload: { title: 'Test Job' },
+        };
+
+        handler(message, {}, mockSendResponse);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(badgeService.showError).toHaveBeenCalled();
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: false,
+          error: 'Auth token expired',
+        });
+      });
+
+      it('should handle job save failure with AUTH_REFRESH_FAILED', async () => {
+        const apiService = (serviceManager as any).apiService;
+        const badgeService = (serviceManager as any).badgeService;
+        const error = new Error('Token refresh failed');
+        (error as any).code = 'AUTH_REFRESH_FAILED';
+        apiService.saveJob.mockRejectedValue(error);
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === MessageType.SAVE_JOB
+        )[1];
+
+        const message = {
+          type: MessageType.SAVE_JOB,
+          payload: { title: 'Test Job' },
+        };
+
+        handler(message, {}, mockSendResponse);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(badgeService.showError).toHaveBeenCalled();
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: false,
+          error: 'Token refresh failed',
+        });
+      });
+
+      it('should handle generic job save failure', async () => {
+        const apiService = (serviceManager as any).apiService;
+        const badgeService = (serviceManager as any).badgeService;
+        apiService.saveJob.mockRejectedValue(new Error('Network error'));
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === MessageType.SAVE_JOB
+        )[1];
+
+        const message = {
+          type: MessageType.SAVE_JOB,
+          payload: { title: 'Test Job' },
+        };
+
+        handler(message, {}, mockSendResponse);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(badgeService.showError).toHaveBeenCalled();
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: false,
+          error: 'An error occurred',
+        });
+      });
+    });
+
+    describe('OPEN_POPUP handler', () => {
+      it('should set attention badge', () => {
+        jest.useFakeTimers();
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === MessageType.OPEN_POPUP
+        )[1];
+
+        const message = { type: MessageType.OPEN_POPUP };
+        const result = handler(message, {}, mockSendResponse);
+
+        expect(result).toBe(false);
+        expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({
+          text: '!',
+        });
+        expect(mockChrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({
+          color: '#3B82F6',
+        });
+        expect(mockSendResponse).toHaveBeenCalledWith({ success: true });
+
+        jest.advanceTimersByTime(5000);
+        expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({
+          text: '',
+        });
+
+        jest.useRealTimers();
+      });
+    });
+
+    describe('RELOAD_SETTINGS handler', () => {
+      it('should handle successful settings reload', async () => {
+        const { DynamicConfig } = require('@/config/dynamicConfig');
+        DynamicConfig.clearCache.mockClear();
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'RELOAD_SETTINGS'
+        )[1];
+
+        const message = { type: 'RELOAD_SETTINGS' };
+        const result = handler(message, {}, mockSendResponse);
+        expect(result).toBe(true);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(DynamicConfig.clearCache).toHaveBeenCalled();
+        expect(mockSendResponse).toHaveBeenCalledWith({ success: true });
+      });
+
+      it('should handle settings reload failure', async () => {
+        const { DynamicConfig } = require('@/config/dynamicConfig');
+        DynamicConfig.getConfig.mockRejectedValueOnce(
+          new Error('Config load failed')
+        );
+
+        const messageService = (serviceManager as any).messageService;
+        const handler = messageService.on.mock.calls.find(
+          (call: any) => call[0] === 'RELOAD_SETTINGS'
+        )[1];
+
+        const message = { type: 'RELOAD_SETTINGS' };
+        handler(message, {}, mockSendResponse);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(mockSendResponse).toHaveBeenCalledWith({
+          success: false,
+          error: 'An error occurred',
+        });
+      });
+    });
+  });
+
+  describe('getters', () => {
+    beforeEach(async () => {
+      await serviceManager.initialize();
+    });
+
+    it('should return all services through getters', () => {
+      expect(serviceManager.auth).toBe((serviceManager as any).authService);
+      expect(serviceManager.api).toBe((serviceManager as any).apiService);
+      expect(serviceManager.message).toBe(
+        (serviceManager as any).messageService
+      );
+      expect(serviceManager.storage).toBe(
+        (serviceManager as any).storageService
+      );
+      expect(serviceManager.badge).toBe((serviceManager as any).badgeService);
+    });
+  });
+
+  describe('destroy', () => {
+    it('should destroy all services', async () => {
+      await serviceManager.initialize();
+
+      const authService = (serviceManager as any).authService;
+      const apiService = (serviceManager as any).apiService;
+      const messageService = (serviceManager as any).messageService;
+      const badgeService = (serviceManager as any).badgeService;
+      const {
+        keepAliveService,
+      } = require('@/background/services/KeepAliveService');
+      const {
+        connectionManager,
+      } = require('@/background/services/ConnectionManager');
+
+      await serviceManager.destroy();
+
+      expect(keepAliveService.destroy).toHaveBeenCalled();
+      expect(connectionManager.destroy).toHaveBeenCalled();
+      expect(authService.destroy).toHaveBeenCalled();
+      expect(apiService.destroy).toHaveBeenCalled();
+      expect(messageService.destroy).toHaveBeenCalled();
+      expect(badgeService.destroy).toHaveBeenCalled();
+      expect((serviceManager as any).isInitialized).toBe(false);
+    });
+  });
+
+  describe('initialization edge cases', () => {
+    it('should not reinitialize if already initialized', async () => {
+      await serviceManager.initialize();
+
+      const authService = (serviceManager as any).authService;
+      jest.clearAllMocks();
+
+      await serviceManager.initialize();
+
+      expect(authService.initialize).not.toHaveBeenCalled();
     });
   });
 });

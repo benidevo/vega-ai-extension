@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "prepare": "husky",
     "release:prepare": "node scripts/prepare-release.js",
     "release:patch": "npm version patch && npm run release:prepare",

@@ -1,7 +1,6 @@
 import { LinkedInExtractor } from '../../../../src/content/extractors/linkedin';
 import { JobListing } from '../../../../src/types';
 
-// Mock validation utilities
 jest.mock('../../../../src/utils/validation', () => ({
   cleanUrl: jest.fn((url: string) => url),
   isValidJobListing: jest.fn(() => true),
@@ -51,7 +50,6 @@ describe('LinkedInExtractor', () => {
 
   describe('extract', () => {
     it('should extract job data from LinkedIn job page', () => {
-      // Create mock DOM structure
       mockDocument.body.innerHTML = `
         <div>
           <h1 class="jobs-unified-top-card__job-title">Senior Software Engineer</h1>
@@ -171,10 +169,8 @@ describe('LinkedInExtractor', () => {
     });
 
     it('should handle extraction errors gracefully', () => {
-      // Mock console.error to verify it's called
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      // Create a document that will cause an error
       const errorDocument = {
         querySelector: jest.fn(() => {
           throw new Error('DOM error');

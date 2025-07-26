@@ -53,7 +53,6 @@ describe('GoogleAuthService', () => {
         refresh_token: 'refresh-token',
       };
 
-      // Mock mockChrome.identity.launchWebAuthFlow
       mockChrome.identity.launchWebAuthFlow = jest.fn((_details, callback) => {
         callback(`https://redirect.url?code=${mockAuthCode}`);
       });
@@ -62,7 +61,6 @@ describe('GoogleAuthService', () => {
         'https://redirect.url/'
       );
 
-      // Mock successful token exchange
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: jest.fn().mockResolvedValue(mockTokenResponse),

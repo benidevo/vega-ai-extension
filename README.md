@@ -1,6 +1,7 @@
 # Vega AI Job Capture Extension
 
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
+[![Coverage Status](https://img.shields.io/badge/Coverage-90.49%25-brightgreen.svg)](https://github.com/benidevo/vega-ai-extension)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)
@@ -28,7 +29,7 @@ This Chrome extension adds a floating button to LinkedIn job pages that lets you
 3. Add your notes (optional)
 4. Hit save and you're done
 
-No more copy-pasting job details into spreadsheets.
+No more copy-pasting job details.
 
 ## 📥 Get Started
 
@@ -143,10 +144,10 @@ The code is organized into these main parts:
 
 ## 🆘 Need Help?
 
-- 📖 **[FAQ](https://vega.benidevo.com/#faq)** - Answers to common questions
+- 📖 **[FAQ](https://vega.benidevo.com/#faq)**
 - 🐛 **[Report a bug](https://github.com/benidevo/vega-ai-extension/issues)**
 - 💡 **[Request a feature](https://github.com/benidevo/vega-ai-extension/issues)**
-- 💬 **[Discussions](https://github.com/benidevo/vega-ai-extension/discussions)** - Chat with other users
+- 💬 **[Discussions](https://github.com/benidevo/vega-ai-extension/discussions)**
 
 ## 📝 License
 

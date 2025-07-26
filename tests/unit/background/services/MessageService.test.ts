@@ -233,7 +233,7 @@ describe('MessageService', () => {
 
       expect(handler1).toHaveBeenCalled();
       expect(handler2).toHaveBeenCalled();
-      expect(result).toBe(true); // Should return true if any handler is async
+      expect(result).toBe(true);
     });
 
     it('should handle messages with no registered handlers', () => {
