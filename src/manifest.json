@@ -29,11 +29,5 @@
       "js": ["content/index.js"],
       "run_at": "document_idle"
     }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["icons/logo.svg"],
-      "matches": ["https://*.linkedin.com/*"]
-    }
   ]
 }

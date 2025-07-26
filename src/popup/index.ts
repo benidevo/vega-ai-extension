@@ -22,6 +22,7 @@ class Popup {
   private isSigningIn = false;
   private currentView: 'main' | 'settings' = 'main';
   private statusTimeout: number | null = null;
+  private errorTimeout: number | null = null;
   private logger = new Logger('Popup');
 
   constructor() {
@@ -76,7 +77,7 @@ class Popup {
 
     // Currently only LinkedIn is supported
     // TODO: Add support for Indeed and Glassdoor job pages
-    return url.includes('linkedin.com/jobs/view/');
+    return url.includes('linkedin.com/jobs/');
   }
 
   private async render(
@@ -382,16 +383,24 @@ class Popup {
 
       if (response && response.success) {
         await this.initialize();
+        this.isSigningIn = false;
       } else {
         this.showAuthError(response?.error || 'Google sign-in failed');
+
+        setTimeout(() => {
+          this.isSigningIn = false;
+        }, 1000);
       }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'google_auth',
       });
       this.showAuthError(errorDetails.userMessage);
+
+      setTimeout(() => {
+        this.isSigningIn = false;
+      }, 1000);
     } finally {
-      this.isSigningIn = false;
       googleBtn.disabled = false;
       googleBtn.textContent = originalText;
     }
@@ -535,23 +544,42 @@ class Popup {
       });
 
       if (response && response.success) {
-        // Small delay to ensure storage is synced
         await new Promise(resolve => setTimeout(resolve, 100));
         await this.initialize();
       } else {
         const errorMessage = response?.error || 'Sign in failed';
         this.showAuthError(errorMessage);
+
+        this.updateSignInButtonState();
+        passwordBtn.textContent = originalText;
+
+        usernameInput.focus();
+
+        setTimeout(() => {
+          this.isSigningIn = false;
+        }, 1000);
+        return;
       }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'password_auth',
       });
       this.showAuthError(errorDetails.userMessage);
-    } finally {
-      this.isSigningIn = false;
+
       this.updateSignInButtonState();
       passwordBtn.textContent = originalText;
+
+      usernameInput.focus();
+
+      setTimeout(() => {
+        this.isSigningIn = false;
+      }, 1000);
+      return;
     }
+
+    this.isSigningIn = false;
+    this.updateSignInButtonState();
+    passwordBtn.textContent = originalText;
   }
 
   private showAuthError(message: string): void {
@@ -559,15 +587,23 @@ class Popup {
     const errorText = document.getElementById('auth-error-text');
 
     if (errorDiv && errorText) {
-      errorText.textContent = message;
-      errorDiv.classList.remove('hidden');
+      if (this.errorTimeout) {
+        clearTimeout(this.errorTimeout);
+        this.errorTimeout = null;
+      }
 
-      // Auto-hide after 5 seconds - balanced for accessibility and UX
+      errorDiv.classList.add('hidden');
+
       setTimeout(() => {
-        errorDiv.classList.add('hidden');
-      }, 5000);
+        errorText.textContent = message;
+        errorDiv.classList.remove('hidden');
+
+        this.errorTimeout = window.setTimeout(() => {
+          errorDiv.classList.add('hidden');
+          this.errorTimeout = null;
+        }, 5000);
+      }, 10);
     } else {
-      // If the error elements don't exist, display error in status area as fallback
       this.renderError(message);
     }
   }

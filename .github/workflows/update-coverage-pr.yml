@@ -3,6 +3,14 @@ name: Update Coverage Badge
 on:
   pull_request:
     types: [opened, synchronize]
+    paths:
+      - '**.ts'
+      - '**.tsx'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'jest.config.js'
 
 jobs:
   update-coverage:
