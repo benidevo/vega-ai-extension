@@ -233,17 +233,32 @@ export class ErrorService {
 
   async notifyUser(errorDetails: ErrorDetails): Promise<void> {
     try {
-      // Send notification to the extension popup or content script
-      await chrome.runtime.sendMessage({
-        type: 'ERROR_NOTIFICATION',
-        payload: {
-          message: errorDetails.userMessage,
-          category: errorDetails.category,
-          retryable: errorDetails.retryable,
-        },
-      });
+      if (chrome?.runtime?.sendMessage) {
+        await chrome.runtime.sendMessage({
+          type: 'ERROR_NOTIFICATION',
+          payload: {
+            message: errorDetails.userMessage,
+            category: errorDetails.category,
+            retryable: errorDetails.retryable,
+          },
+        });
+      } else {
+        this.logger.warn('Chrome runtime not available for error notification');
+      }
     } catch (notificationError) {
-      this.logger.error('Failed to send error notification', notificationError);
+      if (
+        notificationError instanceof Error &&
+        notificationError.message.includes('Extension context invalidated')
+      ) {
+        this.logger.warn(
+          'Extension context invalidated, cannot send notification'
+        );
+      } else {
+        this.logger.error(
+          'Failed to send error notification',
+          notificationError
+        );
+      }
     }
   }
 
@@ -254,6 +269,8 @@ export class ErrorService {
     context?: Record<string, unknown>
   ): Promise<T> {
     let lastError: ErrorDetails | null = null;
+    const maxDelay = 8000;
+    const jitterPercent = 25;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -269,15 +286,25 @@ export class ErrorService {
           throw error;
         }
 
+        const exponentialDelay = Math.min(
+          delay * Math.pow(2, attempt - 1),
+          maxDelay
+        );
+
+        const jitterRange = exponentialDelay * (jitterPercent / 100);
+        const jitteredDelay = Math.round(
+          exponentialDelay + (Math.random() - 0.5) * 2 * jitterRange
+        );
+
         this.logger.info(
           `Retrying operation (attempt ${attempt}/${maxRetries})`,
           {
-            delay,
+            delayMs: jitteredDelay,
             category: lastError.category,
           }
         );
 
-        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        await new Promise(resolve => setTimeout(resolve, jitteredDelay));
       }
     }
 

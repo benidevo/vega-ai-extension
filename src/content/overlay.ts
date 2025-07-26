@@ -299,8 +299,10 @@ export class VegaAIOverlay {
           error instanceof Error &&
           error.message.includes('Extension context invalidated')
         ) {
-          // Try to re-establish connection instead of suggesting refresh
           try {
+            if (!chrome?.runtime?.sendMessage) {
+              throw new Error('Chrome runtime not available');
+            }
             const response = await chrome.runtime.sendMessage({ type: 'PING' });
             if (response) {
               // Retry the save
@@ -898,16 +900,22 @@ export class VegaAIOverlay {
     signInButton.style.marginTop = '20px';
 
     const signInHandler = () => {
-      // Send message to background to set attention badge
-      chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, () => {
-        const instruction = document.createElement('p');
-        instruction.style.cssText =
-          'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
-        instruction.textContent = '→ Click the Vega AI icon in your toolbar';
-        authDiv.appendChild(instruction);
+      if (chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, () => {
+          if (chrome.runtime.lastError) {
+            overlayLogger.warn('Failed to send OPEN_POPUP message', {
+              error: chrome.runtime.lastError.message,
+            });
+          }
+        });
+      }
+      const instruction = document.createElement('p');
+      instruction.style.cssText =
+        'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
+      instruction.textContent = '→ Click the Vega AI icon in your toolbar';
+      authDiv.appendChild(instruction);
 
-        signInButton.style.display = 'none';
-      });
+      signInButton.style.display = 'none';
     };
 
     signInButton.addEventListener('click', signInHandler);
