@@ -223,8 +223,9 @@ export class MultiProviderAuthService implements IAuthService {
       }
     });
 
-    // Broadcast auth state change to all tabs and runtime
-    chrome.tabs.query({}, tabs => {
+    // Broadcast auth state change to relevant tabs
+    // Only query tabs that match our content script patterns to improve performance
+    chrome.tabs.query({ url: ['*://*.linkedin.com/*'] }, tabs => {
       tabs.forEach(tab => {
         if (tab.id) {
           chrome.tabs
@@ -232,8 +233,17 @@ export class MultiProviderAuthService implements IAuthService {
               type: MessageType.AUTH_STATE_CHANGED,
               payload: { isAuthenticated },
             })
-            .catch(() => {
-              // Ignore errors for tabs that don't have the content script
+            .catch(error => {
+              // Only ignore "no receiver" errors, log others for debugging
+              if (
+                !error.message?.includes('Could not establish connection') &&
+                !error.message?.includes('Receiving end does not exist')
+              ) {
+                authLogger.warn('Failed to broadcast auth state to tab', {
+                  tabId: tab.id,
+                  error: error.message,
+                });
+              }
             });
         }
       });
@@ -245,8 +255,16 @@ export class MultiProviderAuthService implements IAuthService {
         type: MessageType.AUTH_STATE_CHANGED,
         payload: { isAuthenticated },
       })
-      .catch(() => {
-        // Ignore errors if no listeners
+      .catch(error => {
+        // Only ignore "no receiver" errors, log others for debugging
+        if (
+          !error.message?.includes('Could not establish connection') &&
+          !error.message?.includes('Receiving end does not exist')
+        ) {
+          authLogger.warn('Failed to broadcast auth state to runtime', {
+            error: error.message,
+          });
+        }
       });
   }
 }
