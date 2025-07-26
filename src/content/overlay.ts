@@ -4,6 +4,7 @@ import { overlayStyles } from './styles/overlay.styles';
 import { overlayLogger } from '../utils/logger';
 import { errorService } from '@/background/services/error';
 import { sendMessage } from '@/utils/messageWrapper';
+import { MessageType } from '@/background/services/message/IMessageService';
 
 /**
  * Provides a floating overlay UI for capturing and displaying job listing information on a web page.
@@ -69,6 +70,20 @@ export class VegaAIOverlay {
     this.createFloatingButton();
     this.createPanel();
     this.attachEventListeners();
+
+    // Listen for auth state changes from background
+    chrome.runtime.onMessage.addListener(message => {
+      if (message.type === MessageType.AUTH_STATE_CHANGED) {
+        overlayLogger.info('Auth state changed', message.payload);
+
+        this.isAuthenticated = message.payload.isAuthenticated;
+
+        if (this.isVisible && !this.isAuthenticated) {
+          const content = document.getElementById('vega-ai-job-preview');
+          this.showAuthRequired(content);
+        }
+      }
+    });
   }
 
   private async checkAuthentication(): Promise<void> {
@@ -823,14 +838,12 @@ export class VegaAIOverlay {
     const signInHandler = () => {
       // Send message to background to set attention badge
       chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, () => {
-        // Show instruction after sending message
         const instruction = document.createElement('p');
         instruction.style.cssText =
           'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
         instruction.textContent = '→ Click the Vega AI icon in your toolbar';
         authDiv.appendChild(instruction);
 
-        // Remove the button after click
         signInButton.style.display = 'none';
       });
     };
@@ -900,7 +913,6 @@ export class VegaAIOverlay {
   }
 
   public destroy(): void {
-    // Clear auto-save timer
     if (this.autoSaveTimer) {
       clearTimeout(this.autoSaveTimer);
       this.autoSaveTimer = null;
@@ -911,7 +923,6 @@ export class VegaAIOverlay {
     });
     this.eventListeners = [];
 
-    // Clear references
     this.container = null;
     this.button = null;
     this.panel = null;
@@ -919,7 +930,6 @@ export class VegaAIOverlay {
     this.extractedJob = null;
     this.isVisible = false;
 
-    // Clear cache
     this.jobCache.clear();
 
     // Remove DOM element

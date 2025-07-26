@@ -5,6 +5,7 @@ import { AuthCredentials } from './IAuthProvider';
 import { AuthProviderFactory, AuthProviderConfig } from './AuthProviderFactory';
 import { authLogger } from '../../../utils/logger';
 import { config } from '@/config';
+import { MessageType } from '../message/IMessageService';
 
 /**
  * Multi-provider authentication service
@@ -210,7 +211,6 @@ export class MultiProviderAuthService implements IAuthService {
       this.storageService.set('authToken', tokens.access_token),
     ]);
 
-    // Ensure storage is synced
     await chrome.storage.local.get(['authToken']);
   }
 
@@ -222,5 +222,49 @@ export class MultiProviderAuthService implements IAuthService {
         authLogger.error('Error in auth state listener', error);
       }
     });
+
+    // Broadcast auth state change to relevant tabs
+    // Only query tabs that match our content script patterns to improve performance
+    chrome.tabs.query({ url: ['*://*.linkedin.com/*'] }, tabs => {
+      tabs.forEach(tab => {
+        if (tab.id) {
+          chrome.tabs
+            .sendMessage(tab.id, {
+              type: MessageType.AUTH_STATE_CHANGED,
+              payload: { isAuthenticated },
+            })
+            .catch(error => {
+              // Only ignore "no receiver" errors, log others for debugging
+              if (
+                !error.message?.includes('Could not establish connection') &&
+                !error.message?.includes('Receiving end does not exist')
+              ) {
+                authLogger.warn('Failed to broadcast auth state to tab', {
+                  tabId: tab.id,
+                  error: error.message,
+                });
+              }
+            });
+        }
+      });
+    });
+
+    // Also send to any popup or other extension components
+    chrome.runtime
+      .sendMessage({
+        type: MessageType.AUTH_STATE_CHANGED,
+        payload: { isAuthenticated },
+      })
+      .catch(error => {
+        // Only ignore "no receiver" errors, log others for debugging
+        if (
+          !error.message?.includes('Could not establish connection') &&
+          !error.message?.includes('Receiving end does not exist')
+        ) {
+          authLogger.warn('Failed to broadcast auth state to runtime', {
+            error: error.message,
+          });
+        }
+      });
   }
 }
