@@ -7,7 +7,7 @@ jest.mock('../../../../src/utils/logger', () => ({
     warn: jest.fn(),
     debug: jest.fn(),
     time: jest.fn(async (_label, fn) => await fn()),
-  }
+  },
 }));
 
 global.fetch = jest.fn();
@@ -70,7 +70,11 @@ describe('APIService', () => {
 
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue({ id: '123', job: mockJob, createdAt: '2024-01-01' }),
+        json: jest.fn().mockResolvedValue({
+          id: '123',
+          job: mockJob,
+          createdAt: '2024-01-01',
+        }),
       });
 
       await apiService.initialize();
@@ -80,7 +84,7 @@ describe('APIService', () => {
         expect.any(String),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Authorization': `Bearer ${mockToken}`,
+            Authorization: `Bearer ${mockToken}`,
           }),
         })
       );
@@ -98,7 +102,7 @@ describe('APIService', () => {
       await apiService.initialize();
       await expect(apiService.saveJob(mockJob)).rejects.toMatchObject({
         code: 'API_ERROR',
-        message: 'Bad request'
+        message: 'Bad request',
       });
     });
 
@@ -109,7 +113,7 @@ describe('APIService', () => {
       await apiService.initialize();
       await expect(apiService.saveJob(mockJob)).rejects.toMatchObject({
         code: 'NETWORK_ERROR',
-        message: 'Connection error: Network error'
+        message: 'Connection error: Network error',
       });
     });
   });
