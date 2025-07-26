@@ -299,8 +299,10 @@ export class VegaAIOverlay {
           error instanceof Error &&
           error.message.includes('Extension context invalidated')
         ) {
-          // Try to re-establish connection instead of suggesting refresh
           try {
+            if (!chrome?.runtime?.sendMessage) {
+              throw new Error('Chrome runtime not available');
+            }
             const response = await chrome.runtime.sendMessage({ type: 'PING' });
             if (response) {
               // Retry the save
@@ -361,8 +363,8 @@ export class VegaAIOverlay {
 
   private updatePanelContent(
     container: HTMLElement | null,
-    state: 'loading' | 'success' | 'error' | 'data',
-    errorMessage?: string
+    state: 'loading' | 'success' | 'error' | 'data' | 'info',
+    message?: string
   ): void {
     if (!container) return;
 
@@ -506,6 +508,62 @@ export class VegaAIOverlay {
       successDiv.appendChild(iconWrapper);
       successDiv.appendChild(text);
       container.appendChild(successDiv);
+    } else if (state === 'info') {
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'vega-ai-text-center';
+      infoDiv.style.padding = '40px 0';
+
+      const iconWrapper = document.createElement('div');
+      iconWrapper.style.cssText =
+        'width: 60px; height: 60px; margin: 0 auto; background-color: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;';
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '30');
+      svg.setAttribute('height', '30');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', '#3B82F6');
+      svg.setAttribute('stroke-width', '2');
+
+      const circle = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'circle'
+      );
+      circle.setAttribute('cx', '12');
+      circle.setAttribute('cy', '12');
+      circle.setAttribute('r', '10');
+      svg.appendChild(circle);
+
+      const line = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'line'
+      );
+      line.setAttribute('x1', '12');
+      line.setAttribute('y1', '16');
+      line.setAttribute('x2', '12');
+      line.setAttribute('y2', '12');
+      svg.appendChild(line);
+
+      const dot = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'circle'
+      );
+      dot.setAttribute('cx', '12');
+      dot.setAttribute('cy', '8');
+      dot.setAttribute('r', '1');
+      dot.setAttribute('fill', '#3B82F6');
+      svg.appendChild(dot);
+
+      iconWrapper.appendChild(svg);
+
+      const text = document.createElement('p');
+      text.style.cssText =
+        'margin-top: 16px; color: #3B82F6; font-size: 16px; font-weight: 500;';
+      text.textContent = message || 'Processing...';
+
+      infoDiv.appendChild(iconWrapper);
+      infoDiv.appendChild(text);
+      container.appendChild(infoDiv);
     } else if (state === 'error') {
       const errorDiv = document.createElement('div');
       errorDiv.className = 'vega-ai-text-center';
@@ -537,17 +595,17 @@ export class VegaAIOverlay {
       text.className = 'vega-ai-error-text';
       text.style.cssText =
         'margin-top: 16px; color: #EF4444; font-size: 16px; font-weight: 500;';
-      text.textContent = errorMessage || 'Failed to extract job data';
+      text.textContent = message || 'Failed to extract job data';
 
       errorDiv.appendChild(iconWrapper);
       errorDiv.appendChild(text);
 
       // Add retry button for certain errors
       if (
-        errorMessage &&
-        (errorMessage.includes('try again') ||
-          errorMessage.includes('connection') ||
-          errorMessage.includes('refresh'))
+        message &&
+        (message.includes('try again') ||
+          message.includes('connection') ||
+          message.includes('refresh'))
       ) {
         const retryButton = this.createButton('Try Again', 'primary');
         retryButton.style.marginTop = '20px';
@@ -789,6 +847,12 @@ export class VegaAIOverlay {
     this.updatePanelContent(content, 'error', message);
   }
 
+  private showRetryStatus(attemptNumber: number, maxAttempts: number): void {
+    const content = document.getElementById('vega-ai-job-preview');
+    const message = `Retrying... (${attemptNumber}/${maxAttempts})`;
+    this.updatePanelContent(content, 'info', message);
+  }
+
   private showAuthRequired(container: HTMLElement | null): void {
     if (!container) return;
 
@@ -836,16 +900,22 @@ export class VegaAIOverlay {
     signInButton.style.marginTop = '20px';
 
     const signInHandler = () => {
-      // Send message to background to set attention badge
-      chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, () => {
-        const instruction = document.createElement('p');
-        instruction.style.cssText =
-          'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
-        instruction.textContent = '→ Click the Vega AI icon in your toolbar';
-        authDiv.appendChild(instruction);
+      if (chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, () => {
+          if (chrome.runtime.lastError) {
+            overlayLogger.warn('Failed to send OPEN_POPUP message', {
+              error: chrome.runtime.lastError.message,
+            });
+          }
+        });
+      }
+      const instruction = document.createElement('p');
+      instruction.style.cssText =
+        'margin-top: 12px; color: #059669; font-size: 13px; font-weight: 500;';
+      instruction.textContent = '→ Click the Vega AI icon in your toolbar';
+      authDiv.appendChild(instruction);
 
-        signInButton.style.display = 'none';
-      });
+      signInButton.style.display = 'none';
     };
 
     signInButton.addEventListener('click', signInHandler);
