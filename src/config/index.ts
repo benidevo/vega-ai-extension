@@ -26,6 +26,11 @@ export interface AppConfig {
     authEndpoint: string;
     timeout: number;
     retryAttempts: number;
+    retryDelays: {
+      base: number;
+      max: number;
+      jitterPercent: number;
+    };
   };
 
   // Extension Configuration
@@ -73,6 +78,11 @@ const configurations: Record<string, AppConfig> = {
       authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,
+      retryDelays: {
+        base: 1000, // Start with 1 second
+        max: 8000, // Max 8 seconds
+        jitterPercent: 25, // ±25% randomization
+      },
     },
     extension: {
       name: 'Vega AI Job Capture (Dev)',
@@ -109,6 +119,11 @@ const configurations: Record<string, AppConfig> = {
       authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,
+      retryDelays: {
+        base: 1000, // Start with 1 second
+        max: 8000, // Max 8 seconds
+        jitterPercent: 25, // ±25% randomization
+      },
     },
     extension: {
       name: 'Vega AI Job Capture',

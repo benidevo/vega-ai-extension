@@ -8,6 +8,26 @@ import { JobListing } from '@/types';
 import { IAuthService } from '../auth/IAuthService';
 import { apiLogger } from '../../../utils/logger';
 
+const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_RETRY_ATTEMPTS = 3;
+const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
+const DEFAULT_RETRY_MAX_DELAY_MS = 8000;
+const DEFAULT_RETRY_JITTER_PERCENT = 25;
+
+const CIRCUIT_BREAKER_THRESHOLD = 5;
+const CIRCUIT_BREAKER_TIMEOUT_MS = 60000;
+
+const HTTP_STATUS_UNAUTHORIZED = 401;
+const HTTP_STATUS_SERVER_ERROR_MIN = 500;
+
+const EXPONENTIAL_BACKOFF_BASE = 2;
+const JITTER_SPREAD_FACTOR = 2;
+const JITTER_CENTER_OFFSET = 0.5;
+
+const LOG_STACK_TRACE_LINES = 3;
+const SECONDS_PER_MS = 1000;
+const DECIMAL_PLACES = 1;
+
 export class APIService implements IAPIService {
   private config: APIConfig;
   private authToken: string | null = null;
@@ -19,13 +39,13 @@ export class APIService implements IAPIService {
   // Circuit breaker properties
   private failureCount = 0;
   private lastFailureTime = 0;
-  private readonly CIRCUIT_BREAKER_THRESHOLD = 5;
-  private readonly CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute
+  private readonly CIRCUIT_BREAKER_THRESHOLD = CIRCUIT_BREAKER_THRESHOLD;
+  private readonly CIRCUIT_BREAKER_TIMEOUT = CIRCUIT_BREAKER_TIMEOUT_MS;
 
   constructor(config: APIConfig, authService?: IAuthService) {
     this.config = {
-      timeout: 30000,
-      retryAttempts: 3,
+      timeout: DEFAULT_TIMEOUT_MS,
+      retryAttempts: DEFAULT_RETRY_ATTEMPTS,
       ...config,
     };
     this.authService = authService || null;
@@ -120,7 +140,7 @@ export class APIService implements IAPIService {
       if (!response.ok) {
         // Handle 401 Unauthorized
         if (
-          response.status === 401 &&
+          response.status === HTTP_STATUS_UNAUTHORIZED &&
           this.authService &&
           attemptNumber === 1
         ) {
@@ -241,7 +261,7 @@ export class APIService implements IAPIService {
       typeof error.details === 'object' &&
       'status' in error.details &&
       typeof error.details.status === 'number' &&
-      error.details.status >= 500
+      error.details.status >= HTTP_STATUS_SERVER_ERROR_MIN
     ) {
       return true;
     }
@@ -250,8 +270,36 @@ export class APIService implements IAPIService {
   }
 
   private getRetryDelay(attemptNumber: number): number {
-    // Exponential backoff: 1s, 2s, 4s
-    return Math.pow(2, attemptNumber - 1) * 1000;
+    // Get retry configuration with defaults
+    const retryConfig = this.config.retryDelays || {
+      base: DEFAULT_RETRY_BASE_DELAY_MS,
+      max: DEFAULT_RETRY_MAX_DELAY_MS,
+      jitterPercent: DEFAULT_RETRY_JITTER_PERCENT,
+    };
+
+    // Exponential backoff: base * 2^(attempt-1)
+    const exponentialDelay = Math.min(
+      retryConfig.base * Math.pow(EXPONENTIAL_BACKOFF_BASE, attemptNumber - 1),
+      retryConfig.max
+    );
+
+    // Add jitter to prevent thundering herd
+    const jitterRange = exponentialDelay * (retryConfig.jitterPercent / 100);
+    const jitter =
+      exponentialDelay +
+      (Math.random() - JITTER_CENTER_OFFSET) *
+        JITTER_SPREAD_FACTOR *
+        jitterRange;
+
+    const finalDelay = Math.round(Math.max(0, jitter));
+
+    apiLogger.info(`Retry attempt ${attemptNumber} scheduled`, {
+      baseDelay: exponentialDelay,
+      jitteredDelay: finalDelay,
+      delaySeconds: (finalDelay / SECONDS_PER_MS).toFixed(DECIMAL_PLACES),
+    });
+
+    return finalDelay;
   }
 
   private delay(ms: number): Promise<void> {
@@ -279,7 +327,10 @@ export class APIService implements IAPIService {
       apiLogger.error('API request failed', error, {
         name: error.name,
         message: error.message,
-        stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+        stack: error.stack
+          ?.split('\n')
+          .slice(0, LOG_STACK_TRACE_LINES)
+          .join('\n'),
       });
 
       if (error.message.includes('fetch')) {

@@ -38,4 +38,9 @@ export interface APIConfig {
   baseUrl: string;
   timeout?: number;
   retryAttempts?: number;
+  retryDelays?: {
+    base: number;
+    max: number;
+    jitterPercent: number;
+  };
 }

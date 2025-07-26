@@ -6,6 +6,7 @@ export enum ErrorCategory {
   STORAGE = 'STORAGE',
   PERMISSION = 'PERMISSION',
   VALIDATION = 'VALIDATION',
+  SERVER_ERROR = 'SERVER_ERROR',
   UNKNOWN = 'UNKNOWN',
 }
 
@@ -86,11 +87,26 @@ export class ErrorService {
       message.includes('timeout') ||
       message.includes('connection')
     ) {
+      // Check if this is a retry context
+      const isRetrying = context?.attemptNumber && context?.maxRetries;
+      let userMessage =
+        'Network connection error. Please check your internet connection.';
+
+      if (isRetrying) {
+        const attempt = context.attemptNumber as number;
+        const maxRetries = context.maxRetries as number;
+        if (attempt < maxRetries) {
+          userMessage = `Network error - retrying (${attempt}/${maxRetries})...`;
+        } else {
+          userMessage =
+            'Network error - please check your connection and try again.';
+        }
+      }
+
       return {
         category: ErrorCategory.NETWORK,
         message: error.message,
-        userMessage:
-          'Network connection error. Please check your internet connection and try again.',
+        userMessage,
         originalError: error,
         context,
         retryable: true,
@@ -173,6 +189,35 @@ export class ErrorService {
         originalError: error,
         context,
         retryable: false,
+      };
+    }
+
+    // Server errors (5xx)
+    if (
+      message.includes('500') ||
+      message.includes('502') ||
+      message.includes('503') ||
+      message.includes('504') ||
+      message.includes('server error') ||
+      message.includes('service unavailable')
+    ) {
+      const isRetrying = context?.attemptNumber && context?.maxRetries;
+      let userMessage =
+        'Server is temporarily unavailable. Please try again later.';
+
+      if (isRetrying) {
+        const attempt = context.attemptNumber as number;
+        const maxRetries = context.maxRetries as number;
+        userMessage = `Server is busy - attempt ${attempt} of ${maxRetries}`;
+      }
+
+      return {
+        category: ErrorCategory.SERVER_ERROR,
+        message: error.message,
+        userMessage,
+        originalError: error,
+        context,
+        retryable: true,
       };
     }
 
