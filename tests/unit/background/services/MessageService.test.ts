@@ -20,9 +20,11 @@ describe('MessageService', () => {
     resetChromeMocks();
     messageService = new MessageService();
 
-    mockChrome.runtime.onMessage.addListener.mockImplementation(listener => {
-      messageListener = listener;
-    });
+    mockChrome.runtime.onMessage.addListener.mockImplementation(
+      (listener: any) => {
+        messageListener = listener;
+      }
+    );
   });
 
   describe('initialize', () => {

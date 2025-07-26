@@ -1,4 +1,4 @@
-export const mockChrome = {
+export const mockChrome: any = {
   runtime: {
     onMessage: {
       addListener: jest.fn(),
@@ -54,6 +54,13 @@ export const mockChrome = {
     ),
     create: jest.fn(),
     update: jest.fn(),
+  },
+  alarms: {
+    create: jest.fn(),
+    clear: jest.fn(),
+    onAlarm: {
+      addListener: jest.fn(),
+    },
   },
 };
 

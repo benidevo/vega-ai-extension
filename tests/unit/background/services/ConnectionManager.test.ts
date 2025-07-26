@@ -39,9 +39,11 @@ describe('ConnectionManager', () => {
       disconnect: jest.fn(),
     } as any;
 
-    mockChrome.runtime.onConnect.addListener.mockImplementation(listener => {
-      connectListener = listener;
-    });
+    mockChrome.runtime.onConnect.addListener.mockImplementation(
+      (listener: any) => {
+        connectListener = listener;
+      }
+    );
   });
 
   afterEach(() => {
