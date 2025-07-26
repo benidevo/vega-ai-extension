@@ -108,23 +108,22 @@ git pull origin master
 
 The `npm version` command will:
 
-- Update the version in `package.json`
+- Update the version in `package.json` and `manifest.json`
 - Create a git commit with message "vx.x.x"
 - Create a git tag "vx.x.x"
 
 ```bash
 # For bug fixes (v0.1.0 → v0.1.1)
-npm version patch
+npm run release:patch
 
 # For new features (v0.1.0 → v0.2.0)
-npm version minor
+npm run release:minor
 
 # For breaking changes (v0.1.0 → v1.0.0)
-npm version major
-
-# For pre-releases
-npm version prerelease --preid=beta  # v0.1.0 → v0.1.1-beta.0
+npm run release:major
 ```
+
+Note: These scripts automatically sync versions between package.json and manifest.json
 
 #### 3. Push the commit and tag
 
@@ -136,12 +135,12 @@ git push origin master
 git push origin --tags
 ```
 
-#### 4. GitHub Actions will automatically
+#### 4. Manual release process
 
-- Run tests and linting
-- Build the extension
-- Create a ZIP file
-- Upload to Chrome Web Store (if configured)
+- Run tests and linting: `npm test && npm run lint`
+- Build the extension: `npm run build`
+- Create a ZIP file: `cd dist && zip -r ../extension.zip . && cd ..`
+- Upload to Chrome Web Store manually via Developer Dashboard
 - Create a GitHub release with the ZIP
 
 #### 5. Manual verification
@@ -209,10 +208,12 @@ Want to add Indeed or another job site? Here's how:
 
    ```json
    "host_permissions": [
-     "https://*.linkedin.com/*",
-     "https://*.indeed.com/*"
+     "https://*.linkedin.com/jobs/*",
+     "https://*.indeed.com/jobs/*"
    ]
    ```
+
+   Note: Only request access to job-specific paths to minimize permissions.
 
 ## 🧪 Testing
 

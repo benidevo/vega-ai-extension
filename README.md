@@ -138,7 +138,6 @@ The code is organized into these main parts:
 
 - 📖 **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - How to build and contribute
 - 🏗️ **[Technical Design](docs/TECHNICAL_DESIGN.md)** - Architecture and implementation details
-- 🚀 **[Chrome Store Deployment](docs/CHROME_STORE_DEPLOYMENT.md)** - How releases work
 
 </details>
 

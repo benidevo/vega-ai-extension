@@ -190,7 +190,8 @@ The main interface users see when they click the extension icon. Handles sign in
 
 The extension only asks for what it needs:
 
-- Access to LinkedIn domains only
+- Access to LinkedIn job pages only (`/jobs/*`)
+- No access to LinkedIn profiles, messages, or feed
 - No browsing history access
 - No cookie access
 - User must click to save jobs
@@ -288,10 +289,10 @@ sequenceDiagram
 ### Release Pipeline
 
 1. Bump version: `npm version patch`
-2. Push tag to GitHub
-3. GitHub Actions takes over
-4. Uploads to Chrome Web Store
-5. Creates GitHub release
+2. Build the extension: `npm run build`
+3. Create ZIP file from `dist/` directory
+4. Manually upload to Chrome Web Store
+5. Create GitHub release with changelog
 
 ### Environment Management
 

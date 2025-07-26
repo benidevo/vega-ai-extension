@@ -43,36 +43,13 @@ jobs:
         body: |
           ## Vega AI Job Capture - ${{ github.ref_name }}
 
-          Capture job listings with one click. Currently supports LinkedIn, with Indeed & Glassdoor coming soon.
+          ### 🚀 Install from Chrome Web Store
+          
+          **[Install Vega AI Job Capture Extension](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)**
 
-          ### 📦 Downloads
-          - **Chrome/Edge Extension**: `vega-ai-job-capture-${{ github.ref_name }}.zip`
-
-          ### 🚀 Installation
-
-          1. Download and extract `vega-ai-job-capture-${{ github.ref_name }}.zip`
-          2. Open Chrome/Edge and navigate to `chrome://extensions/` or `edge://extensions/`
-          3. Enable "Developer mode"
-          4. Click "Load unpacked" and select the extracted folder
-
-          ### ⚙️ Backend Options
-
-          The extension supports two backend modes (configurable in settings):
-
-          #### Cloud Mode (Default)
-          - Uses Vega AI cloud service at `https://vega.benidevo.com`
-          - Sign in with Google OAuth
-          - No backend setup required
-
-          #### Local Mode
-          - For developers and self-hosting
-          - Default: `http://localhost:8765`
-          - Sign in with username/password
-          - Requires running your own backend server
-
-          ### 📋 Requirements
-          - Chrome 88+ or Edge 88+
-          - Active LinkedIn session (for capturing jobs)
+          ### 💻 Manual Installation
+          
+          Download the attached ZIP file for manual installation or development.
 
           ### 🆕 What's Changed
 
