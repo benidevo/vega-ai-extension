@@ -64,7 +64,7 @@ const configurations: Record<string, AppConfig> = {
       providers: {
         google: {
           clientId: googleClientId,
-          scopes: ['openid', 'email', 'profile'],
+          scopes: ['openid', 'email'],
           apiEndpoint: '/api/auth/google',
         },
         password: {
@@ -105,7 +105,7 @@ const configurations: Record<string, AppConfig> = {
       providers: {
         google: {
           clientId: googleClientId,
-          scopes: ['openid', 'email', 'profile'],
+          scopes: ['openid', 'email'],
           apiEndpoint: '/api/auth/google',
         },
         password: {

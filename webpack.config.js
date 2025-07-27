@@ -79,7 +79,7 @@ module.exports = (env, argv) => {
               // Always include OAuth config
               manifest.oauth2 = {
                 client_id: '460747486884-p36vju3iqsmtgg8968jqnck6s4ga296r.apps.googleusercontent.com',
-                scopes: ["openid", "email", "profile"]
+                scopes: ["openid", "email"]
               };
 
               // Conditionally include host permissions based on environment

@@ -76,7 +76,7 @@ jest.mock('@/config/dynamicConfig', () => ({
           google: {
             clientId: 'test-client-id',
             redirectUri: 'test-redirect-uri',
-            scopes: ['profile', 'email'],
+            scopes: ['openid', 'email'],
             apiEndpoint: '/auth/google',
           },
           password: {
