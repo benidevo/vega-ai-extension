@@ -19,6 +19,7 @@ export class Logger {
   private static logLevel: LogLevel = LogLevel.INFO;
   private static logs: LogEntry[] = [];
   private static readonly MAX_LOGS = 1000;
+  private static persistLogsEnabled = false; // Disabled by default to prevent storage bloat
 
   constructor(context: string) {
     this.context = context;
@@ -98,11 +99,13 @@ export class Logger {
       }
     }
 
-    // Store in chrome storage for cross-context access
+    // Only store logs in storage if explicitly enabled for debugging
+    // This prevents excessive storage writes during normal operation
     if (
       typeof chrome !== 'undefined' &&
       chrome.storage &&
-      chrome.storage.local
+      chrome.storage.local &&
+      Logger.persistLogsEnabled
     ) {
       try {
         const promise = chrome.storage.local.set({

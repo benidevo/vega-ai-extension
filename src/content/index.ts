@@ -71,25 +71,10 @@ async function initialize(): Promise<void> {
         );
 
         if (jobData) {
-          try {
-            await chrome.storage.local.set({ currentJob: jobData });
-            contentLogger.info('Job data extracted and cached', {
-              title: jobData.title,
-              company: jobData.company,
-            });
-          } catch (error) {
-            if (
-              error instanceof Error &&
-              error.message.includes('Extension context invalidated')
-            ) {
-              contentLogger.warn(
-                'Extension context invalidated while saving job data'
-              );
-              cleanup();
-              return;
-            }
-            contentLogger.error('Failed to save job data', error);
-          }
+          contentLogger.info('Job data extracted', {
+            title: jobData.title,
+            company: jobData.company,
+          });
 
           try {
             await chrome.runtime.sendMessage({

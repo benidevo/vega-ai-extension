@@ -42,15 +42,38 @@ export class PasswordAuthService implements IAuthProvider {
       });
 
       if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: 'Authentication failed' }));
+        let errorData: { error?: string; message?: string } = {
+          error: 'Authentication failed',
+        };
+
+        try {
+          errorData = await response.json();
+        } catch {
+          // If JSON parsing fails, use default error
+          authLogger.warn('Failed to parse error response', {
+            status: response.status,
+          });
+        }
+
+        // Log the actual error from backend for debugging
+        authLogger.info('Authentication error details', {
+          status: response.status,
+          error: errorData.error || errorData.message,
+        });
 
         // Provide more user-friendly error messages
         if (response.status === 401) {
-          throw new Error(
-            'Invalid username or password. Please check your credentials.'
-          );
+          // Check if backend provided a specific error message
+          const backendMessage = errorData.error || errorData.message;
+
+          // Use backend message if it's informative, otherwise use generic message
+          if (backendMessage && backendMessage.toLowerCase().includes('user')) {
+            throw new Error(backendMessage);
+          } else {
+            throw new Error(
+              'Invalid username or password. Please check your credentials.'
+            );
+          }
         } else if (response.status === 404) {
           throw new Error(
             'Authentication service not found. Please check your backend configuration.'

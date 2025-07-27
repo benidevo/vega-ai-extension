@@ -73,25 +73,20 @@ module.exports = (env, argv) => {
             to: 'manifest.json',
             transform(content) {
               const manifest = JSON.parse(content.toString());
-              // Update version from package.json
               manifest.version = packageJson.version;
 
-              // Always include OAuth config
               manifest.oauth2 = {
                 client_id: '460747486884-p36vju3iqsmtgg8968jqnck6s4ga296r.apps.googleusercontent.com',
                 scopes: ["openid", "email"]
               };
 
-              // Conditionally include host permissions based on environment
               if (isProduction) {
                 manifest.host_permissions = [
-                  "https://*.linkedin.com/jobs/*",
-                  "https://vega.benidevo.com/*"
+                  "https://*.linkedin.com/jobs/*"
                 ];
               } else {
                 manifest.host_permissions = [
                   "https://*.linkedin.com/jobs/*",
-                  "https://vega.benidevo.com/*",
                   "http://localhost:*/*"
                 ];
               }

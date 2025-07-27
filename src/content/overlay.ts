@@ -28,10 +28,6 @@ export class VegaAIOverlay {
   private jobCache = new Map<string, { data: JobListing; timestamp: number }>();
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-  // Auto-save for notes
-  private autoSaveTimer: NodeJS.Timeout | null = null;
-  private readonly AUTO_SAVE_DELAY = 2000; // 2 seconds
-
   private constructor() {}
 
   private getCachedJob(url: string): JobListing | null {
@@ -271,9 +267,6 @@ export class VegaAIOverlay {
       saveButton.textContent = 'Saving...';
 
       try {
-        // Save job data to local storage
-        await chrome.storage.local.set({ currentJob: this.extractedJob });
-
         // Send to background for API call
         const response = await sendMessage<{
           success: boolean;
@@ -437,15 +430,6 @@ export class VegaAIOverlay {
       const notesHandler = (e: Event) => {
         if (this.extractedJob && e.target instanceof HTMLTextAreaElement) {
           this.extractedJob.notes = e.target.value;
-
-          // Auto-save notes after delay
-          if (this.autoSaveTimer) {
-            clearTimeout(this.autoSaveTimer);
-          }
-
-          this.autoSaveTimer = setTimeout(() => {
-            this.autoSaveNotes();
-          }, this.AUTO_SAVE_DELAY);
         }
       };
 
@@ -789,19 +773,6 @@ export class VegaAIOverlay {
         this.extractedJob = extractJobData();
 
         if (this.extractedJob) {
-          // Try to restore saved notes
-          try {
-            const savedNotes = await chrome.storage.local.get(
-              `notes_${currentUrl}`
-            );
-            if (savedNotes[`notes_${currentUrl}`]) {
-              this.extractedJob.notes = savedNotes[`notes_${currentUrl}`];
-              overlayLogger.debug('Restored saved notes for job');
-            }
-          } catch (error) {
-            overlayLogger.warn('Failed to restore saved notes', error);
-          }
-
           // Cache the extracted job
           this.setCachedJob(currentUrl, this.extractedJob);
           this.updatePanelContent(content, 'data');
@@ -967,28 +938,7 @@ export class VegaAIOverlay {
     return error;
   }
 
-  private async autoSaveNotes(): Promise<void> {
-    if (!this.extractedJob) return;
-
-    try {
-      // Save notes to local storage
-      await chrome.storage.local.set({
-        [`notes_${window.location.href}`]: this.extractedJob.notes,
-      });
-    } catch (error) {
-      errorService.handleError(error, {
-        action: 'auto_save_notes',
-        context: 'overlay',
-      });
-    }
-  }
-
   public destroy(): void {
-    if (this.autoSaveTimer) {
-      clearTimeout(this.autoSaveTimer);
-      this.autoSaveTimer = null;
-    }
-
     this.eventListeners.forEach(({ element, event, handler }) => {
       element.removeEventListener(event, handler);
     });

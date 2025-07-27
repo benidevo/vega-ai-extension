@@ -8,8 +8,7 @@
 </head>
 <body class="w-80 min-h-[200px] bg-slate-900 text-white">
   <div class="p-4">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-4">
       <div class="flex items-center">
         <img src="../icons/logo.svg" class="w-10 h-10 mr-3" alt="Vega AI">
         <h1 class="text-xl font-heading font-semibold">Vega AI</h1>
@@ -22,17 +21,15 @@
       </button>
     </div>
 
-    <!-- Status -->
-    <div id="status" class="mb-6">
-      <!-- Dynamic status will be inserted here -->
+    <div id="global-notification" style="display: none; margin-bottom: 1rem;">
     </div>
 
-    <!-- CTA -->
+    <div id="status" class="mb-4">
+    </div>
+
     <div id="cta">
-      <!-- Dynamic CTA will be inserted here -->
     </div>
 
-    <!-- Settings View (Hidden by default) -->
     <div id="settings-view" class="hidden">
       <div class="mb-4">
         <button id="back-btn" class="flex items-center text-sm text-gray-400 hover:text-white transition-colors">
@@ -42,9 +39,9 @@
           Back
         </button>
       </div>
+      
       <h2 class="text-lg font-semibold mb-4">Settings</h2>
       <div class="space-y-4">
-        <!-- Backend Mode Toggle -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Backend Mode</label>
           <div class="space-y-2">
@@ -79,7 +76,6 @@
           </div>
         </div>
         
-        <!-- Custom Local Backend Settings (Hidden by default) -->
         <div id="local-backend-settings" class="hidden space-y-3">
           <div>
             <label for="custom-scheme" class="block text-sm font-medium text-gray-300 mb-1">Scheme</label>
@@ -107,21 +103,11 @@
           </div>
         </div>
         
-        <!-- Test Connection Button -->
         <div class="pt-3">
-          <button id="test-connection-btn" class="w-full px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors" aria-label="Test connection to selected backend">
+          <button id="test-connection-btn" class="w-full px-3 py-2 text-sm bg-primary hover:bg-primary/80 text-white rounded-md transition-colors" aria-label="Test connection to selected backend">
             Test Connection
           </button>
-          <div id="connection-status" class="hidden mt-2" role="status" aria-live="polite"></div>
         </div>
-        
-        <div class="border-t border-slate-700 pt-4">
-          <button id="save-settings-btn" class="w-full px-3 py-2 text-sm bg-primary hover:bg-primary/80 text-white rounded-md transition-colors" aria-label="Save backend settings">
-            Save Settings
-          </button>
-        </div>
-        
-        <div id="settings-status" class="hidden" role="status" aria-live="polite"></div>
       </div>
     </div>
   </div>
