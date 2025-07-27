@@ -9,7 +9,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "identity", "activeTab", "alarms"],
+  "permissions": ["storage", "identity", "alarms"],
   "optional_permissions": [],
   "host_permissions": ["https://*.linkedin.com/jobs/*"],
   "background": {

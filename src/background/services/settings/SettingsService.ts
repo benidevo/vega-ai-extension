@@ -13,7 +13,7 @@ export class SettingsService {
 
   static async getSettings(): Promise<UserSettings> {
     try {
-      const result = await chrome.storage.sync.get(this.STORAGE_KEY);
+      const result = await chrome.storage.local.get(this.STORAGE_KEY);
       let settings = result[this.STORAGE_KEY];
 
       if (!settings) {
@@ -48,7 +48,7 @@ export class SettingsService {
   }
 
   static async saveSettings(settings: UserSettings): Promise<void> {
-    await chrome.storage.sync.set({
+    await chrome.storage.local.set({
       [this.STORAGE_KEY]: settings,
     });
   }

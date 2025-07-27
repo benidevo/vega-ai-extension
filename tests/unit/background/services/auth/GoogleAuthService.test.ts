@@ -38,7 +38,7 @@ describe('GoogleAuthService', () => {
 
     const config = {
       clientId: 'test-client-id',
-      scopes: ['openid', 'email', 'profile'],
+      scopes: ['openid', 'email'],
       apiEndpoint: 'http://localhost:8765',
     };
 

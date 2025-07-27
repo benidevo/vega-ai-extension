@@ -10,7 +10,7 @@ jest.mock('@/config/index', () => ({
       providers: {
         google: {
           clientId: 'test-client-id',
-          scopes: ['openid', 'email', 'profile'],
+          scopes: ['openid', 'email'],
           apiEndpoint: '/api/auth/google',
         },
         password: {

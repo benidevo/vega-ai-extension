@@ -24,38 +24,71 @@ class Popup {
   private statusTimeout: number | null = null;
   private errorTimeout: number | null = null;
   private logger = new Logger('Popup');
+  private authListenerSetup = false;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
     this.ctaElement = document.getElementById('cta')!;
     this.settingsView = document.getElementById('settings-view')!;
+
+    this.setupAuthStateListener();
   }
 
   async initialize(): Promise<void> {
     try {
+      // Set up global notification area on every initialization
+      const globalNotification = document.getElementById('global-notification');
+      if (globalNotification) {
+        globalNotification.setAttribute('role', 'alert');
+        globalNotification.setAttribute('aria-live', 'polite');
+      }
+
       const isJobPage = await this.checkIfJobPage();
       const isAuthenticated = await this.checkAuthStatus();
+
+      // Preserve any active notification message before re-rendering
+      const activeNotification = this.preserveActiveNotification();
 
       await this.render(isAuthenticated, isJobPage);
       this.attachEventListeners(isAuthenticated);
       this.attachSettingsEventListeners();
 
-      // Listen for auth state changes from background
-      chrome.runtime.onMessage.addListener(message => {
-        if (message.type === MessageType.AUTH_STATE_CHANGED) {
-          // Only re-initialize if we're not in the middle of signing in
-          // This prevents clearing error messages during failed login attempts
-          if (!this.isSigningIn) {
-            this.initialize();
-          }
-        }
-      });
+      // Restore the notification if one was active
+      if (activeNotification) {
+        this.showNotification(
+          activeNotification.message,
+          activeNotification.type
+        );
+      }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'popup_initialize',
       });
       this.renderError(errorDetails.userMessage);
     }
+  }
+
+  private setupAuthStateListener(): void {
+    // Listen for auth state changes from background
+    chrome.runtime.onMessage.addListener(message => {
+      if (message.type === MessageType.AUTH_STATE_CHANGED) {
+        // Only re-initialize if we're not in the middle of signing in
+        // and there's no active error notification
+        // This prevents clearing error messages during failed login attempts
+        if (!this.isSigningIn && !this.errorTimeout) {
+          this.logger.info('Auth state changed, re-initializing', {
+            isSigningIn: this.isSigningIn,
+            hasErrorTimeout: !!this.errorTimeout,
+          });
+          this.initialize();
+        } else {
+          this.logger.info('Auth state changed but skipping re-init', {
+            isSigningIn: this.isSigningIn,
+            hasErrorTimeout: !!this.errorTimeout,
+          });
+        }
+      }
+    });
   }
 
   private async checkAuthStatus(): Promise<boolean> {
@@ -159,20 +192,8 @@ class Popup {
   private async renderAuthOptions(): Promise<void> {
     const isOAuthEnabled = await SettingsService.isOAuthEnabled();
 
-    // Create a container with the error div outside the conditional forms
     this.ctaElement.innerHTML = `
       <div class="space-y-4">
-        <!-- Error Display (shared by both auth methods) -->
-        <div id="auth-error" class="hidden p-2 bg-red-900/50 border border-red-500/50 rounded-md">
-          <div class="flex items-center">
-            <svg class="w-4 h-4 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span id="auth-error-text" class="text-xs text-red-400"></span>
-          </div>
-        </div>
-
-        <!-- Auth Form Container -->
         <div id="auth-form-container"></div>
       </div>
     `;
@@ -181,9 +202,7 @@ class Popup {
     if (!formContainer) return;
 
     if (isOAuthEnabled) {
-      // Cloud mode: show OAuth
       formContainer.innerHTML = `
-        <!-- Google OAuth Button -->
         <button
           id="google-signin-btn"
           class="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center justify-center"
@@ -197,7 +216,6 @@ class Popup {
           Continue with Google
         </button>
 
-        <!-- Registration Link -->
         <div class="text-center mt-4">
           <a
             href="https://vega.benidevo.com"
@@ -209,9 +227,7 @@ class Popup {
         </div>
       `;
     } else {
-      // Local mode: show username/password form
       formContainer.innerHTML = `
-        <!-- Username/Password Form -->
         <div class="space-y-3">
           <div>
             <input
@@ -258,7 +274,6 @@ class Popup {
           </button>
         </div>
 
-        <!-- Registration Link -->
         <div class="text-center mt-4">
           <a
             href="https://vega.benidevo.com"
@@ -273,7 +288,6 @@ class Popup {
   }
 
   private attachAuthEventListeners(): void {
-    // Attach Google OAuth listener if present
     const googleBtn = document.getElementById('google-signin-btn');
     if (googleBtn) {
       googleBtn.setAttribute('aria-label', 'Sign in with Google account');
@@ -282,7 +296,6 @@ class Popup {
       });
     }
 
-    // Attach password form listeners if present
     const usernameInput = document.getElementById(
       'username-input'
     ) as HTMLInputElement;
@@ -326,7 +339,6 @@ class Popup {
       });
     }
 
-    // Password visibility toggle
     const passwordToggle = document.getElementById('password-toggle');
     if (passwordToggle && passwordInput) {
       passwordToggle.addEventListener('click', () => {
@@ -345,7 +357,6 @@ class Popup {
       });
     }
 
-    // Password sign in button
     const passwordBtn = document.getElementById('password-signin-btn');
     if (passwordBtn) {
       passwordBtn.setAttribute(
@@ -357,11 +368,11 @@ class Popup {
       });
     }
 
-    // Set up aria-live regions
-    const authError = document.getElementById('auth-error');
-    if (authError) {
-      authError.setAttribute('role', 'alert');
-      authError.setAttribute('aria-live', 'polite');
+    // Set up aria-live regions for global notification
+    const globalNotification = document.getElementById('global-notification');
+    if (globalNotification) {
+      globalNotification.setAttribute('role', 'alert');
+      globalNotification.setAttribute('aria-live', 'polite');
     }
   }
 
@@ -385,21 +396,36 @@ class Popup {
         await this.initialize();
         this.isSigningIn = false;
       } else {
-        this.showAuthError(response?.error || 'Google sign-in failed');
-
+        // Show error after DOM is stable
         setTimeout(() => {
-          this.isSigningIn = false;
-        }, 1000);
+          this.showAuthError(response?.error || 'Google sign-in failed');
+        }, 50);
+
+        // Keep isSigningIn true while error is displayed
+        setTimeout(() => {
+          // Only reset if error timeout has completed
+          if (!this.errorTimeout) {
+            this.isSigningIn = false;
+          }
+        }, 3000);
       }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'google_auth',
       });
-      this.showAuthError(errorDetails.userMessage);
 
+      // Show error after DOM is stable
       setTimeout(() => {
-        this.isSigningIn = false;
-      }, 1000);
+        this.showAuthError(errorDetails.userMessage);
+      }, 50);
+
+      // Keep isSigningIn true while error is displayed
+      setTimeout(() => {
+        // Only reset if error timeout has completed
+        if (!this.errorTimeout) {
+          this.isSigningIn = false;
+        }
+      }, 3000);
     } finally {
       googleBtn.disabled = false;
       googleBtn.textContent = originalText;
@@ -523,12 +549,18 @@ class Popup {
     const passwordValidation = validatePassword(password);
 
     if (!usernameValidation.isValid) {
-      this.showAuthError(usernameValidation.error || 'Invalid username');
+      // Delay showing validation error to ensure DOM is ready
+      setTimeout(() => {
+        this.showAuthError(usernameValidation.error || 'Invalid username');
+      }, 50);
       return;
     }
 
     if (!passwordValidation.isValid) {
-      this.showAuthError(passwordValidation.error || 'Invalid password');
+      // Delay showing validation error to ensure DOM is ready
+      setTimeout(() => {
+        this.showAuthError(passwordValidation.error || 'Invalid password');
+      }, 50);
       return;
     }
 
@@ -548,32 +580,48 @@ class Popup {
         await this.initialize();
       } else {
         const errorMessage = response?.error || 'Sign in failed';
-        this.showAuthError(errorMessage);
 
+        // Reset button state first
         this.updateSignInButtonState();
         passwordBtn.textContent = originalText;
 
-        usernameInput.focus();
-
+        // Show error after DOM is stable
         setTimeout(() => {
-          this.isSigningIn = false;
-        }, 1000);
+          this.showAuthError(errorMessage);
+          usernameInput.focus();
+        }, 50);
+
+        // Keep isSigningIn true while error is displayed
+        setTimeout(() => {
+          // Only reset if error timeout has completed
+          if (!this.errorTimeout) {
+            this.isSigningIn = false;
+          }
+        }, 3000);
         return;
       }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'password_auth',
       });
-      this.showAuthError(errorDetails.userMessage);
 
+      // Reset button state first
       this.updateSignInButtonState();
       passwordBtn.textContent = originalText;
 
-      usernameInput.focus();
-
+      // Show error after DOM is stable
       setTimeout(() => {
-        this.isSigningIn = false;
-      }, 1000);
+        this.showAuthError(errorDetails.userMessage);
+        usernameInput.focus();
+      }, 50);
+
+      // Keep isSigningIn true while error is displayed
+      setTimeout(() => {
+        // Only reset if error timeout has completed
+        if (!this.errorTimeout) {
+          this.isSigningIn = false;
+        }
+      }, 3000);
       return;
     }
 
@@ -582,30 +630,110 @@ class Popup {
     passwordBtn.textContent = originalText;
   }
 
-  private showAuthError(message: string): void {
-    const errorDiv = document.getElementById('auth-error');
-    const errorText = document.getElementById('auth-error-text');
+  private preserveActiveNotification(): {
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null {
+    // Try to get the active notification content before it's destroyed
+    const notificationEl = document.getElementById('global-notification');
 
-    if (errorDiv && errorText) {
-      if (this.errorTimeout) {
-        clearTimeout(this.errorTimeout);
-        this.errorTimeout = null;
+    if (
+      notificationEl &&
+      notificationEl.style.display !== 'none' &&
+      notificationEl.innerHTML
+    ) {
+      // Extract the message from the notification
+      const messageEl = notificationEl.querySelector('span');
+      if (messageEl) {
+        const message = messageEl.textContent || '';
+        // Determine type based on color
+        const color = messageEl.style.color;
+        let type: 'success' | 'error' | 'info' = 'info';
+        if (color === '#10b981') type = 'success';
+        else if (color === '#f87171') type = 'error';
+        else if (color === '#60a5fa') type = 'info';
+
+        return { message, type };
       }
-
-      errorDiv.classList.add('hidden');
-
-      setTimeout(() => {
-        errorText.textContent = message;
-        errorDiv.classList.remove('hidden');
-
-        this.errorTimeout = window.setTimeout(() => {
-          errorDiv.classList.add('hidden');
-          this.errorTimeout = null;
-        }, 5000);
-      }, 10);
-    } else {
-      this.renderError(message);
     }
+
+    return null;
+  }
+
+  private showNotification(
+    message: string,
+    type: 'success' | 'error' | 'info' = 'info'
+  ): void {
+    this.logger.info('showNotification called', {
+      message,
+      type,
+      currentView: this.currentView,
+    });
+
+    // Always use the global notification area
+    const notificationEl = document.getElementById('global-notification');
+
+    if (!notificationEl) {
+      this.logger.error('Global notification element not found!');
+      return;
+    }
+
+    this.logger.info('Displaying notification in global area');
+    this.displayNotificationContent(notificationEl, message, type);
+  }
+
+  private displayNotificationContent(
+    notificationEl: HTMLElement,
+    message: string,
+    type: 'success' | 'error' | 'info'
+  ): void {
+    // Clear any existing timeout
+    if (this.errorTimeout) {
+      clearTimeout(this.errorTimeout);
+      this.errorTimeout = null;
+    }
+
+    // Set up the notification style and content
+    const bgColor =
+      type === 'success'
+        ? 'rgba(16, 185, 129, 0.1)'
+        : type === 'error'
+          ? 'rgba(127, 29, 29, 0.5)'
+          : 'rgba(59, 130, 246, 0.1)';
+    const borderColor =
+      type === 'success'
+        ? 'rgba(16, 185, 129, 0.5)'
+        : type === 'error'
+          ? 'rgba(239, 68, 68, 0.5)'
+          : 'rgba(59, 130, 246, 0.5)';
+    const textColor =
+      type === 'success' ? '#10b981' : type === 'error' ? '#f87171' : '#60a5fa';
+
+    notificationEl.innerHTML = `
+      <div style="padding: 0.5rem; background-color: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 0.375rem;">
+        <span style="font-size: 0.75rem; line-height: 1rem; color: ${textColor}; display: block;">${message}</span>
+      </div>
+    `;
+
+    // Show the notification
+    notificationEl.style.display = 'block';
+
+    // Auto-hide after 2.5 seconds
+    this.errorTimeout = window.setTimeout(() => {
+      notificationEl.style.display = 'none';
+      this.errorTimeout = null;
+
+      // Reset isSigningIn flag after error is hidden
+      if (this.isSigningIn) {
+        this.isSigningIn = false;
+        this.logger.info('Reset isSigningIn after notification timeout');
+      }
+    }, 2500);
+  }
+
+  private showAuthError(message: string): void {
+    this.logger.info('Showing auth error', { message });
+    this.showNotification(message, 'error');
   }
 
   private async handleSignOut(): Promise<void> {
@@ -633,12 +761,7 @@ class Popup {
 
     const backBtn = document.getElementById('back-btn');
     if (backBtn) {
-      backBtn.addEventListener('click', () => this.showMainView());
-    }
-
-    const saveBtn = document.getElementById('save-settings-btn');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => this.saveSettings());
+      backBtn.addEventListener('click', async () => await this.showMainView());
     }
 
     // Add event listeners for backend mode radio buttons
@@ -649,14 +772,20 @@ class Popup {
       'backend-local'
     ) as HTMLInputElement;
     if (cloudRadio) {
-      cloudRadio.addEventListener('change', () =>
-        this.toggleLocalBackendSettings()
-      );
+      cloudRadio.addEventListener('change', () => {
+        this.toggleLocalBackendSettings();
+        if (cloudRadio.checked) {
+          this.saveSettings();
+        }
+      });
     }
     if (localRadio) {
-      localRadio.addEventListener('change', () =>
-        this.toggleLocalBackendSettings()
-      );
+      localRadio.addEventListener('change', () => {
+        this.toggleLocalBackendSettings();
+        if (localRadio.checked) {
+          this.saveSettings();
+        }
+      });
     }
 
     // Add event listener for custom host input validation
@@ -729,7 +858,7 @@ class Popup {
     this.attachSettingsEventListeners();
   }
 
-  private showMainView(): void {
+  private async showMainView(): Promise<void> {
     this.currentView = 'main';
 
     this.statusElement.classList.remove('hidden');
@@ -737,7 +866,11 @@ class Popup {
 
     this.settingsView.classList.add('hidden');
 
-    this.hideSettingsStatus();
+    // Re-render to ensure correct auth form is shown based on current settings
+    const isAuthenticated = await this.checkAuthStatus();
+    const isJobPage = await this.checkIfJobPage();
+    await this.render(isAuthenticated, isJobPage);
+    this.attachEventListeners(isAuthenticated);
   }
 
   private async saveSettings(): Promise<void> {
@@ -764,10 +897,7 @@ class Popup {
     if (newMode === 'local' && customHostInput) {
       const hostValidation = this.validateHostInput();
       if (!hostValidation.isValid) {
-        this.showSettingsStatus(
-          hostValidation.error || 'Invalid host',
-          'error'
-        );
+        this.showNotification(hostValidation.error || 'Invalid host', 'error');
         return;
       }
     }
@@ -784,7 +914,7 @@ class Popup {
         await SettingsService.setBackendMode(newMode);
       }
 
-      this.showSettingsStatus('Settings saved successfully!', 'success');
+      this.showNotification('Settings saved successfully!', 'success');
 
       // Update dashboard link
       this.updateDashboardLink();
@@ -802,71 +932,28 @@ class Popup {
       if (settingsChanged) {
         const isAuthenticated = await this.checkAuthStatus();
         if (isAuthenticated) {
-          this.showSettingsStatus(
+          this.showNotification(
             'Backend settings changed. Please sign out and sign in again.',
             'info'
           );
-          setTimeout(() => this.showMainView(), 3000);
+          setTimeout(async () => await this.showMainView(), 3000);
         } else {
-          // Reinitialize to show the correct auth form
-          setTimeout(async () => {
-            await this.initialize();
-          }, 1500);
+          // If not authenticated and settings changed, re-render to show correct login form
+          await this.showMainView();
+          await this.render(false, await this.checkIfJobPage());
+          this.attachEventListeners(false);
+          this.attachSettingsEventListeners();
         }
       } else {
-        // Go back to main view after a short delay
-        setTimeout(() => this.showMainView(), 1500);
+        // No significant changes, just show success
+        setTimeout(async () => await this.showMainView(), 1500);
       }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'save_settings',
         newMode,
       });
-      this.showSettingsStatus(errorDetails.userMessage, 'error');
-    }
-  }
-
-  private showSettingsStatus(
-    message: string,
-    type: 'info' | 'success' | 'error'
-  ): void {
-    const statusDiv = document.getElementById('settings-status');
-    if (!statusDiv) return;
-
-    // Clear any existing timeout
-    if (this.statusTimeout) {
-      clearTimeout(this.statusTimeout);
-      this.statusTimeout = null;
-    }
-
-    const colorClasses = {
-      info: 'bg-blue-900/50 border-blue-500/50 text-blue-400',
-      success: 'bg-green-900/50 border-green-500/50 text-green-400',
-      error: 'bg-red-900/50 border-red-500/50 text-red-400',
-    };
-
-    statusDiv.className = `p-2 border rounded-md ${colorClasses[type]}`;
-    statusDiv.textContent = message;
-    statusDiv.classList.remove('hidden');
-
-    // Auto-hide success and info messages after 3 seconds
-    if (type === 'success' || type === 'info') {
-      this.statusTimeout = window.setTimeout(() => {
-        this.hideSettingsStatus();
-      }, 5000);
-    }
-    // Auto-hide error messages after 3 seconds
-    else if (type === 'error') {
-      this.statusTimeout = window.setTimeout(() => {
-        this.hideSettingsStatus();
-      }, 5000);
-    }
-  }
-
-  private hideSettingsStatus(): void {
-    const statusDiv = document.getElementById('settings-status');
-    if (statusDiv) {
-      statusDiv.classList.add('hidden');
+      this.showNotification(errorDetails.userMessage, 'error');
     }
   }
 
@@ -933,17 +1020,11 @@ class Popup {
   }
 
   private async testConnection(): Promise<void> {
-    const connectionStatus = document.getElementById('connection-status');
     const testBtn = document.getElementById(
       'test-connection-btn'
     ) as HTMLButtonElement;
-    if (!connectionStatus || !testBtn) return;
+    if (!testBtn) return;
 
-    // Clear previous status
-    connectionStatus.className = 'hidden';
-    connectionStatus.innerHTML = '';
-
-    // Disable button during test
     testBtn.disabled = true;
 
     try {
@@ -985,31 +1066,18 @@ class Popup {
 
       // Show result
       if (isConnected) {
-        connectionStatus.className =
-          'p-2 bg-green-900/50 border border-green-500/50 rounded-md text-sm';
-        connectionStatus.innerHTML =
-          '<span class="text-green-400">Connection successful!</span>';
+        this.showNotification('Connection successful!', 'success');
       } else {
-        throw new Error('Connection failed. Please check your settings.');
+        throw new Error('Connection failed');
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Connection test failed';
-      connectionStatus.className =
-        'p-2 bg-red-900/50 border border-red-500/50 rounded-md text-sm';
-      connectionStatus.innerHTML = `<span class="text-red-400">${errorMessage}</span>`;
+      this.showNotification(errorMessage, 'error');
     } finally {
       // Re-enable button
       testBtn.disabled = false;
     }
-
-    // Show status (outside of try-catch to ensure it always shows)
-    connectionStatus.classList.remove('hidden');
-
-    // Auto-hide status after 3 seconds
-    setTimeout(() => {
-      connectionStatus.classList.add('hidden');
-    }, 5000);
   }
 
   private async updateDashboardLink(): Promise<void> {
