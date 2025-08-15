@@ -64,7 +64,7 @@ describe('VegaAIOverlay', () => {
     it('should create overlay elements', () => {
       expect(document.getElementById('vega-ai-root')).toBeTruthy();
       expect(document.getElementById('vega-ai-overlay')).toBeTruthy();
-      expect(document.getElementById('vega-ai-capture-button')).toBeTruthy();
+      expect(document.getElementById('vega-ai-save-button')).toBeTruthy();
       expect(document.getElementById('vega-ai-capture-panel')).toBeTruthy();
     });
 

@@ -1,7 +1,7 @@
 {
   "name": "vega-ai-extension",
   "version": "1.0.3",
-  "description": "Capture job listings from LinkedIn, Indeed & Glassdoor (LinkedIn available now, others coming soon)",
+  "description": "Save job listings to your personal dashboard with one click. User-initiated tool for organizing your job search.",
   "private": true,
   "scripts": {
     "dev": "webpack --watch --mode=development",

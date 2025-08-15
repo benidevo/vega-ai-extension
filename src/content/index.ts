@@ -1,4 +1,4 @@
-import { extractJobData, isSupportedJobPage } from './extractors';
+import { readJobDetails, isSupportedJobPage } from './extractors';
 import { VegaAIOverlay } from './overlay';
 import { contentLogger } from '../utils/logger';
 import { contentConnection } from './connection';
@@ -6,12 +6,8 @@ import { contentConnection } from './connection';
 let overlay: VegaAIOverlay | null = null;
 let isInitializing = false;
 
-// Establish persistent connection to service worker
 contentConnection.connect();
 
-/**
- * Debounce function to prevent multiple rapid calls
- */
 function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
@@ -31,19 +27,13 @@ function debounce<T extends (...args: unknown[]) => unknown>(
   };
 }
 
-/**
- * Initializes the content script by detecting supported job pages, extracting job data,
- * updating the extension badge, and managing the overlay UI.
- */
 async function initialize(): Promise<void> {
-  // Check if extension context is still valid
   if (!isContextValid()) {
     contentLogger.warn('Extension context is invalid, skipping initialization');
     cleanup();
     return;
   }
 
-  // Prevent concurrent initializations
   if (isInitializing) {
     contentLogger.debug('Initialization already in progress, skipping');
     return;
@@ -66,19 +56,19 @@ async function initialize(): Promise<void> {
       }
 
       try {
-        const jobData = await contentLogger.time('job_extraction', () =>
-          extractJobData()
+        const jobData = await contentLogger.time('job_reading', () =>
+          readJobDetails()
         );
 
         if (jobData) {
-          contentLogger.info('Job data extracted', {
+          contentLogger.info('Job data read', {
             title: jobData.title,
             company: jobData.company,
           });
 
           try {
             await chrome.runtime.sendMessage({
-              type: 'JOB_EXTRACTED',
+              type: 'JOB_READ',
               payload: jobData,
             });
           } catch (error) {
@@ -95,10 +85,10 @@ async function initialize(): Promise<void> {
             contentLogger.error('Failed to send message to background', error);
           }
         } else {
-          contentLogger.warn('No job data extracted from current page');
+          contentLogger.warn('No job data read from current page');
         }
-      } catch (extractionError) {
-        contentLogger.error('Failed to extract job data', extractionError);
+      } catch (readError) {
+        contentLogger.error('Failed to read job data', readError);
       }
     } else {
       if (overlay) {
@@ -115,9 +105,6 @@ async function initialize(): Promise<void> {
 
 const debouncedInitialize = debounce(initialize, 500);
 
-/**
- * Check if extension context is still valid
- */
 function isContextValid(): boolean {
   try {
     return !!chrome.runtime?.id;
@@ -126,9 +113,6 @@ function isContextValid(): boolean {
   }
 }
 
-/**
- * Clean up resources when context is invalidated
- */
 function cleanup(): void {
   if (overlay) {
     overlay.destroy();
@@ -141,7 +125,6 @@ function cleanup(): void {
 
 let hasInitialized = false;
 const initializeWhenVisible = () => {
-  // Check context validity first
   if (!isContextValid()) {
     contentLogger.warn('Extension context is invalid');
     cleanup();
@@ -149,7 +132,6 @@ const initializeWhenVisible = () => {
   }
 
   if (!hasInitialized && isSupportedJobPage()) {
-    // Look for main content areas that would contain job information
     const contentSelectors = [
       '.jobs-unified-top-card',
       '.job-details-jobs-unified-top-card',
@@ -176,13 +158,12 @@ const initializeWhenVisible = () => {
           });
         },
         {
-          threshold: 0.1, // Trigger when 10% of the element is visible
+          threshold: 0.1,
         }
       );
 
       observer.observe(targetElement);
     } else {
-      // Fallback if we can't find a suitable element
       debouncedInitialize();
     }
   }
@@ -196,28 +177,23 @@ const checkForUrlChange = () => {
     lastUrl = url;
     hasInitialized = false;
 
-    // Clear overlay immediately if not on job page
     if (!isSupportedJobPage() && overlay) {
       overlay.destroy();
       overlay = null;
       chrome.action.setBadgeText({ text: '' });
     } else if (isSupportedJobPage()) {
-      // Reinitialize with a delay for DOM to update
       setTimeout(initializeWhenVisible, 300);
     }
   }
 };
 
-// Use both MutationObserver and periodic checks for LinkedIn SPA
 const mutationObserver = new MutationObserver(() => checkForUrlChange());
 mutationObserver.observe(document, { subtree: true, childList: true });
 
-// Fallback: Check URL every second for LinkedIn to catch SPA navigation
 if (location.hostname.includes('linkedin.com')) {
   setInterval(checkForUrlChange, 1000);
 }
 
-// Initial check on script load
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(initializeWhenVisible, 100);
@@ -226,8 +202,7 @@ if (document.readyState === 'loading') {
   setTimeout(initializeWhenVisible, 100);
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Check context validity before processing messages
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!isContextValid()) {
     contentLogger.warn('Extension context is invalid, ignoring message');
     sendResponse({ success: false, error: 'Extension context invalidated' });
@@ -239,7 +214,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     debouncedInitialize();
     sendResponse({ success: true });
   }
-  return true; // Keep the message channel open for async response
+  return true;
 });
 
 window.addEventListener('unload', () => {

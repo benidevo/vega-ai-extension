@@ -1,37 +1,31 @@
 import { JobListing } from '@/types';
-import { IJobExtractor } from './IJobExtractor';
-import { LinkedInExtractor } from './linkedin';
+import { IJobReader } from './IJobReader';
+import { LinkedInJobReader } from './linkedin';
 import { isValidJobListing, sanitizeJobListing } from '../../utils/validation';
 import { Logger } from '@/utils/logger';
 
-const extractorLogger = new Logger('Extractors');
+const readerLogger = new Logger('JobReaders');
 
-const extractors: IJobExtractor[] = [new LinkedInExtractor()];
+const readers: IJobReader[] = [new LinkedInJobReader()];
 
-/**
- * Main extractor function that determines which extractor to use
- */
-export function extractJobData(): JobListing | null {
+export function readJobDetails(): JobListing | null {
   const currentUrl = window.location.href;
 
-  for (const extractor of extractors) {
-    if (extractor.canExtract(currentUrl)) {
+  for (const reader of readers) {
+    if (reader.canRead(currentUrl)) {
       try {
-        const jobData = extractor.extract(document);
+        const jobData = reader.readJobDetails(document);
 
         if (jobData && isValidJobListing(jobData)) {
           return sanitizeJobListing(jobData);
         } else {
-          extractorLogger.warn('Extracted job data failed validation', {
+          readerLogger.warn('Read job data failed validation', {
             jobData,
           });
           return null;
         }
       } catch (error) {
-        extractorLogger.error(
-          `Error in ${extractor.siteName} extractor`,
-          error
-        );
+        readerLogger.error(`Error in ${reader.siteName} reader`, error);
         return null;
       }
     }
@@ -40,10 +34,7 @@ export function extractJobData(): JobListing | null {
   return null;
 }
 
-/**
- * Check if current page is a supported job listing
- */
 export function isSupportedJobPage(): boolean {
   const currentUrl = window.location.href;
-  return extractors.some(extractor => extractor.canExtract(currentUrl));
+  return readers.some(reader => reader.canRead(currentUrl));
 }

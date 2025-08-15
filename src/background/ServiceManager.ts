@@ -227,7 +227,7 @@ export class ServiceManager {
       return false;
     });
 
-    this.messageService.on(MessageType.JOB_EXTRACTED, () => {
+    this.messageService.on(MessageType.JOB_READ, () => {
       this.badgeService.showSuccess().catch(error => {
         errorService.handleError(error, { action: 'badge_show_success' });
       });
