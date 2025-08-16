@@ -39,7 +39,7 @@ jest.mock('@/background/services', () => ({
     LOGOUT: 'LOGOUT',
     SAVE_JOB: 'SAVE_JOB',
     AUTH_STATE_CHANGED: 'AUTH_STATE_CHANGED',
-    JOB_EXTRACTED: 'JOB_EXTRACTED',
+    JOB_READ: 'JOB_READ',
     OPEN_POPUP: 'OPEN_POPUP',
   },
 }));
@@ -508,17 +508,17 @@ describe('ServiceManager', () => {
       });
     });
 
-    describe('JOB_EXTRACTED handler', () => {
+    describe('JOB_READ handler', () => {
       it('should show success badge', async () => {
         const badgeService = (serviceManager as any).badgeService;
         badgeService.showSuccess.mockResolvedValue(undefined);
 
         const messageService = (serviceManager as any).messageService;
         const handler = messageService.on.mock.calls.find(
-          (call: any) => call[0] === MessageType.JOB_EXTRACTED
+          (call: any) => call[0] === MessageType.JOB_READ
         )[1];
 
-        const message = { type: MessageType.JOB_EXTRACTED };
+        const message = { type: MessageType.JOB_READ };
         const result = handler(message, {}, mockSendResponse);
 
         expect(result).toBe(false);
@@ -531,10 +531,10 @@ describe('ServiceManager', () => {
 
         const messageService = (serviceManager as any).messageService;
         const handler = messageService.on.mock.calls.find(
-          (call: any) => call[0] === MessageType.JOB_EXTRACTED
+          (call: any) => call[0] === MessageType.JOB_READ
         )[1];
 
-        const message = { type: MessageType.JOB_EXTRACTED };
+        const message = { type: MessageType.JOB_READ };
         handler(message, {}, mockSendResponse);
 
         await new Promise(resolve => setTimeout(resolve, 0));

@@ -257,13 +257,11 @@ export class VegaAIOverlay {
       ) as HTMLButtonElement;
       if (!saveButton) return;
 
-      // Disable button and show loading state
       const originalText = saveButton.textContent || 'Save';
       saveButton.disabled = true;
       saveButton.textContent = 'Saving...';
 
       try {
-        // Send to background for API call
         const response = await sendMessage<{
           success: boolean;
           error?: string;
@@ -576,12 +574,11 @@ export class VegaAIOverlay {
       text.className = 'vega-ai-error-text';
       text.style.cssText =
         'margin-top: 16px; color: #EF4444; font-size: 16px; font-weight: 500;';
-      text.textContent = message || 'Failed to extract job data';
+      text.textContent = message || 'Failed to read job data';
 
       errorDiv.appendChild(iconWrapper);
       errorDiv.appendChild(text);
 
-      // Add retry button for certain errors
       if (
         message &&
         (message.includes('try again') ||
@@ -595,7 +592,6 @@ export class VegaAIOverlay {
           this.updatePanelContent(container, 'loading');
           setTimeout(async () => {
             try {
-              // Re-check authentication first
               await this.checkAuthentication();
               if (!this.isAuthenticated) {
                 this.showAuthRequired(container);
@@ -609,7 +605,7 @@ export class VegaAIOverlay {
                 this.updatePanelContent(
                   container,
                   'error',
-                  'Unable to extract job data'
+                  'Unable to read job data'
                 );
               }
             } catch {
@@ -777,7 +773,7 @@ export class VegaAIOverlay {
         }
       } catch (error) {
         const errorDetails = errorService.handleError(error, {
-          action: 'extract_job_data',
+          action: 'read_job_data',
           context: 'overlay',
         });
         this.updatePanelContent(content, 'error', errorDetails.userMessage);

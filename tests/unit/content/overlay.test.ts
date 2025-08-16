@@ -1,8 +1,8 @@
-import { VegaAIOverlay } from '@/content/overlay';
+import { VegaAIOverlay } from '../../../src/content/overlay';
 import { mockChrome, resetChromeMocks } from '../../mocks/chrome';
-import { JobListing } from '@/types';
+import { JobListing } from '../../../src/types';
 
-jest.mock('@/utils/logger', () => ({
+jest.mock('../../../src/utils/logger', () => ({
   overlayLogger: {
     info: jest.fn(),
     error: jest.fn(),
@@ -11,7 +11,7 @@ jest.mock('@/utils/logger', () => ({
   },
 }));
 
-jest.mock('@/background/services/error', () => ({
+jest.mock('../../../src/background/services/error', () => ({
   errorService: {
     handleError: jest.fn().mockReturnValue({
       userMessage: 'An error occurred',
@@ -19,20 +19,20 @@ jest.mock('@/background/services/error', () => ({
   },
 }));
 
-jest.mock('@/utils/messageWrapper', () => ({
+jest.mock('../../../src/utils/messageWrapper', () => ({
   sendMessage: jest.fn(),
 }));
 
-jest.mock('@/content/extractors', () => ({
-  extractJobData: jest.fn(),
+jest.mock('../../../src/content/extractors', () => ({
+  readJobDetails: jest.fn(),
 }));
 
-jest.mock('@/content/styles/overlay.styles', () => ({
+jest.mock('../../../src/content/styles/overlay.styles', () => ({
   overlayStyles: '.vega-ai-container { /* mock styles */ }',
 }));
 
-import { extractJobData } from '@/content/extractors';
-import { sendMessage } from '@/utils/messageWrapper';
+import { readJobDetails } from '../../../src/content/extractors';
+import { sendMessage } from '../../../src/utils/messageWrapper';
 
 describe('VegaAIOverlay', () => {
   let overlay: VegaAIOverlay;
@@ -65,7 +65,7 @@ describe('VegaAIOverlay', () => {
       expect(document.getElementById('vega-ai-root')).toBeTruthy();
       expect(document.getElementById('vega-ai-overlay')).toBeTruthy();
       expect(document.getElementById('vega-ai-save-button')).toBeTruthy();
-      expect(document.getElementById('vega-ai-capture-panel')).toBeTruthy();
+      expect(document.getElementById('vega-ai-save-panel')).toBeTruthy();
     });
 
     it('should check authentication on init', async () => {
@@ -104,7 +104,7 @@ describe('VegaAIOverlay', () => {
       const button = document.querySelector(
         '.vega-ai-fab'
       ) as HTMLButtonElement;
-      const panel = document.getElementById('vega-ai-capture-panel');
+      const panel = document.getElementById('vega-ai-save-panel');
 
       expect(panel?.classList.contains('vega-ai-hidden')).toBe(true);
 
@@ -130,7 +130,7 @@ describe('VegaAIOverlay', () => {
       ) as HTMLButtonElement;
       closeButton.click();
 
-      const panel = document.getElementById('vega-ai-capture-panel');
+      const panel = document.getElementById('vega-ai-save-panel');
       expect(panel?.classList.contains('vega-ai-hidden')).toBe(true);
     });
 
@@ -140,13 +140,13 @@ describe('VegaAIOverlay', () => {
       const event = new KeyboardEvent('keydown', { key: 'Escape' });
       document.dispatchEvent(event);
 
-      const panel = document.getElementById('vega-ai-capture-panel');
+      const panel = document.getElementById('vega-ai-save-panel');
       expect(panel?.classList.contains('vega-ai-hidden')).toBe(true);
     });
   });
 
-  describe('job extraction', () => {
-    it('should extract and display job data', async () => {
+  describe('job reading', () => {
+    it('should read and display job data', async () => {
       const mockJob: JobListing = {
         title: 'Software Engineer',
         company: 'Test Company',
@@ -156,7 +156,7 @@ describe('VegaAIOverlay', () => {
         sourceUrl: 'https://example.com/job/123',
       };
 
-      (extractJobData as jest.Mock).mockReturnValue(mockJob);
+      (readJobDetails as jest.Mock).mockReturnValue(mockJob);
       mockChrome.storage.local.get = jest
         .fn()
         .mockResolvedValue({ authToken: 'test-token' });
@@ -173,7 +173,7 @@ describe('VegaAIOverlay', () => {
       jest.advanceTimersByTime(300);
       await Promise.resolve();
 
-      expect(extractJobData).toHaveBeenCalled();
+      expect(readJobDetails).toHaveBeenCalled();
       expect(document.querySelector('.vega-ai-field-value')?.textContent).toBe(
         'Software Engineer'
       );
@@ -182,7 +182,7 @@ describe('VegaAIOverlay', () => {
     });
 
     it('should show error when no job found', async () => {
-      (extractJobData as jest.Mock).mockReturnValue(null);
+      (readJobDetails as jest.Mock).mockReturnValue(null);
       mockChrome.storage.local.get = jest
         .fn()
         .mockResolvedValue({ authToken: 'test-token' });
@@ -205,7 +205,7 @@ describe('VegaAIOverlay', () => {
       newOverlay.destroy();
     });
 
-    it('should cache extracted jobs', async () => {
+    it('should cache read jobs', async () => {
       const mockJob: JobListing = {
         title: 'Software Engineer',
         company: 'Test Company',
@@ -215,7 +215,7 @@ describe('VegaAIOverlay', () => {
         sourceUrl: window.location.href,
       };
 
-      (extractJobData as jest.Mock).mockReturnValue(mockJob);
+      (readJobDetails as jest.Mock).mockReturnValue(mockJob);
       mockChrome.storage.local.get = jest
         .fn()
         .mockResolvedValue({ authToken: 'test-token' });
@@ -242,7 +242,7 @@ describe('VegaAIOverlay', () => {
       jest.advanceTimersByTime(300);
       await Promise.resolve();
 
-      expect(extractJobData).toHaveBeenCalledTimes(1);
+      expect(readJobDetails).toHaveBeenCalledTimes(1);
 
       newOverlay.destroy();
     });
@@ -317,7 +317,7 @@ describe('VegaAIOverlay', () => {
         sourceUrl: 'https://example.com/job/123',
       };
 
-      (extractJobData as jest.Mock).mockReturnValue(mockJob);
+      (readJobDetails as jest.Mock).mockReturnValue(mockJob);
       (sendMessage as jest.Mock).mockResolvedValue({ success: true });
       mockChrome.storage.local.get = jest
         .fn()
@@ -366,7 +366,7 @@ describe('VegaAIOverlay', () => {
         sourceUrl: 'https://example.com/job/123',
       };
 
-      (extractJobData as jest.Mock).mockReturnValue(mockJob);
+      (readJobDetails as jest.Mock).mockReturnValue(mockJob);
       (sendMessage as jest.Mock).mockRejectedValue(new Error('Network error'));
       mockChrome.storage.local.get = jest
         .fn()
@@ -407,95 +407,6 @@ describe('VegaAIOverlay', () => {
   });
 
   describe('notes functionality', () => {
-    // Removed auto-save functionality
-    it.skip('should auto-save notes', async () => {
-      const mockJob: JobListing = {
-        title: 'Software Engineer',
-        company: 'Test Company',
-        location: 'San Francisco, CA',
-        description: 'Job description',
-        jobType: 'full_time',
-        sourceUrl: 'https://example.com/job/123',
-      };
-
-      (extractJobData as jest.Mock).mockReturnValue(mockJob);
-      mockChrome.storage.local.get = jest
-        .fn()
-        .mockResolvedValue({ authToken: 'test-token' });
-
-      const newOverlay = await VegaAIOverlay.create();
-      const button = document.querySelector(
-        '.vega-ai-fab'
-      ) as HTMLButtonElement;
-
-      button.click();
-      await Promise.resolve();
-      await Promise.resolve();
-      jest.advanceTimersByTime(300);
-      await Promise.resolve();
-
-      const notesTextarea = document.getElementById(
-        'vega-ai-notes-textarea'
-      ) as HTMLTextAreaElement;
-      expect(notesTextarea).toBeTruthy();
-
-      if (notesTextarea) {
-        notesTextarea.value = 'Test notes';
-        notesTextarea.dispatchEvent(new Event('input'));
-
-        jest.advanceTimersByTime(2000);
-        await Promise.resolve();
-
-        expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
-          [`notes_${window.location.href}`]: 'Test notes',
-        });
-      }
-
-      newOverlay.destroy();
-    });
-
-    it.skip('should restore saved notes', async () => {
-      const mockJob: JobListing = {
-        title: 'Software Engineer',
-        company: 'Test Company',
-        location: 'San Francisco, CA',
-        description: 'Job description',
-        jobType: 'full_time',
-        sourceUrl: window.location.href,
-      };
-
-      (extractJobData as jest.Mock).mockReturnValue(mockJob);
-      mockChrome.storage.local.get = jest.fn().mockImplementation(key => {
-        if (key === 'authToken')
-          return Promise.resolve({ authToken: 'test-token' });
-        if (key === `notes_${window.location.href}`) {
-          return Promise.resolve({
-            [`notes_${window.location.href}`]: 'Saved notes',
-          });
-        }
-        return Promise.resolve({});
-      });
-
-      const newOverlay = await VegaAIOverlay.create();
-      const button = document.querySelector(
-        '.vega-ai-fab'
-      ) as HTMLButtonElement;
-
-      button.click();
-      await Promise.resolve();
-      await Promise.resolve();
-      jest.advanceTimersByTime(300);
-      await Promise.resolve();
-      await Promise.resolve();
-
-      const notesTextarea = document.getElementById(
-        'vega-ai-notes-textarea'
-      ) as HTMLTextAreaElement;
-      expect(notesTextarea?.value).toBe('Saved notes');
-
-      newOverlay.destroy();
-    });
-
     it('should update job notes when typing', async () => {
       const mockJob: JobListing = {
         title: 'Software Engineer',
@@ -506,7 +417,7 @@ describe('VegaAIOverlay', () => {
         sourceUrl: window.location.href,
       };
 
-      (extractJobData as jest.Mock).mockReturnValue(mockJob);
+      (readJobDetails as jest.Mock).mockReturnValue(mockJob);
       mockChrome.storage.local.get = jest
         .fn()
         .mockResolvedValue({ authToken: 'test-token' });
@@ -568,7 +479,7 @@ describe('VegaAIOverlay', () => {
 
       (overlay as any).isVisible = true;
       (overlay as any).isAuthenticated = true;
-      (overlay as any).extractedJob = mockJob;
+      (overlay as any).currentJob = mockJob;
 
       const handleSaveJobSpy = jest.spyOn(overlay as any, 'handleSaveJob');
 

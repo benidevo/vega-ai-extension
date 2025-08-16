@@ -97,7 +97,7 @@ npm run release:major    # 1.0.0 → 2.0.0
 
 Releases happen automatically when you push a version tag:
 
-#### 1. Ensure your changes are merged to master
+### 1. Ensure your changes are merged to master
 
 ```bash
 git checkout master
@@ -188,16 +188,16 @@ Pre-commit hooks run automatically to check your code. They run ESLint, Prettier
 
 Want to add Indeed or another job site? Here's how:
 
-1. Create a new extractor in `src/content/extractors/`:
+1. Create a new reader in `src/content/extractors/`:
 
    ```typescript
-   export class IndeedExtractor implements IJobExtractor {
-     canExtract(url: string): boolean {
+   export class IndeedJobReader implements IJobReader {
+     canRead(url: string): boolean {
        return url.includes('indeed.com/viewjob');
      }
 
-     extract(): JobListing | null {
-       // Pull data from the page
+     readJobDetails(): JobListing | null {
+       // Read data from the page
      }
    }
    ```
@@ -229,11 +229,11 @@ npm run test:watch    # Keep running
 Tests use Jest and mock the Chrome APIs. Example:
 
 ```typescript
-describe('IndeedExtractor', () => {
-  it('extracts job data', () => {
+describe('IndeedJobReader', () => {
+  it('reads job data', () => {
     document.body.innerHTML = '<div>Mock Indeed HTML</div>';
-    const extractor = new IndeedExtractor();
-    const job = extractor.extract();
+    const reader = new IndeedJobReader();
+    const job = reader.readJobDetails();
 
     expect(job?.title).toBe('Software Engineer');
   });
@@ -259,14 +259,14 @@ After running `npm run dev`:
 
 ## 📁 Code Organization
 
-```
+```plaintext
 src/
 ├── background/          # Service worker (runs in background)
 │   ├── services/       # All the main logic
 │   └── index.ts        # Entry point
 │
 ├── content/            # Runs on LinkedIn pages
-│   ├── extractors/     # Gets job data from pages
+│   ├── extractors/     # Reads job data from pages
 │   ├── overlay.ts      # The floating button/panel
 │   └── index.ts        # Entry point
 │

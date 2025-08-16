@@ -4,7 +4,7 @@
 
 ### Overview
 
-A Chrome extension that captures job listings from LinkedIn and saves them to the Vega AI backend. Built with TypeScript and Manifest V3. Supports both cloud and self-hosted backends.
+A Chrome extension that allows users to save job listings from LinkedIn to the Vega AI backend. Built with TypeScript and Manifest V3. All actions are user-initiated. The extension never automatically collects data. Supports both cloud and self-hosted backends.
 
 ## 🏗️ Architecture
 
@@ -70,9 +70,9 @@ src/
 │   └── ServiceManager.ts # Coordinates all services
 │
 ├── content/            # Content scripts injected into web pages
-│   ├── extractors/    # Job data extraction modules
-│   │   ├── IJobExtractor.ts    # Common interface
-│   │   └── linkedin.ts         # LinkedIn-specific extractor
+│   ├── extractors/    # Job data reading modules
+│   │   ├── IJobReader.ts       # Common interface
+│   │   └── linkedin.ts         # LinkedIn-specific reader
 │   ├── overlay.ts     # Floating UI component
 │   └── index.ts       # Content script entry point
 │
@@ -120,22 +120,22 @@ Shows a little green checkmark or red X on the extension icon to give quick feed
 
 ### Content Scripts
 
-#### Job Extractors
+#### Job Readers
 
-Site-specific modules that implement the `IJobExtractor` interface:
+Site-specific modules that implement the `IJobReader` interface:
 
 ```typescript
-interface IJobExtractor {
-  canExtract(url: string): boolean;
-  extract(): JobListing | null;
+interface IJobReader {
+  canRead(url: string): boolean;
+  readJobDetails(): JobListing | null;
   isJobPage(url: string): boolean;
   watchForChanges(callback: (job: JobListing | null) => void): void;
 }
 ```
 
-**Current Extractors**:
+**Current Readers**:
 
-- **LinkedIn**: Extracts job data from LinkedIn job view pages
+- **LinkedIn**: Reads job data from LinkedIn job view pages when user initiates save
 - **Extensible**: Easy to add new job sites
 
 #### Overlay Manager
@@ -198,7 +198,7 @@ The extension only asks for what it needs:
 
 ## 📊 Data Flow
 
-### Job Capture Flow
+### Job Save Flow
 
 ```mermaid
 sequenceDiagram
@@ -214,7 +214,7 @@ sequenceDiagram
     CS->>CS: Detect job listing
     CS->>OV: Show floating button
     U->>OV: Click button
-    OV->>CS: Extract job data
+    OV->>CS: Read job data
     CS->>OV: Display job preview
     U->>OV: Add notes (optional)
     U->>OV: Click save
@@ -261,7 +261,7 @@ sequenceDiagram
 ### Unit Tests
 
 - **Service classes**: Isolated testing with mocks
-- **Extractors**: Job data extraction validation
+- **Readers**: Job data reading validation
 - **Utilities**: Helper function testing
 
 ### Integration Tests
@@ -274,7 +274,7 @@ sequenceDiagram
 
 - **Cross-browser**: Chrome and Edge testing
 - **Job sites**: Verification on supported platforms
-- **User flows**: Complete capture workflows
+- **User flows**: Complete save workflows
 
 ## 🚀 Deployment
 
