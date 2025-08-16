@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "Vega AI Job Capture",
   "version": "1.0.3",
-  "description": "Capture job listings with one click. Currently supports LinkedIn, with Indeed & Glassdoor coming soon.",
+  "description": "Save job listings to your personal dashboard with one click. User-initiated tool for organizing your job search.",
+  "homepage_url": "https://vega.benidevo.com/privacy",
   "author": "Benjamin Idewor",
   "icons": {
     "16": "icons/icon16.png",

@@ -1,26 +1,26 @@
 # Vega AI Job Capture Extension
 
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
-[![Coverage Status](https://img.shields.io/badge/Coverage-88.78%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
+[![Coverage Status](https://img.shields.io/badge/Coverage-88.57%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)
 [![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
 
-**Save job listings from LinkedIn with one click.**
+**Save job listings to your personal dashboard with one click.**
 
-This Chrome extension adds a floating button to LinkedIn job pages that lets you save jobs directly to your Vega AI dashboard. Works with both the cloud service and self-hosted backends.
+This user-initiated Chrome extension adds a floating button to LinkedIn job pages that lets you save jobs directly to your Vega AI dashboard. All actions are initiated by you. The extension never collects or saves data automatically. Works with both the cloud service and self-hosted backends.
 
 ## ✨ Features
 
-- 🎯 **Auto-detects** job pages on LinkedIn
-- 💾 **One-click save** with the floating button
+- 🎯 **Shows on** job pages on LinkedIn when you visit them
+- 💾 **User-initiated save** with the floating button
 - 📝 **Add notes** before saving (saved locally too)
 - 🔐 **Two auth options**: username/password or Google OAuth
 - 🌐 **Cloud or self-hosted**: your choice
 - ⚡ **Keyboard shortcuts**: Ctrl+Shift+V to toggle, Ctrl+S to save
 - 🔄 **Syncs across devices** when signed in
-- 🛡️ **Your data stays secure** with encrypted storage
+- 🛡️ **Privacy-focused**: only saves when you click, data encrypted
 
 ## 🎬 How it Works
 
@@ -41,7 +41,7 @@ No more copy-pasting job details.
 2. Click "Add to Chrome"
 3. Click "Add extension" in the popup
 
-**Option 2: Direct Download**
+#### Option 2: Direct Download
 
 1. Visit the [latest release page](https://github.com/benidevo/vega-ai-extension/releases/latest)
 2. Download the `vega-extension-*.zip` file
@@ -140,6 +140,19 @@ The code is organized into these main parts:
 - 🏗️ **[Technical Design](docs/TECHNICAL_DESIGN.md)** - Architecture and implementation details
 
 </details>
+
+## 🔒 Privacy & Security
+
+**Your privacy is priority:**
+
+- ✅ **User-initiated only**: The extension never reads or saves data automatically
+- ✅ **You control your data**: Only saves jobs when you explicitly click the save button
+- ✅ **No tracking**: No analytics, no data collection beyond what you choose to save
+- ✅ **Encrypted storage**: Your authentication tokens are encrypted locally
+- ✅ **Open source**: Review the code to see exactly what the extension does
+- ✅ **Minimal permissions**: Only accesses LinkedIn job pages, nothing else
+
+Read the full **[Privacy Policy](https://vega.benidevo.com/privacy)** for complete details.
 
 ## 🆘 Need Help?
 

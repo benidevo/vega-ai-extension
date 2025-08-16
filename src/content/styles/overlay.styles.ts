@@ -24,7 +24,7 @@ export const overlayStyles = `
   }
 
   /* Floating action button - positioned higher to avoid LinkedIn messaging */
-  #vega-ai-root .vega-ai-capture-button {
+  #vega-ai-root .vega-ai-save-button {
     position: fixed;
     bottom: 100px;
     right: 24px;
@@ -34,7 +34,7 @@ export const overlayStyles = `
 
   /* Responsive positioning for mobile */
   @media (max-width: 768px) {
-    #vega-ai-root .vega-ai-capture-button {
+    #vega-ai-root .vega-ai-save-button {
       bottom: 80px;
       right: 16px;
     }
@@ -66,7 +66,7 @@ export const overlayStyles = `
   }
 
   /* Panel styles */
-  #vega-ai-root .vega-ai-capture-panel {
+  #vega-ai-root .vega-ai-save-panel {
     position: fixed;
     bottom: 170px;
     right: 24px;
@@ -76,7 +76,7 @@ export const overlayStyles = `
     transition: opacity 200ms, transform 200ms;
   }
 
-  #vega-ai-root .vega-ai-capture-panel.vega-ai-hidden {
+  #vega-ai-root .vega-ai-save-panel.vega-ai-hidden {
     opacity: 0;
     transform: translateY(10px);
     pointer-events: none;
@@ -84,7 +84,7 @@ export const overlayStyles = `
 
   /* Responsive panel positioning */
   @media (max-width: 768px) {
-    #vega-ai-root .vega-ai-capture-panel {
+    #vega-ai-root .vega-ai-save-panel {
       bottom: 150px;
       right: 16px;
       left: 16px;
@@ -94,12 +94,12 @@ export const overlayStyles = `
 
   /* Ensure panel doesn't go off-screen on small viewports */
   @media (max-height: 600px) {
-    #vega-ai-root .vega-ai-capture-panel {
+    #vega-ai-root .vega-ai-save-panel {
       bottom: 60px;
       max-height: calc(100vh - 120px);
     }
     
-    #vega-ai-root .vega-ai-capture-button {
+    #vega-ai-root .vega-ai-save-button {
       bottom: 20px;
     }
   }

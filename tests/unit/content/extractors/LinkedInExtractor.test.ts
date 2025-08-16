@@ -1,4 +1,4 @@
-import { LinkedInExtractor } from '../../../../src/content/extractors/linkedin';
+import { LinkedInJobReader } from '../../../../src/content/extractors/linkedin';
 import { JobListing } from '../../../../src/types';
 
 jest.mock('../../../../src/utils/validation', () => ({
@@ -7,49 +7,43 @@ jest.mock('../../../../src/utils/validation', () => ({
   sanitizeJobListing: jest.fn((listing: JobListing) => listing),
 }));
 
-describe('LinkedInExtractor', () => {
-  let extractor: LinkedInExtractor;
+describe('LinkedInJobReader', () => {
+  let reader: LinkedInJobReader;
   let mockDocument: Document;
 
   beforeEach(() => {
-    extractor = new LinkedInExtractor();
+    reader = new LinkedInJobReader();
     mockDocument = document.implementation.createHTMLDocument();
   });
 
-  describe('canExtract', () => {
+  describe('canRead', () => {
     it('should return true for LinkedIn job view URLs', () => {
       expect(
-        extractor.canExtract('https://www.linkedin.com/jobs/view/123456789')
+        reader.canRead('https://www.linkedin.com/jobs/view/123456789')
       ).toBe(true);
       expect(
-        extractor.canExtract(
-          'https://linkedin.com/jobs/view/987654321?tracking=abc'
-        )
+        reader.canRead('https://linkedin.com/jobs/view/987654321?tracking=abc')
       ).toBe(true);
     });
 
     it('should return false for non-job LinkedIn URLs', () => {
-      expect(extractor.canExtract('https://www.linkedin.com/feed/')).toBe(
+      expect(reader.canRead('https://www.linkedin.com/feed/')).toBe(false);
+      expect(reader.canRead('https://www.linkedin.com/in/john-doe')).toBe(
         false
       );
-      expect(extractor.canExtract('https://www.linkedin.com/in/john-doe')).toBe(
+      expect(reader.canRead('https://www.linkedin.com/jobs/search/')).toBe(
         false
       );
-      expect(
-        extractor.canExtract('https://www.linkedin.com/jobs/search/')
-      ).toBe(false);
     });
 
     it('should return false for non-LinkedIn URLs', () => {
-      expect(extractor.canExtract('https://www.indeed.com/job/123')).toBe(
-        false
-      );
-      expect(extractor.canExtract('https://www.google.com')).toBe(false);
+      expect(reader.canRead('https://www.indeed.com/job/123')).toBe(false);
+      expect(reader.canRead('https://www.google.com')).toBe(false);
     });
   });
 
-  describe('extract', () => {
-    it('should extract job data from LinkedIn job page', () => {
+  describe('readJobDetails', () => {
+    it('should read job data from LinkedIn job page', () => {
       mockDocument.body.innerHTML = `
         <div>
           <h1 class="jobs-unified-top-card__job-title">Senior Software Engineer</h1>
@@ -66,7 +60,7 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(
+      const result = reader.readJobDetails(
         mockDocument,
         'https://www.linkedin.com/jobs/view/123456789'
       );
@@ -96,7 +90,7 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(
+      const result = reader.readJobDetails(
         mockDocument,
         'https://www.linkedin.com/jobs/view/123456789'
       );
@@ -112,7 +106,6 @@ describe('LinkedInExtractor', () => {
     });
 
     it('should return null when required fields are missing', () => {
-      // Missing title
       mockDocument.body.innerHTML = `
         <div>
           <a class="jobs-unified-top-card__company-name">Tech Corp</a>
@@ -120,13 +113,12 @@ describe('LinkedInExtractor', () => {
       `;
 
       expect(
-        extractor.extract(
+        reader.readJobDetails(
           mockDocument,
           'https://www.linkedin.com/jobs/view/123456789'
         )
       ).toBeNull();
 
-      // Missing company
       mockDocument.body.innerHTML = `
         <div>
           <h1 class="jobs-unified-top-card__job-title">Software Engineer</h1>
@@ -134,14 +126,14 @@ describe('LinkedInExtractor', () => {
       `;
 
       expect(
-        extractor.extract(
+        reader.readJobDetails(
           mockDocument,
           'https://www.linkedin.com/jobs/view/123456789'
         )
       ).toBeNull();
     });
 
-    it('should extract various job types correctly', () => {
+    it('should read various job types correctly', () => {
       const jobTypeTests = [
         { text: 'Full-time position', expected: 'full_time' },
         { text: 'Part time opportunity', expected: 'part_time' },
@@ -160,7 +152,7 @@ describe('LinkedInExtractor', () => {
           </div>
         `;
 
-        const result = extractor.extract(
+        const result = reader.readJobDetails(
           mockDocument,
           'https://www.linkedin.com/jobs/view/123456789'
         );
@@ -177,14 +169,14 @@ describe('LinkedInExtractor', () => {
         }),
       } as any;
 
-      const result = extractor.extract(
+      const result = reader.readJobDetails(
         errorDocument,
         'https://www.linkedin.com/jobs/view/123456789'
       );
 
       expect(result).toBeNull();
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Error extracting LinkedIn job data'),
+        expect.stringContaining('Error reading LinkedIn job data'),
         expect.any(Error)
       );
 
@@ -203,7 +195,7 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(
+      const result = reader.readJobDetails(
         mockDocument,
         'https://www.linkedin.com/jobs/view/123456789'
       );
@@ -218,7 +210,7 @@ describe('LinkedInExtractor', () => {
         </div>
       `;
 
-      const result = extractor.extract(
+      const result = reader.readJobDetails(
         mockDocument,
         'https://www.linkedin.com/jobs/view/123456789'
       );
@@ -228,7 +220,7 @@ describe('LinkedInExtractor', () => {
 
   describe('siteName', () => {
     it('should return LinkedIn as site name', () => {
-      expect(extractor.siteName).toBe('LinkedIn');
+      expect(reader.siteName).toBe('LinkedIn');
     });
   });
 });

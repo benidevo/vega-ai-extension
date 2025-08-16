@@ -43,7 +43,7 @@ export interface ExtensionMessage {
  */
 export enum MessageType {
   // Job-related messages
-  JOB_EXTRACTED = 'JOB_EXTRACTED',
+  JOB_READ = 'JOB_READ',
   SAVE_JOB = 'SAVE_JOB',
 
   // Auth-related messages
