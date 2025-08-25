@@ -291,8 +291,8 @@ sequenceDiagram
 1. Bump version: `npm version patch`
 2. Build the extension: `npm run build`
 3. Create ZIP file from `dist/` directory
-4. Manually upload to Chrome Web Store
-5. Create GitHub release with changelog
+4. Create GitHub release with the ZIP file
+5. Users download directly from GitHub releases
 
 ### Environment Management
 

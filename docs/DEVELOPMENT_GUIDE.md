@@ -140,8 +140,8 @@ git push origin --tags
 - Run tests and linting: `npm test && npm run lint`
 - Build the extension: `npm run build`
 - Create a ZIP file: `cd dist && zip -r ../extension.zip . && cd ..`
-- Upload to Chrome Web Store manually via Developer Dashboard
-- Create a GitHub release with the ZIP
+- Create a GitHub release with the ZIP file
+- Users will download directly from the releases page
 
 #### 5. Manual verification
 

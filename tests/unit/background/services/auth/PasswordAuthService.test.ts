@@ -197,7 +197,9 @@ describe('PasswordAuthService', () => {
 
       await expect(
         authService.authenticate({ username: 'user', password: 'pass' })
-      ).rejects.toThrow('Network error');
+      ).rejects.toThrow(
+        'Cannot connect to local backend. Please ensure your local Vega server is running.'
+      );
     });
 
     it('should handle non-Error exceptions', async () => {
@@ -206,7 +208,7 @@ describe('PasswordAuthService', () => {
       await expect(
         authService.authenticate({ username: 'user', password: 'pass' })
       ).rejects.toThrow(
-        'Unable to sign in. Please check your connection and try again.'
+        'Cannot connect to local backend. Please ensure your local Vega server is running.'
       );
     });
   });

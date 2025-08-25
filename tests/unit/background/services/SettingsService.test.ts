@@ -218,28 +218,6 @@ describe('SettingsService', () => {
     });
   });
 
-  describe('isOAuthEnabled', () => {
-    it('should return true for cloud mode', async () => {
-      mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: { ...DEFAULT_SETTINGS, backendMode: 'cloud' },
-      });
-
-      const enabled = await SettingsService.isOAuthEnabled();
-
-      expect(enabled).toBe(true);
-    });
-
-    it('should return false for local mode', async () => {
-      mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: { ...DEFAULT_SETTINGS, backendMode: 'local' },
-      });
-
-      const enabled = await SettingsService.isOAuthEnabled();
-
-      expect(enabled).toBe(false);
-    });
-  });
-
   describe('testConnection', () => {
     it('should return true for successful connection', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({

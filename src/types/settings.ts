@@ -16,11 +16,9 @@ export const BACKEND_CONFIGS = {
   cloud: {
     apiHost: 'vega.benidevo.com',
     apiProtocol: 'https' as const,
-    enableOAuth: true,
   },
   local: {
     apiHost: 'localhost:8765',
     apiProtocol: 'http' as const,
-    enableOAuth: false,
   },
 };

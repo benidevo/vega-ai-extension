@@ -43,11 +43,11 @@ jobs:
         body: |
           ## Vega AI Job Capture ${{ github.ref_name }}
 
-          ### 🚀 Install from Chrome Web Store
+          ### 📥 Installation Instructions
 
-          **[Install Vega AI Job Capture Extension](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)**
+          **Download the extension ZIP file from the assets below**
 
-          ### 💻 Manual Installation
+          ### 💻 How to Install
 
           Download the attached ZIP file for manual installation or development.
 
