@@ -79,13 +79,13 @@ const configurations: Record<string, AppConfig> = {
     auth: {
       providers: {
         password: {
-          apiBaseUrl: 'http://localhost:8765',
+          apiBaseUrl: 'https://vega.benidevo.com',
         },
       },
       defaultProvider: 'password',
     },
     api: {
-      baseUrl: 'http://localhost:8765',
+      baseUrl: 'https://vega.benidevo.com',
       authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,

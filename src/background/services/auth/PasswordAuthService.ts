@@ -28,10 +28,6 @@ export class PasswordAuthService implements IAuthProvider {
       }
 
       authLogger.info('Attempting password authentication');
-      console.log(
-        '[PasswordAuthService] Using endpoint:',
-        `${this.apiBaseUrl}/api/auth/login`
-      );
       let response: Response;
 
       try {
@@ -170,6 +166,6 @@ export class PasswordAuthService implements IAuthProvider {
   }
 
   async validateAuth(token: string): Promise<boolean> {
-    return !!token;
+    return !!token && token.trim() !== '';
   }
 }
