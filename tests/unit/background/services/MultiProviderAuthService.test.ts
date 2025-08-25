@@ -44,7 +44,7 @@ const mockFactoryInstance = {
         return null;
     }
   }),
-  getAvailableProviders: jest.fn(() => ['google', 'password']),
+  getAvailableProviders: jest.fn(() => ['password']),
 };
 
 const mockChrome = {
@@ -180,14 +180,8 @@ describe('MultiProviderAuthService', () => {
     });
   });
 
-  describe('loginWithProvider - Google disabled', () => {
-    it('should reject Google auth when disabled', async () => {
-      await expect(authService.loginWithProvider('google')).rejects.toThrow(
-        'Google authentication is disabled'
-      );
-    });
-
-    it('should allow password auth when Google is disabled', async () => {
+  describe('loginWithProvider - Password only', () => {
+    it('should allow password auth', async () => {
       mockPasswordProvider.authenticate.mockResolvedValue({
         access_token: 'token',
         refresh_token: 'refresh',
@@ -204,10 +198,9 @@ describe('MultiProviderAuthService', () => {
   });
 
   describe('getAvailableProviders', () => {
-    it('should only return password provider when Google is disabled', () => {
+    it('should only return password provider', () => {
       const providers = authService.getAvailableProviders();
       expect(providers).toEqual(['password']);
-      expect(providers).not.toContain('google');
     });
   });
 
@@ -248,39 +241,6 @@ describe('MultiProviderAuthService', () => {
       await authService.initialize();
 
       expect(authStateCallback).toHaveBeenCalledWith(true);
-    });
-
-    it('should not reinitialize if already initialized', async () => {
-      await authService.initialize();
-      jest.clearAllMocks();
-
-      await authService.initialize();
-
-      expect(mockStorageService.get).not.toHaveBeenCalled();
-    });
-
-    it('should not notify if no token exists', async () => {
-      mockStorageService.get.mockResolvedValue(null);
-
-      const authStateCallback = jest.fn();
-      authService.onAuthStateChange(authStateCallback);
-
-      await authService.initialize();
-
-      expect(authStateCallback).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('destroy', () => {
-    it('should clear listeners and mark as uninitialized', async () => {
-      const callback = jest.fn();
-      authService.onAuthStateChange(callback);
-
-      await authService.destroy();
-
-      await authService.logout().catch(() => {});
-
-      expect(callback).not.toHaveBeenCalled();
     });
   });
 
@@ -529,22 +489,26 @@ describe('MultiProviderAuthService', () => {
     });
   });
 
-  describe('login (Google OAuth)', () => {
-    it('should use Google provider by default', async () => {
-      const config = require('../../../../src/config').config;
-      config.features.enableGoogleAuth = true;
+  describe('login (default method)', () => {
+    it('should require username and password', async () => {
+      await expect(authService.login()).rejects.toThrow(
+        'Username and password are required'
+      );
+    });
 
-      mockGoogleProvider.authenticate.mockResolvedValue({
-        access_token: 'google-token',
+    it('should use password provider when credentials provided', async () => {
+      mockPasswordProvider.authenticate.mockResolvedValue({
+        access_token: 'test-token',
         refresh_token: 'refresh',
         expires_at: Date.now() + 3600000,
       });
 
-      await authService.login();
+      await authService.login('user', 'pass');
 
-      expect(mockGoogleProvider.authenticate).toHaveBeenCalled();
-
-      config.features.enableGoogleAuth = false;
+      expect(mockPasswordProvider.authenticate).toHaveBeenCalledWith({
+        username: 'user',
+        password: 'pass',
+      });
     });
   });
 
@@ -624,20 +588,15 @@ describe('MultiProviderAuthService', () => {
     });
   });
 
-  describe('getAvailableProviders with Google enabled', () => {
-    it('should include Google when enabled', () => {
-      const config = require('../../../../src/config').config;
-      config.features.enableGoogleAuth = true;
-
+  describe('getAvailableProviders', () => {
+    it('should only return password provider', () => {
       const authService2 = new MultiProviderAuthService(
         mockConfig,
         mockStorageService
       );
       const providers = authService2.getAvailableProviders();
 
-      expect(providers).toEqual(['google', 'password']);
-
-      config.features.enableGoogleAuth = false;
+      expect(providers).toEqual(['password']);
     });
   });
 

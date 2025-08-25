@@ -19,9 +19,6 @@ import { Logger } from '@/utils/logger';
 import { keepAliveService } from './services/KeepAliveService';
 import { connectionManager } from './services/ConnectionManager';
 
-/**
- * Service Manager to coordinate all background services
- */
 export class ServiceManager {
   private authService: IAuthService;
   private apiService: IAPIService;
@@ -29,6 +26,8 @@ export class ServiceManager {
   private storageService: IStorageService;
   private badgeService: IBadgeService;
   private isInitialized = false;
+  private processedLoginRequests = new Set<string>();
+  private loginRequestCleanupTimers = new Map<string, NodeJS.Timeout>();
   private logger = new Logger('ServiceManager');
 
   constructor() {
@@ -46,11 +45,6 @@ export class ServiceManager {
 
     this.authService = new MultiProviderAuthService(
       {
-        google: {
-          clientId: dynamicConfig.auth.providers.google.clientId,
-          scopes: dynamicConfig.auth.providers.google.scopes,
-          apiEndpoint: `${dynamicConfig.api.baseUrl}${dynamicConfig.auth.providers.google.apiEndpoint}`,
-        },
         password: {
           apiBaseUrl: dynamicConfig.auth.providers.password.apiBaseUrl,
         },
@@ -73,10 +67,7 @@ export class ServiceManager {
     await this.messageService.initialize();
     await this.badgeService.initialize();
 
-    // Initialize connection manager
     connectionManager.initialize();
-
-    // Initialize keep-alive service
     await keepAliveService.initialize();
 
     this.setupAuthHandlers();
@@ -106,29 +97,6 @@ export class ServiceManager {
   }
 
   private setupAuthHandlers(): void {
-    // Default login handler (uses Google OAuth)
-    this.messageService.on(
-      MessageType.LOGIN,
-      (message, sender, sendResponse) => {
-        this.authService
-          .login()
-          .then(() => {
-            sendResponse({ success: true });
-          })
-          .catch(error => {
-            const errorDetails = errorService.handleError(error, {
-              action: 'login',
-            });
-            sendResponse({
-              success: false,
-              error: errorDetails.userMessage,
-            });
-          });
-        return true;
-      }
-    );
-
-    // Handler for provider-specific login
     this.messageService.on(
       'LOGIN_WITH_PROVIDER',
       (message, sender, sendResponse) => {
@@ -157,7 +125,6 @@ export class ServiceManager {
       }
     );
 
-    // Password login handler
     this.messageService.on(
       'LOGIN_WITH_PASSWORD',
       (message, sender, sendResponse) => {
@@ -165,22 +132,59 @@ export class ServiceManager {
           username: string;
           password: string;
         };
+        const requestId = message.requestId as string | undefined;
+
+        if (requestId) {
+          if (this.processedLoginRequests.has(requestId)) {
+            console.log(
+              '[ServiceManager] Duplicate login request detected, ignoring:',
+              requestId
+            );
+            sendResponse({ success: false, error: 'Duplicate request' });
+            return true;
+          }
+          this.processedLoginRequests.add(requestId);
+
+          const cleanupTimer = setTimeout(() => {
+            this.processedLoginRequests.delete(requestId);
+            this.loginRequestCleanupTimers.delete(requestId);
+          }, 2000);
+          this.loginRequestCleanupTimers.set(requestId, cleanupTimer);
+        }
 
         const authService = this.authService as MultiProviderAuthService;
 
-        // Wrap in immediate promise to ensure response is sent
         (async () => {
           try {
+            console.log(
+              '[ServiceManager] Login attempt, requestId:',
+              requestId
+            );
             await authService.loginWithPassword(username, password);
+            console.log('[ServiceManager] Login successful');
             sendResponse({ success: true });
           } catch (error) {
+            console.error('[ServiceManager] Login failed:', error);
             const errorDetails = errorService.handleError(error, {
               action: 'password_login',
             });
+            console.log(
+              '[ServiceManager] Sending error response:',
+              errorDetails.userMessage
+            );
             sendResponse({
               success: false,
               error: errorDetails.userMessage,
             });
+
+            if (requestId) {
+              this.processedLoginRequests.delete(requestId);
+              const timer = this.loginRequestCleanupTimers.get(requestId);
+              if (timer) {
+                clearTimeout(timer);
+                this.loginRequestCleanupTimers.delete(requestId);
+              }
+            }
           }
         })();
 
@@ -188,7 +192,6 @@ export class ServiceManager {
       }
     );
 
-    // Get available providers handler
     this.messageService.on(
       'GET_AUTH_PROVIDERS',
       (message, sender, sendResponse) => {
@@ -222,6 +225,7 @@ export class ServiceManager {
   }
 
   private setupMessageHandlers(): void {
+    console.log('[ServiceManager] Setting up message handlers');
     this.messageService.on('PING', (message, sender, sendResponse) => {
       sendResponse({ success: true, timestamp: Date.now() });
       return false;
@@ -250,7 +254,6 @@ export class ServiceManager {
               job,
             });
             await this.badgeService.showError();
-            // Handle API errors with custom messages
             const errorMessage =
               error.code === 'AUTH_EXPIRED'
                 ? error.message
@@ -266,7 +269,6 @@ export class ServiceManager {
     this.messageService.on(
       MessageType.OPEN_POPUP,
       (message, sender, sendResponse) => {
-        // Set badge to draw attention to the extension icon
         chrome.action.setBadgeText({ text: '!' });
         chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
 
@@ -279,12 +281,11 @@ export class ServiceManager {
       }
     );
 
-    // Handle settings reload
     this.messageService.on(
       'RELOAD_SETTINGS',
       (message, sender, sendResponse) => {
         this.handleReloadSettings(sendResponse);
-        return true; // Will respond asynchronously
+        return true;
       }
     );
   }
@@ -310,7 +311,19 @@ export class ServiceManager {
   }
 
   private async reinitialize(): Promise<void> {
-    // Destroy existing services (except storage and message service)
+    console.log('[ServiceManager] Reinitializing services...');
+
+    this.isInitialized = false;
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    this.loginRequestCleanupTimers.forEach(timer => clearTimeout(timer));
+    this.loginRequestCleanupTimers.clear();
+    this.processedLoginRequests.clear();
+
+    await this.messageService.destroy();
+    await this.messageService.initialize();
+
     if (this.authService) await this.authService.destroy();
     if (this.apiService) await this.apiService.destroy();
 
@@ -318,11 +331,6 @@ export class ServiceManager {
 
     this.authService = new MultiProviderAuthService(
       {
-        google: {
-          clientId: dynamicConfig.auth.providers.google.clientId,
-          scopes: dynamicConfig.auth.providers.google.scopes,
-          apiEndpoint: `${dynamicConfig.api.baseUrl}${dynamicConfig.auth.providers.google.apiEndpoint}`,
-        },
         password: {
           apiBaseUrl: dynamicConfig.auth.providers.password.apiBaseUrl,
         },
@@ -342,6 +350,7 @@ export class ServiceManager {
     await this.authService.initialize();
     await this.apiService.initialize();
 
+    this.setupMessageHandlers();
     this.setupAuthHandlers();
 
     this.authService.onAuthStateChange(async isAuthenticated => {
@@ -363,6 +372,8 @@ export class ServiceManager {
     if (token) {
       this.apiService.setAuthToken(token);
     }
+
+    this.isInitialized = true;
   }
 
   get auth(): IAuthService {
@@ -386,6 +397,10 @@ export class ServiceManager {
   }
 
   async destroy(): Promise<void> {
+    this.loginRequestCleanupTimers.forEach(timer => clearTimeout(timer));
+    this.loginRequestCleanupTimers.clear();
+    this.processedLoginRequests.clear();
+
     await keepAliveService.destroy();
     connectionManager.destroy();
     await this.authService?.destroy();

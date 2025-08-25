@@ -18,6 +18,11 @@ export interface IMessageService extends IService {
    * Send message to a specific tab
    */
   sendToTab(tabId: number, message: ExtensionMessage): Promise<unknown>;
+
+  /**
+   * Clear all message handlers
+   */
+  clearAllHandlers(): void;
 }
 
 /**
@@ -36,6 +41,7 @@ export interface ExtensionMessage {
   type: string;
   payload?: unknown;
   error?: string;
+  requestId?: string;
 }
 
 /**

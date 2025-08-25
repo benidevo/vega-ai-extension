@@ -94,11 +94,6 @@ export class SettingsService {
     return settings.backendMode;
   }
 
-  static async isOAuthEnabled(): Promise<boolean> {
-    const mode = await this.getBackendMode();
-    return BACKEND_CONFIGS[mode].enableOAuth;
-  }
-
   static async testConnection(
     host: string,
     protocol: 'http' | 'https'

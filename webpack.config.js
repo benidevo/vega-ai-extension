@@ -60,7 +60,6 @@ module.exports = (env, argv) => {
       new webpack.DefinePlugin({
         'process.env.APP_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
         'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
-        'process.env.GOOGLE_CLIENT_ID': JSON.stringify('460747486884-p36vju3iqsmtgg8968jqnck6s4ga296r.apps.googleusercontent.com'),
         'process.env.APP_VERSION': JSON.stringify(packageJson.version),
       }),
       new MiniCssExtractPlugin({
@@ -75,10 +74,7 @@ module.exports = (env, argv) => {
               const manifest = JSON.parse(content.toString());
               manifest.version = packageJson.version;
 
-              manifest.oauth2 = {
-                client_id: '460747486884-p36vju3iqsmtgg8968jqnck6s4ga296r.apps.googleusercontent.com',
-                scopes: ["openid", "email"]
-              };
+              delete manifest.oauth2;
 
               if (isProduction) {
                 manifest.host_permissions = [

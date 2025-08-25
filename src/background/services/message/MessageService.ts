@@ -20,7 +20,6 @@ export class MessageService implements IMessageService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    // Create the main message listener
     this.messageListener = (
       message: ExtensionMessage,
       sender: chrome.runtime.MessageSender,
@@ -53,7 +52,6 @@ export class MessageService implements IMessageService {
       return isAsync;
     };
 
-    // Add the listener to Chrome runtime
     chrome.runtime.onMessage.addListener(this.messageListener);
 
     this.isInitialized = true;
@@ -68,18 +66,14 @@ export class MessageService implements IMessageService {
   }
 
   on(type: string, handler: MessageHandler): void {
-    if (!this.handlers.has(type)) {
-      this.handlers.set(type, new Set());
-    }
-    this.handlers.get(type)!.add(handler);
+    this.handlers.delete(type);
+    this.handlers.set(type, new Set([handler]));
   }
 
   off(type: string, handler?: MessageHandler): void {
     if (!handler) {
-      // Remove all handlers for this type
       this.handlers.delete(type);
     } else {
-      // Remove specific handler
       const handlers = this.handlers.get(type);
       if (handlers) {
         handlers.delete(handler);
@@ -88,6 +82,10 @@ export class MessageService implements IMessageService {
         }
       }
     }
+  }
+
+  clearAllHandlers(): void {
+    this.handlers.clear();
   }
 
   async sendToTab(tabId: number, message: ExtensionMessage): Promise<unknown> {

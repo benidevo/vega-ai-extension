@@ -39,10 +39,6 @@ export class ErrorService {
     return errorDetails;
   }
 
-  /**
-   * Handle and log error - use this for background processes where errors
-   * cannot be displayed to the user
-   */
   handleAndLogError(
     error: unknown,
     context?: Record<string, unknown>
@@ -79,7 +75,6 @@ export class ErrorService {
   ): ErrorDetails {
     const message = error.message.toLowerCase();
 
-    // Network errors
     if (
       error.name === 'NetworkError' ||
       message.includes('network') ||
@@ -87,7 +82,17 @@ export class ErrorService {
       message.includes('timeout') ||
       message.includes('connection')
     ) {
-      // Check if this is a retry context
+      if (message.includes('local backend') || message.includes('local vega')) {
+        return {
+          category: ErrorCategory.NETWORK,
+          message: error.message,
+          userMessage: error.message,
+          originalError: error,
+          context,
+          retryable: false,
+        };
+      }
+
       const isRetrying = context?.attemptNumber && context?.maxRetries;
       let userMessage =
         'Network connection error. Please check your internet connection.';
@@ -113,7 +118,6 @@ export class ErrorService {
       };
     }
 
-    // Authentication errors
     if (
       message.includes('auth') ||
       message.includes('unauthorized') ||
@@ -124,7 +128,6 @@ export class ErrorService {
       message.includes('invalid username') ||
       message.includes('invalid password')
     ) {
-      // For specific auth errors like wrong password, use the actual error message
       const userMessage =
         message.includes('password') ||
         message.includes('credentials') ||
@@ -142,7 +145,6 @@ export class ErrorService {
       };
     }
 
-    // Storage errors
     if (
       message.includes('storage') ||
       message.includes('quota') ||
@@ -159,7 +161,6 @@ export class ErrorService {
       };
     }
 
-    // Permission errors
     if (
       message.includes('permission') ||
       message.includes('access denied') ||
@@ -176,7 +177,6 @@ export class ErrorService {
       };
     }
 
-    // Validation errors
     if (
       message.includes('invalid') ||
       message.includes('validation') ||
@@ -192,7 +192,6 @@ export class ErrorService {
       };
     }
 
-    // Server errors (5xx)
     if (
       message.includes('500') ||
       message.includes('502') ||
