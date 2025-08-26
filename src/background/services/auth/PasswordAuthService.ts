@@ -108,10 +108,14 @@ export class PasswordAuthService implements IAuthProvider {
         throw new Error('Incomplete response from server. Please try again.');
       }
 
+      const expiresAt = data.expires_at
+        ? data.expires_at * 1000
+        : Date.now() + 3600 * 1000;
+
       const tokens: AuthToken = {
         access_token: data.token,
         refresh_token: data.refresh_token,
-        expires_at: Date.now() + 3600 * 1000,
+        expires_at: expiresAt,
       };
 
       authLogger.info('Password authentication successful');
@@ -151,10 +155,14 @@ export class PasswordAuthService implements IAuthProvider {
 
       const data = await response.json();
 
+      const expiresAt = data.expires_at
+        ? data.expires_at * 1000
+        : Date.now() + 3600 * 1000;
+
       const tokens: AuthToken = {
         access_token: data.token,
-        refresh_token: refreshToken,
-        expires_at: Date.now() + 3600 * 1000,
+        refresh_token: data.refresh_token || refreshToken,
+        expires_at: expiresAt,
       };
 
       authLogger.info('Password auth tokens refreshed successfully');
@@ -166,6 +174,29 @@ export class PasswordAuthService implements IAuthProvider {
   }
 
   async validateAuth(token: string): Promise<boolean> {
-    return !!token && token.trim() !== '';
+    if (!token || token.trim() === '') {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/api/auth/verify`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return response.ok;
+    } catch (error) {
+      authLogger.warn('Token validation failed', error);
+      // Fallback to basic validation if verify endpoint is not available
+      // This maintains backward compatibility
+      try {
+        const parts = token.split('.');
+        return parts.length === 3 || token.length > 0;
+      } catch {
+        return false;
+      }
+    }
   }
 }

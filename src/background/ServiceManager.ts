@@ -29,6 +29,7 @@ export class ServiceManager {
   private processedLoginRequests = new Set<string>();
   private loginRequestCleanupTimers = new Map<string, NodeJS.Timeout>();
   private logger = new Logger('ServiceManager');
+  private readonly MAX_LOGIN_REQUESTS = 100;
 
   constructor() {
     this.storageService = new StorageService('local');
@@ -143,6 +144,19 @@ export class ServiceManager {
             sendResponse({ success: false, error: 'Duplicate request' });
             return true;
           }
+
+          if (this.processedLoginRequests.size >= this.MAX_LOGIN_REQUESTS) {
+            const firstKey = this.processedLoginRequests.values().next().value;
+            if (firstKey) {
+              this.processedLoginRequests.delete(firstKey);
+              const timer = this.loginRequestCleanupTimers.get(firstKey);
+              if (timer) {
+                clearTimeout(timer);
+                this.loginRequestCleanupTimers.delete(firstKey);
+              }
+            }
+          }
+
           this.processedLoginRequests.add(requestId);
 
           const cleanupTimer = setTimeout(() => {
