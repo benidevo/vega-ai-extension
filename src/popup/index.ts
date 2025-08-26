@@ -24,14 +24,20 @@ class Popup {
   private pendingModeSwitch = false;
   private currentLoginRequestId: string | null = null;
   private logger = new Logger('Popup');
+  private currentVersion: string;
+  private latestVersion: string | null = null;
+  private isCheckingUpdate = false;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
     this.ctaElement = document.getElementById('cta')!;
     this.settingsView = document.getElementById('settings-view')!;
+    this.currentVersion = chrome.runtime.getManifest().version;
 
     this.setupGlobalEventDelegation();
     this.setupAuthStateListener();
+    this.setupVersionDisplay();
+    this.setupUpdateChecker();
   }
 
   private setupGlobalEventDelegation(): void {
@@ -826,6 +832,111 @@ class Popup {
     this.updateDashboardLink();
   }
 
+  private setupVersionDisplay(): void {
+    const versionDisplay = document.getElementById('version-display');
+    if (versionDisplay) {
+      versionDisplay.textContent = `v${this.currentVersion}`;
+    }
+  }
+
+  private setupUpdateChecker(): void {
+    const checkUpdatesBtn = document.getElementById('check-updates-btn');
+    if (checkUpdatesBtn) {
+      checkUpdatesBtn.addEventListener('click', () => this.checkForUpdates());
+    }
+  }
+
+  private async checkForUpdates(): Promise<void> {
+    if (this.isCheckingUpdate) return;
+
+    this.isCheckingUpdate = true;
+    const updateText = document.getElementById('update-text');
+    const updateStatus = document.getElementById('update-status');
+    const updateMessage = document.getElementById('update-message');
+
+    if (!updateText || !updateStatus || !updateMessage) return;
+
+    try {
+      updateText.textContent = 'Checking...';
+
+      const response = await fetch(
+        'https://api.github.com/repos/benidevo/vega-ai-extension/releases/latest'
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to check for updates');
+      }
+
+      const data = await response.json();
+      const latestVersion =
+        data.tag_name?.replace('v', '') || data.name?.replace('v', '');
+
+      if (!latestVersion) {
+        throw new Error('Could not determine latest version');
+      }
+
+      this.latestVersion = latestVersion;
+
+      const isUpdateAvailable =
+        this.compareVersions(this.currentVersion, latestVersion) < 0;
+
+      updateStatus.classList.remove('hidden');
+
+      if (isUpdateAvailable) {
+        updateMessage.className =
+          'text-center p-2 rounded bg-green-900/50 text-green-400';
+        updateMessage.innerHTML = `
+          <div>New version ${latestVersion} available!</div>
+          <a href="${data.html_url}" target="_blank" class="underline hover:text-green-300 mt-1 inline-block">
+            Download update
+          </a>
+        `;
+        updateText.textContent = 'Update available!';
+      } else {
+        updateMessage.className =
+          'text-center p-2 rounded bg-slate-800 text-gray-400';
+        updateMessage.textContent = 'You have the latest version';
+        updateText.textContent = 'Check for updates';
+
+        setTimeout(() => {
+          updateStatus.classList.add('hidden');
+        }, 3000);
+      }
+    } catch (error) {
+      updateMessage.className =
+        'text-center p-2 rounded bg-red-900/50 text-red-400';
+      updateMessage.textContent = 'Failed to check for updates';
+      updateText.textContent = 'Check for updates';
+
+      setTimeout(() => {
+        updateStatus.classList.add('hidden');
+      }, 3000);
+
+      this.logger.error('Failed to check for updates', error);
+    } finally {
+      this.isCheckingUpdate = false;
+    }
+  }
+
+  private compareVersions(current: string, latest: string): number {
+    const currentParts = current.split('.').map(Number);
+    const latestParts = latest.split('.').map(Number);
+
+    for (
+      let i = 0;
+      i < Math.max(currentParts.length, latestParts.length);
+      i++
+    ) {
+      const currentPart = currentParts[i] || 0;
+      const latestPart = latestParts[i] || 0;
+
+      if (currentPart < latestPart) return -1;
+      if (currentPart > latestPart) return 1;
+    }
+
+    return 0;
+  }
+
   private async showSettings(): Promise<void> {
     this.currentView = 'settings';
 
@@ -1126,10 +1237,4 @@ class Popup {
 document.addEventListener('DOMContentLoaded', () => {
   const popup = new Popup();
   popup.initialize();
-
-  const manifest = chrome.runtime.getManifest();
-  const versionElement = document.querySelector('.text-xs.text-gray-500 span');
-  if (versionElement) {
-    versionElement.textContent = `v${manifest.version}`;
-  }
 });

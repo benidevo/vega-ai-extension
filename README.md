@@ -169,4 +169,4 @@ What this means:
 - ✅ If you run this software on a server, you must make your source code available to users
 - ✅ Any modifications must also be released under AGPL-3.0
 
-For commercial licensing without AGPL requirements, email [benjaminidewor@gmail.com](mailto:benjaminidewor@gmail.com).
+For commercial licensing without AGPL requirements, email [vega@benidevo.com](mailto:vega@benidevo.com).
