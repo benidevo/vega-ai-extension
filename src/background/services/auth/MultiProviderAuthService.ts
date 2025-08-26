@@ -4,13 +4,8 @@ import { AuthToken, AuthProviderType } from '@/types';
 import { AuthCredentials } from './IAuthProvider';
 import { AuthProviderFactory, AuthProviderConfig } from './AuthProviderFactory';
 import { authLogger } from '../../../utils/logger';
-import { config } from '@/config';
 import { MessageType } from '../message/IMessageService';
 
-/**
- * Multi-provider authentication service
- * Manages authentication across different providers (Google OAuth, username/password, etc.)
- */
 export class MultiProviderAuthService implements IAuthService {
   private factory: AuthProviderFactory;
   private storageService: IStorageService;
@@ -43,16 +38,13 @@ export class MultiProviderAuthService implements IAuthService {
     authLogger.info('MultiProviderAuthService destroyed');
   }
 
-  /**
-   * Login with Google OAuth (maintains backward compatibility)
-   */
-  async login(): Promise<void> {
-    return this.loginWithProvider('google');
+  async login(username?: string, password?: string): Promise<void> {
+    if (!username || !password) {
+      throw new Error('Username and password are required');
+    }
+    return this.loginWithProvider('password', { username, password });
   }
 
-  /**
-   * Login with specific provider
-   */
   async loginWithProvider(
     providerType: AuthProviderType,
     credentials?: AuthCredentials[AuthProviderType]
@@ -62,20 +54,20 @@ export class MultiProviderAuthService implements IAuthService {
       return;
     }
 
-    // Check if Google auth is disabled
-    if (providerType === 'google' && !config.features.enableGoogleAuth) {
-      throw new Error('Google authentication is disabled');
+    if (providerType !== 'password') {
+      throw new Error(
+        `Authentication provider ${providerType} is not supported`
+      );
     }
 
     this.isLoginInProgress = true;
 
-    // Set a timeout to reset the flag in case something goes wrong
     const loginTimeout = setTimeout(() => {
       if (this.isLoginInProgress) {
         authLogger.warn('Login timeout - resetting login flag');
         this.isLoginInProgress = false;
       }
-    }, 30000); // 30 second timeout
+    }, 30000);
 
     try {
       authLogger.info('Starting login process', { provider: providerType });
@@ -98,16 +90,12 @@ export class MultiProviderAuthService implements IAuthService {
     }
   }
 
-  /**
-   * Login with username/password
-   */
   async loginWithPassword(username: string, password: string): Promise<void> {
     return this.loginWithProvider('password', { username, password });
   }
 
   async logout(): Promise<void> {
     try {
-      // Clear all stored auth data
       await this.storageService.remove('authToken');
       await this.storageService.remove('authTokenData');
       await this.storageService.remove('authProvider');
@@ -124,7 +112,6 @@ export class MultiProviderAuthService implements IAuthService {
     const tokenData = await this.getAuthTokenData();
     if (!tokenData) return null;
 
-    // Check if token is expired (with 5 minute buffer)
     const isExpired = Date.now() >= tokenData.expires_at - 5 * 60 * 1000;
     if (isExpired) {
       try {
@@ -181,21 +168,10 @@ export class MultiProviderAuthService implements IAuthService {
     this.authStateListeners.push(callback);
   }
 
-  /**
-   * Get available authentication providers
-   */
   getAvailableProviders(): AuthProviderType[] {
-    const allProviders = this.factory.getAvailableProviders();
-    return allProviders.filter(
-      provider =>
-        provider === 'password' ||
-        (provider === 'google' && config.features.enableGoogleAuth)
-    );
+    return ['password'];
   }
 
-  /**
-   * Get current provider type
-   */
   async getCurrentProvider(): Promise<AuthProviderType | null> {
     return await this.storageService.get<AuthProviderType>('authProvider');
   }
@@ -204,7 +180,6 @@ export class MultiProviderAuthService implements IAuthService {
     tokens: AuthToken,
     provider: AuthProviderType
   ): Promise<void> {
-    // Store all auth data in parallel for consistency
     await Promise.all([
       this.storageService.set('authTokenData', tokens),
       this.storageService.set('authProvider', provider),
@@ -223,8 +198,6 @@ export class MultiProviderAuthService implements IAuthService {
       }
     });
 
-    // Broadcast auth state change to relevant tabs
-    // Only query tabs that match our content script patterns to improve performance
     chrome.tabs.query({ url: ['*://*.linkedin.com/*'] }, tabs => {
       tabs.forEach(tab => {
         if (tab.id) {
@@ -234,7 +207,6 @@ export class MultiProviderAuthService implements IAuthService {
               payload: { isAuthenticated },
             })
             .catch(error => {
-              // Only ignore "no receiver" errors, log others for debugging
               if (
                 !error.message?.includes('Could not establish connection') &&
                 !error.message?.includes('Receiving end does not exist')
@@ -249,14 +221,12 @@ export class MultiProviderAuthService implements IAuthService {
       });
     });
 
-    // Also send to any popup or other extension components
     chrome.runtime
       .sendMessage({
         type: MessageType.AUTH_STATE_CHANGED,
         payload: { isAuthenticated },
       })
       .catch(error => {
-        // Only ignore "no receiver" errors, log others for debugging
         if (
           !error.message?.includes('Could not establish connection') &&
           !error.message?.includes('Receiving end does not exist')

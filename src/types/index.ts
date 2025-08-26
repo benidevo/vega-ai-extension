@@ -1,6 +1,3 @@
-/**
- * Job listing data interface
- */
 export interface JobListing {
   title: string;
   company: string;
@@ -18,16 +15,10 @@ export interface JobListing {
   notes?: string;
 }
 
-/**
- * Authentication token structure
- */
 export interface AuthToken {
   access_token: string;
   refresh_token: string;
-  expires_at: number; // Unix timestamp in milliseconds
+  expires_at: number;
 }
 
-/**
- * Authentication provider types
- */
-export type AuthProviderType = 'google' | 'password';
+export type AuthProviderType = 'password';

@@ -1,10 +1,10 @@
 # Vega AI Job Capture Extension
 
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
-[![Coverage Status](https://img.shields.io/badge/Coverage-88.57%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
+[![Coverage Status](https://img.shields.io/badge/Coverage-85.64%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)
+[![GitHub Release](https://img.shields.io/github/v/release/benidevo/vega-ai-extension?logo=github&logoColor=white)](https://github.com/benidevo/vega-ai-extension/releases/latest)
 [![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
 
 **Save job listings to your personal dashboard with one click.**
@@ -35,13 +35,7 @@ No more copy-pasting job details.
 
 ### Install the Extension
 
-**Option 1: Chrome Web Store** (Recommended)
-
-1. Go to the [Chrome Web Store page](https://chromewebstore.google.com/detail/vega-ai-job-capture/oboedhpojbjemdmojfchifppbgbfehol)
-2. Click "Add to Chrome"
-3. Click "Add extension" in the popup
-
-#### Option 2: Direct Download
+**Direct Download from GitHub** (Recommended)
 
 1. Visit the [latest release page](https://github.com/benidevo/vega-ai-extension/releases/latest)
 2. Download the `vega-extension-*.zip` file
@@ -49,6 +43,10 @@ No more copy-pasting job details.
 4. Open Chrome and go to `chrome://extensions/`
 5. Turn on "Developer mode" (toggle in top right)
 6. Click "Load unpacked" and select your unzipped folder
+
+#### Alternative: Build from Source
+
+See the [Developer Guide](#-for-developers) below for building from source
 
 ### Set Up Your Account
 

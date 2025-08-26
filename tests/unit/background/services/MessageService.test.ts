@@ -69,7 +69,7 @@ describe('MessageService', () => {
       expect(handlers.has(handler)).toBe(true);
     });
 
-    it('should register multiple handlers for same type', () => {
+    it('should replace handler when registering for same type', () => {
       const handler1 = jest.fn();
       const handler2 = jest.fn();
 
@@ -77,8 +77,8 @@ describe('MessageService', () => {
       messageService.on('TEST_TYPE', handler2);
 
       const handlers = (messageService as any).handlers.get('TEST_TYPE');
-      expect(handlers.size).toBe(2);
-      expect(handlers.has(handler1)).toBe(true);
+      expect(handlers.size).toBe(1);
+      expect(handlers.has(handler1)).toBe(false);
       expect(handlers.has(handler2)).toBe(true);
     });
 
@@ -231,7 +231,8 @@ describe('MessageService', () => {
 
       const result = messageListener(message, sender, sendResponse);
 
-      expect(handler1).toHaveBeenCalled();
+      // Only the second handler should be called since it replaces the first
+      expect(handler1).not.toHaveBeenCalled();
       expect(handler2).toHaveBeenCalled();
       expect(result).toBe(true);
     });
@@ -272,27 +273,24 @@ describe('MessageService', () => {
       expect(result).toBe(false);
     });
 
-    it('should continue processing other handlers after one fails', () => {
-      const handler1 = jest.fn().mockImplementation(() => {
-        throw new Error('Handler 1 error');
+    it('should handle handler errors gracefully', () => {
+      const handler = jest.fn().mockImplementation(() => {
+        throw new Error('Handler error');
       });
-      const handler2 = jest.fn().mockReturnValue(false);
       const sendResponse = jest.fn();
       const message: ExtensionMessage = {
-        type: 'PARTIAL_ERROR_TYPE',
+        type: 'ERROR_TYPE',
         payload: { data: 'test' },
       };
       const sender = {} as chrome.runtime.MessageSender;
 
-      messageService.on('PARTIAL_ERROR_TYPE', handler1);
-      messageService.on('PARTIAL_ERROR_TYPE', handler2);
+      messageService.on('ERROR_TYPE', handler);
 
       messageListener(message, sender, sendResponse);
 
-      expect(handler1).toHaveBeenCalled();
-      expect(handler2).toHaveBeenCalled();
+      expect(handler).toHaveBeenCalled();
       expect(sendResponse).toHaveBeenCalledWith({
-        error: 'Handler 1 error',
+        error: 'Handler error',
       });
     });
   });

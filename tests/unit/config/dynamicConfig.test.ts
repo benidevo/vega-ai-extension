@@ -68,9 +68,6 @@ describe('DynamicConfig', () => {
       expect(config.auth.providers.password.apiBaseUrl).toBe(
         'https://custom.host.com'
       );
-      expect(config.auth.providers.google).toEqual(
-        staticConfig.auth.providers.google
-      );
       expect(config.extension).toEqual(staticConfig.extension);
       expect(config.features).toEqual(staticConfig.features);
     });

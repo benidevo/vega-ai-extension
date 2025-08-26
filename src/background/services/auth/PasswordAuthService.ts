@@ -2,10 +2,6 @@ import { IAuthProvider, AuthCredentials } from './IAuthProvider';
 import { AuthToken } from '@/types';
 import { authLogger } from '../../../utils/logger';
 
-/**
- * Username/Password authentication provider
- * Handles traditional username/password authentication via backend API
- */
 export class PasswordAuthService implements IAuthProvider {
   readonly type = 'password' as const;
 
@@ -18,28 +14,46 @@ export class PasswordAuthService implements IAuthProvider {
   async authenticate(
     credentials?: AuthCredentials['password']
   ): Promise<AuthToken> {
-    if (!credentials) {
-      throw new Error(
-        'Username and password are required for password authentication'
-      );
-    }
-
-    const { username, password } = credentials;
-
-    if (!username || !password) {
-      throw new Error('Username and password are required');
-    }
-
-    authLogger.info('Attempting password authentication', { username });
-
     try {
-      const response = await fetch(`${this.apiBaseUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
+      if (!credentials) {
+        throw new Error(
+          'Username and password are required for password authentication'
+        );
+      }
+
+      const { username, password } = credentials;
+
+      if (!username || !password) {
+        throw new Error('Username and password are required');
+      }
+
+      authLogger.info('Attempting password authentication');
+      let response: Response;
+
+      try {
+        response = await fetch(`${this.apiBaseUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password }),
+        });
+      } catch (networkError) {
+        authLogger.error('Network error during authentication', networkError);
+
+        if (
+          this.apiBaseUrl.includes('localhost') ||
+          this.apiBaseUrl.includes('127.0.0.1')
+        ) {
+          throw new Error(
+            'Cannot connect to local backend. Please ensure your local Vega server is running.'
+          );
+        }
+
+        throw new Error(
+          'Network error. Please check your connection and try again.'
+        );
+      }
 
       if (!response.ok) {
         let errorData: { error?: string; message?: string } = {
@@ -49,24 +63,19 @@ export class PasswordAuthService implements IAuthProvider {
         try {
           errorData = await response.json();
         } catch {
-          // If JSON parsing fails, use default error
           authLogger.warn('Failed to parse error response', {
             status: response.status,
           });
         }
 
-        // Log the actual error from backend for debugging
         authLogger.info('Authentication error details', {
           status: response.status,
           error: errorData.error || errorData.message,
         });
 
-        // Provide more user-friendly error messages
         if (response.status === 401) {
-          // Check if backend provided a specific error message
           const backendMessage = errorData.error || errorData.message;
 
-          // Use backend message if it's informative, otherwise use generic message
           if (backendMessage && backendMessage.toLowerCase().includes('user')) {
             throw new Error(backendMessage);
           } else {
@@ -99,25 +108,27 @@ export class PasswordAuthService implements IAuthProvider {
         throw new Error('Incomplete response from server. Please try again.');
       }
 
+      const expiresAt = data.expires_at
+        ? data.expires_at * 1000
+        : Date.now() + 3600 * 1000;
+
       const tokens: AuthToken = {
         access_token: data.token,
         refresh_token: data.refresh_token,
-        expires_at: Date.now() + 3600 * 1000, // Default to 1 hour since backend doesn't return expires_at
+        expires_at: expiresAt,
       };
 
-      authLogger.info('Password authentication successful', { username });
+      authLogger.info('Password authentication successful');
 
       return tokens;
     } catch (error) {
-      authLogger.error('Password authentication failed', error);
+      authLogger.error('Authentication failed', error);
 
       if (error instanceof Error) {
         throw error;
       }
 
-      throw new Error(
-        'Unable to sign in. Please check your connection and try again.'
-      );
+      throw new Error('Authentication failed: Unknown error');
     }
   }
 
@@ -144,10 +155,14 @@ export class PasswordAuthService implements IAuthProvider {
 
       const data = await response.json();
 
+      const expiresAt = data.expires_at
+        ? data.expires_at * 1000
+        : Date.now() + 3600 * 1000;
+
       const tokens: AuthToken = {
         access_token: data.token,
-        refresh_token: refreshToken, // Keep the existing refresh token since backend doesn't return a new one
-        expires_at: Date.now() + 3600 * 1000, // Default to 1 hour since backend doesn't return expires_at
+        refresh_token: data.refresh_token || refreshToken,
+        expires_at: expiresAt,
       };
 
       authLogger.info('Password auth tokens refreshed successfully');
@@ -159,6 +174,29 @@ export class PasswordAuthService implements IAuthProvider {
   }
 
   async validateAuth(token: string): Promise<boolean> {
-    return !!token;
+    if (!token || token.trim() === '') {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/api/auth/verify`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return response.ok;
+    } catch (error) {
+      authLogger.warn('Token validation failed', error);
+      // Fallback to basic validation if verify endpoint is not available
+      // This maintains backward compatibility
+      try {
+        const parts = token.split('.');
+        return parts.length === 3 || token.length > 0;
+      } catch {
+        return false;
+      }
+    }
   }
 }

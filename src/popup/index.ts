@@ -10,18 +10,19 @@ import {
 } from '@/utils/validation';
 import { MessageType } from '@/background/services/message/IMessageService';
 
-/**
- * Represents the popup UI logic.
- *
- * It handles initialization, job page detection, authentication status, and rendering of UI elements.
- */
 class Popup {
   private statusElement: HTMLElement;
   private ctaElement: HTMLElement;
   private settingsView: HTMLElement;
   private isSigningIn = false;
+  private initializationPromise: Promise<void> | null = null;
+  private authStateListenerAttached = false;
+  private buttonListenerCount = 0;
+  private passwordClickHandler: ((e: Event) => Promise<void>) | null = null;
   private currentView: 'main' | 'settings' = 'main';
   private errorTimeout: number | null = null;
+  private pendingModeSwitch = false;
+  private currentLoginRequestId: string | null = null;
   private logger = new Logger('Popup');
 
   constructor() {
@@ -29,12 +30,65 @@ class Popup {
     this.ctaElement = document.getElementById('cta')!;
     this.settingsView = document.getElementById('settings-view')!;
 
+    this.setupGlobalEventDelegation();
     this.setupAuthStateListener();
   }
 
+  private setupGlobalEventDelegation(): void {
+    const ctaWithFlag = this.ctaElement as HTMLElement & {
+      __delegationSetup?: boolean;
+    };
+    if (ctaWithFlag.__delegationSetup) {
+      return;
+    }
+    ctaWithFlag.__delegationSetup = true;
+
+    this.ctaElement.addEventListener('click', async e => {
+      const target = e.target as HTMLElement;
+
+      if (
+        target.id === 'password-signin-btn' ||
+        target.closest('#password-signin-btn')
+      ) {
+        e.preventDefault();
+
+        if (!this.isSigningIn && this.isFormValid()) {
+          await this.handlePasswordSignIn();
+        }
+      }
+    });
+
+    this.ctaElement.addEventListener('keypress', async e => {
+      const target = e.target as HTMLElement;
+
+      if (
+        target.id === 'password-input' &&
+        e instanceof KeyboardEvent &&
+        e.key === 'Enter'
+      ) {
+        e.preventDefault();
+
+        if (!this.isSigningIn && this.isFormValid()) {
+          await this.handlePasswordSignIn();
+        }
+      }
+    });
+  }
+
   async initialize(): Promise<void> {
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.doInitialize().finally(() => {
+      this.initializationPromise = null;
+    });
+
+    return this.initializationPromise;
+  }
+
+  private async doInitialize(): Promise<void> {
     try {
-      // Set up global notification area on every initialization
       const globalNotification = document.getElementById('global-notification');
       if (globalNotification) {
         globalNotification.setAttribute('role', 'alert');
@@ -44,14 +98,12 @@ class Popup {
       const isJobPage = await this.checkIfJobPage();
       const isAuthenticated = await this.checkAuthStatus();
 
-      // Preserve any active notification message before re-rendering
       const activeNotification = this.preserveActiveNotification();
 
       await this.render(isAuthenticated, isJobPage);
       this.attachEventListeners(isAuthenticated);
       this.attachSettingsEventListeners();
 
-      // Restore the notification if one was active
       if (activeNotification) {
         this.showNotification(
           activeNotification.message,
@@ -67,22 +119,32 @@ class Popup {
   }
 
   private setupAuthStateListener(): void {
-    // Listen for auth state changes from background
+    if (this.authStateListenerAttached) {
+      return;
+    }
+    this.authStateListenerAttached = true;
+
     chrome.runtime.onMessage.addListener(message => {
       if (message.type === MessageType.AUTH_STATE_CHANGED) {
-        // Only re-initialize if we're not in the middle of signing in
-        // and there's no active error notification
-        // This prevents clearing error messages during failed login attempts
-        if (!this.isSigningIn && !this.errorTimeout) {
+        if (
+          !this.isSigningIn &&
+          !this.errorTimeout &&
+          !this.pendingModeSwitch
+        ) {
           this.logger.info('Auth state changed, re-initializing', {
             isSigningIn: this.isSigningIn,
             hasErrorTimeout: !!this.errorTimeout,
+            pendingModeSwitch: this.pendingModeSwitch,
           });
           this.initialize();
         } else {
           this.logger.info('Auth state changed but skipping re-init', {
             isSigningIn: this.isSigningIn,
             hasErrorTimeout: !!this.errorTimeout,
+            pendingModeSwitch: this.pendingModeSwitch,
+            reason: this.isSigningIn
+              ? 'sign-in in progress'
+              : 'error notification active',
           });
         }
       }
@@ -105,9 +167,6 @@ class Popup {
       currentWindow: true,
     });
     const url = tab.url || '';
-
-    // Currently only LinkedIn is supported
-    // TODO: Add support for Indeed and Glassdoor job pages
     return url.includes('linkedin.com/jobs/');
   }
 
@@ -188,8 +247,6 @@ class Popup {
   }
 
   private async renderAuthOptions(): Promise<void> {
-    const isOAuthEnabled = await SettingsService.isOAuthEnabled();
-
     this.ctaElement.innerHTML = `
       <div class="space-y-4">
         <div id="auth-form-container"></div>
@@ -199,101 +256,84 @@ class Popup {
     const formContainer = document.getElementById('auth-form-container');
     if (!formContainer) return;
 
-    if (isOAuthEnabled) {
-      formContainer.innerHTML = `
-        <button
-          id="google-signin-btn"
-          class="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center justify-center"
-        >
-          <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Continue with Google
-        </button>
-
-        <div class="text-center mt-4">
-          <a
-            href="https://vega.benidevo.com"
-            target="_blank"
-            class="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+    formContainer.innerHTML = `
+      <div class="space-y-3">
+        <div>
+          <input
+            type="text"
+            id="username-input"
+            placeholder="Username (3-50 characters)"
+            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           >
-            Don't have an account, get started
-          </a>
+          <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
+          <div id="username-help" class="mt-1 text-xs text-gray-500">Letters, numbers, periods, underscores, and hyphens allowed</div>
         </div>
-      `;
-    } else {
-      formContainer.innerHTML = `
-        <div class="space-y-3">
-          <div>
+        <div>
+          <div class="relative">
             <input
-              type="text"
-              id="username-input"
-              placeholder="Username (3-50 characters)"
-              class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              type="password"
+              id="password-input"
+              placeholder="Password (8-64 characters)"
+              class="w-full px-3 py-2 pr-10 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             >
-            <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
-            <div id="username-help" class="mt-1 text-xs text-gray-500">Letters, numbers, periods, underscores, and hyphens allowed</div>
+            <button
+              type="button"
+              id="password-toggle"
+              class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-300"
+              aria-label="Toggle password visibility"
+            >
+              <svg id="password-show-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg id="password-hide-icon" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+              </svg>
+            </button>
           </div>
-          <div>
-            <div class="relative">
-              <input
-                type="password"
-                id="password-input"
-                placeholder="Password (8-64 characters)"
-                class="w-full px-3 py-2 pr-10 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-              >
-              <button
-                type="button"
-                id="password-toggle"
-                class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-300"
-                aria-label="Toggle password visibility"
-              >
-                <svg id="password-show-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                <svg id="password-hide-icon" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-              </button>
-            </div>
-            <div id="password-error" class="hidden mt-1 text-xs text-red-400"></div>
-            <div id="password-help" class="mt-1 text-xs text-gray-500">Use a strong, unique password for security</div>
-          </div>
-          <button
-            id="password-signin-btn"
-            class="vega-btn vega-btn-primary w-full text-sm"
-            disabled
-          >
-            Sign In
-          </button>
+          <div id="password-error" class="hidden mt-1 text-xs text-red-400"></div>
+          <div id="password-help" class="mt-1 text-xs text-gray-500">Use a strong, unique password for security</div>
         </div>
+        <button
+          id="password-signin-btn"
+          type="button"
+          class="vega-btn vega-btn-primary w-full text-sm"
+          disabled
+        >
+          Sign In
+        </button>
+      </div>
 
-        <div class="text-center mt-4">
-          <a
-            href="https://vega.benidevo.com"
-            target="_blank"
-            class="text-xs text-gray-400 hover:text-gray-300 transition-colors"
-          >
-            Don't have an account, get started
-          </a>
-        </div>
-      `;
-    }
+      <div class="text-center mt-4">
+        <a
+          href="https://vega.benidevo.com"
+          target="_blank"
+          class="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+        >
+          Don't have an account, get started
+        </a>
+      </div>
+    `;
+  }
+
+  private removeExistingEventListeners(): void {
+    const elementsToClean = [
+      'username-input',
+      'password-input',
+      'password-toggle',
+      'password-signin-btn',
+    ];
+
+    elementsToClean.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        const newElement = element.cloneNode(true) as HTMLElement;
+        element.parentNode?.replaceChild(newElement, element);
+      }
+    });
   }
 
   private attachAuthEventListeners(): void {
-    const googleBtn = document.getElementById('google-signin-btn');
-    if (googleBtn) {
-      googleBtn.setAttribute('aria-label', 'Sign in with Google account');
-      googleBtn.addEventListener('click', async () => {
-        await this.handleGoogleSignIn();
-      });
-    }
-
     const usernameInput = document.getElementById(
       'username-input'
     ) as HTMLInputElement;
@@ -330,11 +370,6 @@ class Popup {
       passwordInput.addEventListener('blur', () => {
         this.validatePasswordInput();
       });
-      passwordInput.addEventListener('keypress', async e => {
-        if (e.key === 'Enter' && this.isFormValid()) {
-          await this.handlePasswordSignIn();
-        }
-      });
     }
 
     const passwordToggle = document.getElementById('password-toggle');
@@ -361,72 +396,12 @@ class Popup {
         'aria-label',
         'Sign in with username and password'
       );
-      passwordBtn.addEventListener('click', async () => {
-        await this.handlePasswordSignIn();
-      });
     }
 
-    // Set up aria-live regions for global notification
     const globalNotification = document.getElementById('global-notification');
     if (globalNotification) {
       globalNotification.setAttribute('role', 'alert');
       globalNotification.setAttribute('aria-live', 'polite');
-    }
-  }
-
-  private async handleGoogleSignIn(): Promise<void> {
-    if (this.isSigningIn) return;
-
-    const googleBtn = document.getElementById(
-      'google-signin-btn'
-    ) as HTMLButtonElement;
-    if (!googleBtn) return;
-
-    this.isSigningIn = true;
-    const originalText = googleBtn.textContent;
-    googleBtn.disabled = true;
-    googleBtn.textContent = 'Signing in...';
-
-    try {
-      const response = await chrome.runtime.sendMessage({ type: 'LOGIN' });
-
-      if (response && response.success) {
-        await this.initialize();
-        this.isSigningIn = false;
-      } else {
-        // Show error after DOM is stable
-        setTimeout(() => {
-          this.showAuthError(response?.error || 'Google sign-in failed');
-        }, 50);
-
-        // Keep isSigningIn true while error is displayed
-        setTimeout(() => {
-          // Only reset if error timeout has completed
-          if (!this.errorTimeout) {
-            this.isSigningIn = false;
-          }
-        }, 3000);
-      }
-    } catch (error) {
-      const errorDetails = errorService.handleError(error, {
-        action: 'google_auth',
-      });
-
-      // Show error after DOM is stable
-      setTimeout(() => {
-        this.showAuthError(errorDetails.userMessage);
-      }, 50);
-
-      // Keep isSigningIn true while error is displayed
-      setTimeout(() => {
-        // Only reset if error timeout has completed
-        if (!this.errorTimeout) {
-          this.isSigningIn = false;
-        }
-      }, 3000);
-    } finally {
-      googleBtn.disabled = false;
-      googleBtn.textContent = originalText;
     }
   }
 
@@ -525,7 +500,17 @@ class Popup {
   }
 
   private async handlePasswordSignIn(): Promise<void> {
-    if (this.isSigningIn || !this.isFormValid()) return;
+    if (this.isSigningIn || !this.isFormValid()) {
+      return;
+    }
+
+    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    if (this.currentLoginRequestId) {
+      return;
+    }
+
+    this.currentLoginRequestId = requestId;
 
     const usernameInput = document.getElementById(
       'username-input'
@@ -537,7 +522,10 @@ class Popup {
       'password-signin-btn'
     ) as HTMLButtonElement;
 
-    if (!usernameInput || !passwordInput || !passwordBtn) return;
+    if (!usernameInput || !passwordInput || !passwordBtn) {
+      this.currentLoginRequestId = null;
+      return;
+    }
 
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
@@ -547,18 +535,14 @@ class Popup {
     const passwordValidation = validatePassword(password);
 
     if (!usernameValidation.isValid) {
-      // Delay showing validation error to ensure DOM is ready
-      setTimeout(() => {
-        this.showAuthError(usernameValidation.error || 'Invalid username');
-      }, 50);
+      this.showAuthError(usernameValidation.error || 'Invalid username');
+      this.currentLoginRequestId = null;
       return;
     }
 
     if (!passwordValidation.isValid) {
-      // Delay showing validation error to ensure DOM is ready
-      setTimeout(() => {
-        this.showAuthError(passwordValidation.error || 'Invalid password');
-      }, 50);
+      this.showAuthError(passwordValidation.error || 'Invalid password');
+      this.currentLoginRequestId = null;
       return;
     }
 
@@ -568,71 +552,78 @@ class Popup {
     passwordBtn.textContent = 'Signing in...';
 
     try {
+      if (chrome.runtime.lastError) {
+        console.error(
+          '[Popup] Chrome runtime error before send:',
+          chrome.runtime.lastError
+        );
+      }
+
+      console.trace('[Popup] sendMessage call stack');
+
       const response = await chrome.runtime.sendMessage({
         type: 'LOGIN_WITH_PASSWORD',
         payload: { username, password },
+        requestId: requestId,
       });
 
-      if (response && response.success) {
+      if (chrome.runtime.lastError) {
+        console.error(
+          '[Popup] Chrome runtime error after send:',
+          chrome.runtime.lastError
+        );
+      }
+
+      if (!response) {
+        throw new Error('No response received from background service');
+      }
+
+      if (response.success) {
         await new Promise(resolve => setTimeout(resolve, 100));
         await this.initialize();
+        this.isSigningIn = false;
+        this.currentLoginRequestId = null;
       } else {
         const errorMessage = response?.error || 'Sign in failed';
 
-        // Reset button state first
-        this.updateSignInButtonState();
+        passwordBtn.disabled = false;
         passwordBtn.textContent = originalText;
 
-        // Show error after DOM is stable
-        setTimeout(() => {
-          this.showAuthError(errorMessage);
-          usernameInput.focus();
-        }, 50);
+        this.showAuthError(errorMessage);
 
-        // Keep isSigningIn true while error is displayed
+        usernameInput.focus();
+
         setTimeout(() => {
-          // Only reset if error timeout has completed
-          if (!this.errorTimeout) {
-            this.isSigningIn = false;
-          }
-        }, 3000);
-        return;
+          this.isSigningIn = false;
+          this.currentLoginRequestId = null;
+          this.updateSignInButtonState();
+        }, 5000);
       }
     } catch (error) {
+      console.error('[Popup] Login error:', error);
       const errorDetails = errorService.handleError(error, {
         action: 'password_auth',
       });
 
-      // Reset button state first
-      this.updateSignInButtonState();
+      passwordBtn.disabled = false;
       passwordBtn.textContent = originalText;
 
-      // Show error after DOM is stable
-      setTimeout(() => {
-        this.showAuthError(errorDetails.userMessage);
-        usernameInput.focus();
-      }, 50);
+      this.showAuthError(errorDetails.userMessage);
 
-      // Keep isSigningIn true while error is displayed
+      usernameInput.focus();
+
       setTimeout(() => {
-        // Only reset if error timeout has completed
-        if (!this.errorTimeout) {
-          this.isSigningIn = false;
-        }
-      }, 3000);
-      return;
+        this.isSigningIn = false;
+        this.currentLoginRequestId = null;
+        this.updateSignInButtonState();
+      }, 5000);
     }
-
-    this.isSigningIn = false;
-    this.updateSignInButtonState();
-    passwordBtn.textContent = originalText;
   }
 
   private preserveActiveNotification(): {
     message: string;
     type: 'success' | 'error' | 'info';
   } | null {
-    // Try to get the active notification content before it's destroyed
     const notificationEl = document.getElementById('global-notification');
 
     if (
@@ -668,7 +659,6 @@ class Popup {
       currentView: this.currentView,
     });
 
-    // Always use the global notification area
     const notificationEl = document.getElementById('global-notification');
 
     if (!notificationEl) {
@@ -691,7 +681,6 @@ class Popup {
       this.errorTimeout = null;
     }
 
-    // Set up the notification style and content
     const bgColor =
       type === 'success'
         ? 'rgba(16, 185, 129, 0.1)'
@@ -713,7 +702,6 @@ class Popup {
       </div>
     `;
 
-    // Show the notification
     notificationEl.style.display = 'block';
 
     // Auto-hide after 2.5 seconds
@@ -731,7 +719,43 @@ class Popup {
 
   private showAuthError(message: string): void {
     this.logger.info('Showing auth error', { message });
-    this.showNotification(message, 'error');
+
+    let notificationEl = document.getElementById('global-notification');
+    if (!notificationEl) {
+      this.logger.error(
+        'Global notification element not found when showing auth error'
+      );
+      const mainContainer = document.querySelector('#status')?.parentElement;
+      if (mainContainer) {
+        const newNotificationEl = document.createElement('div');
+        newNotificationEl.id = 'global-notification';
+        newNotificationEl.style.display = 'none';
+        newNotificationEl.style.marginBottom = '1rem';
+        newNotificationEl.setAttribute('role', 'alert');
+        newNotificationEl.setAttribute('aria-live', 'polite');
+        const statusEl = document.getElementById('status');
+        if (statusEl) {
+          mainContainer.insertBefore(newNotificationEl, statusEl);
+        } else {
+          mainContainer.insertBefore(
+            newNotificationEl,
+            mainContainer.firstChild
+          );
+        }
+        this.logger.info('Created missing global notification element');
+        notificationEl = newNotificationEl;
+      }
+    }
+
+    if (notificationEl) {
+      this.displayNotificationContent(notificationEl, message, 'error');
+    } else {
+      this.logger.error(
+        'Failed to show auth error notification, using fallback',
+        { message }
+      );
+      console.error('Authentication Error:', message);
+    }
   }
 
   private async handleSignOut(): Promise<void> {
@@ -769,21 +793,19 @@ class Popup {
     const localRadio = document.getElementById(
       'backend-local'
     ) as HTMLInputElement;
-    if (cloudRadio) {
-      cloudRadio.addEventListener('change', () => {
+    const handleBackendModeChange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.checked) {
         this.toggleLocalBackendSettings();
-        if (cloudRadio.checked) {
-          this.saveSettings();
-        }
-      });
+        await this.saveSettings();
+      }
+    };
+
+    if (cloudRadio) {
+      cloudRadio.addEventListener('change', handleBackendModeChange);
     }
     if (localRadio) {
-      localRadio.addEventListener('change', () => {
-        this.toggleLocalBackendSettings();
-        if (localRadio.checked) {
-          this.saveSettings();
-        }
-      });
+      localRadio.addEventListener('change', handleBackendModeChange);
     }
 
     // Add event listener for custom host input validation
@@ -869,6 +891,7 @@ class Popup {
     const isJobPage = await this.checkIfJobPage();
     await this.render(isAuthenticated, isJobPage);
     this.attachEventListeners(isAuthenticated);
+    this.attachSettingsEventListeners();
   }
 
   private async saveSettings(): Promise<void> {
@@ -918,7 +941,13 @@ class Popup {
       this.updateDashboardLink();
 
       // Notify background script to reload services with new settings
-      await chrome.runtime.sendMessage({ type: 'RELOAD_SETTINGS' });
+      const reloadResponse = await chrome.runtime.sendMessage({
+        type: 'RELOAD_SETTINGS',
+      });
+
+      if (reloadResponse && reloadResponse.success) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
 
       // Check if significant settings changed
       const settingsChanged =
@@ -928,19 +957,24 @@ class Popup {
             currentSettings.apiProtocol !== customSchemeSelect?.value));
 
       if (settingsChanged) {
+        this.pendingModeSwitch = true;
+
         const isAuthenticated = await this.checkAuthStatus();
         if (isAuthenticated) {
           this.showNotification(
             'Backend settings changed. Please sign out and sign in again.',
             'info'
           );
-          setTimeout(async () => await this.showMainView(), 3000);
+          setTimeout(async () => {
+            await this.showMainView();
+            this.pendingModeSwitch = false;
+          }, 3000);
         } else {
           // If not authenticated and settings changed, re-render to show correct login form
           await this.showMainView();
-          await this.render(false, await this.checkIfJobPage());
-          this.attachEventListeners(false);
-          this.attachSettingsEventListeners();
+          setTimeout(() => {
+            this.pendingModeSwitch = false;
+          }, 1000);
         }
       } else {
         // No significant changes, just show success
@@ -1092,4 +1126,10 @@ class Popup {
 document.addEventListener('DOMContentLoaded', () => {
   const popup = new Popup();
   popup.initialize();
+
+  const manifest = chrome.runtime.getManifest();
+  const versionElement = document.querySelector('.text-xs.text-gray-500 span');
+  if (versionElement) {
+    versionElement.textContent = `v${manifest.version}`;
+  }
 });
