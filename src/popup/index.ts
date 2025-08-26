@@ -268,11 +268,11 @@ class Popup {
           <input
             type="text"
             id="username-input"
-            placeholder="Username (3-50 characters)"
+            placeholder="Username or Email"
             class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           >
           <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
-          <div id="username-help" class="mt-1 text-xs text-gray-500">Letters, numbers, periods, underscores, and hyphens allowed</div>
+          <div id="username-help" class="mt-1 text-xs text-gray-500">Enter your username or email address</div>
         </div>
         <div>
           <div class="relative">
@@ -344,7 +344,7 @@ class Popup {
       'username-input'
     ) as HTMLInputElement;
     if (usernameInput) {
-      usernameInput.setAttribute('aria-label', 'Username');
+      usernameInput.setAttribute('aria-label', 'Username or Email');
       usernameInput.setAttribute(
         'aria-describedby',
         'username-help username-error'
@@ -889,10 +889,29 @@ class Popup {
         const versionDiv = document.createElement('div');
         versionDiv.textContent = `New version ${latestVersion} available!`;
         const link = document.createElement('a');
-        link.href = data.html_url;
+
+        try {
+          const url = new URL(data.html_url);
+          if (url.protocol === 'https:' && url.hostname === 'github.com') {
+            link.href = data.html_url;
+          } else {
+            throw new Error('Invalid release URL');
+          }
+        } catch {
+          link.textContent = 'Visit GitHub releases page';
+          link.onclick = () => {
+            window.open(
+              'https://github.com/benidevo/vega-ai-extension/releases',
+              '_blank'
+            );
+          };
+        }
+
         link.target = '_blank';
         link.className = 'underline hover:text-green-300 mt-1 inline-block';
-        link.textContent = 'Download update';
+        if (!link.textContent) {
+          link.textContent = 'Download update';
+        }
         updateMessage.appendChild(versionDiv);
         updateMessage.appendChild(link);
         updateText.textContent = 'Update available!';
