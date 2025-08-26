@@ -27,6 +27,8 @@ class Popup {
   private currentVersion: string;
   private latestVersion: string | null = null;
   private isCheckingUpdate = false;
+  private lastUpdateCheck: number = 0;
+  private readonly UPDATE_CHECK_INTERVAL = 60000;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
@@ -849,7 +851,24 @@ class Popup {
   private async checkForUpdates(): Promise<void> {
     if (this.isCheckingUpdate) return;
 
+    const now = Date.now();
+    if (now - this.lastUpdateCheck < this.UPDATE_CHECK_INTERVAL) {
+      const updateMessage = document.getElementById('update-message');
+      if (updateMessage) {
+        updateMessage.className =
+          'text-center p-2 rounded bg-yellow-900/50 text-yellow-400';
+        updateMessage.textContent = 'Please wait before checking again';
+        const updateStatus = document.getElementById('update-status');
+        if (updateStatus) {
+          updateStatus.classList.remove('hidden');
+          setTimeout(() => updateStatus.classList.add('hidden'), 2000);
+        }
+      }
+      return;
+    }
+
     this.isCheckingUpdate = true;
+    this.lastUpdateCheck = now;
     const updateText = document.getElementById('update-text');
     const updateStatus = document.getElementById('update-status');
     const updateMessage = document.getElementById('update-message');
@@ -885,33 +904,43 @@ class Popup {
       if (isUpdateAvailable) {
         updateMessage.className =
           'text-center p-2 rounded bg-green-900/50 text-green-400';
-        updateMessage.innerHTML = '';
+
+        while (updateMessage.firstChild) {
+          updateMessage.removeChild(updateMessage.firstChild);
+        }
+
         const versionDiv = document.createElement('div');
-        versionDiv.textContent = `New version ${latestVersion} available!`;
+        const sanitizedVersion = this.sanitizeVersionString(latestVersion);
+        versionDiv.textContent = `New version ${sanitizedVersion} available!`;
+
         const link = document.createElement('a');
 
-        try {
-          const url = new URL(data.html_url);
-          if (url.protocol === 'https:' && url.hostname === 'github.com') {
-            link.href = data.html_url;
-          } else {
-            throw new Error('Invalid release URL');
+        let isValidUrl = false;
+        if (data.html_url && typeof data.html_url === 'string') {
+          try {
+            const url = new URL(data.html_url);
+            if (
+              url.protocol === 'https:' &&
+              url.hostname === 'github.com' &&
+              url.pathname.startsWith('/benidevo/vega-ai-extension/releases/')
+            ) {
+              link.href = data.html_url;
+              isValidUrl = true;
+            }
+          } catch (e) {
+            this.logger.warn('Invalid release URL from GitHub API', e);
           }
-        } catch {
-          link.textContent = 'Visit GitHub releases page';
-          link.onclick = () => {
-            window.open(
-              'https://github.com/benidevo/vega-ai-extension/releases',
-              '_blank'
-            );
-          };
+        }
+
+        if (!isValidUrl) {
+          link.href = 'https://github.com/benidevo/vega-ai-extension/releases';
         }
 
         link.target = '_blank';
+        link.rel = 'noopener noreferrer';
         link.className = 'underline hover:text-green-300 mt-1 inline-block';
-        if (!link.textContent) {
-          link.textContent = 'Download update';
-        }
+        link.textContent = 'Download update';
+
         updateMessage.appendChild(versionDiv);
         updateMessage.appendChild(link);
         updateText.textContent = 'Update available!';
@@ -958,6 +987,11 @@ class Popup {
     }
 
     return 0;
+  }
+
+  private sanitizeVersionString(version: string): string {
+    const sanitized = version.replace(/[^0-9.-]/g, '').slice(0, 20);
+    return sanitized || 'unknown';
   }
 
   private async showSettings(): Promise<void> {
