@@ -885,12 +885,16 @@ class Popup {
       if (isUpdateAvailable) {
         updateMessage.className =
           'text-center p-2 rounded bg-green-900/50 text-green-400';
-        updateMessage.innerHTML = `
-          <div>New version ${latestVersion} available!</div>
-          <a href="${data.html_url}" target="_blank" class="underline hover:text-green-300 mt-1 inline-block">
-            Download update
-          </a>
-        `;
+        updateMessage.innerHTML = '';
+        const versionDiv = document.createElement('div');
+        versionDiv.textContent = `New version ${latestVersion} available!`;
+        const link = document.createElement('a');
+        link.href = data.html_url;
+        link.target = '_blank';
+        link.className = 'underline hover:text-green-300 mt-1 inline-block';
+        link.textContent = 'Download update';
+        updateMessage.appendChild(versionDiv);
+        updateMessage.appendChild(link);
         updateText.textContent = 'Update available!';
       } else {
         updateMessage.className =
