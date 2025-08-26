@@ -37,7 +37,7 @@ describe('validateUsername', () => {
   it('should require username', () => {
     const result = validateUsername('');
     expect(result.isValid).toBe(false);
-    expect(result.error).toBe('Username is required');
+    expect(result.error).toBe('Username or email is required');
   });
 
   it('should enforce minimum length', () => {
@@ -47,16 +47,24 @@ describe('validateUsername', () => {
   });
 
   it('should enforce maximum length', () => {
-    const result = validateUsername('a'.repeat(51));
+    const result = validateUsername('a'.repeat(101));
     expect(result.isValid).toBe(false);
-    expect(result.error).toBe('Username must be 50 characters or less');
+    expect(result.error).toBe('Username must be 100 characters or less');
   });
 
-  it('should reject invalid characters', () => {
-    const result = validateUsername('user@name');
+  it('should reject invalid characters in usernames', () => {
+    const result = validateUsername('user!name');
     expect(result.isValid).toBe(false);
     expect(result.error).toBe(
-      'Username can only contain letters, numbers, periods, underscores, and hyphens'
+      'Please enter a valid email address or username (letters, numbers, periods, underscores, and hyphens only)'
+    );
+  });
+
+  it('should reject incomplete email addresses', () => {
+    const result = validateUsername('user@');
+    expect(result.isValid).toBe(false);
+    expect(result.error).toBe(
+      'Please enter a valid email address or username (letters, numbers, periods, underscores, and hyphens only)'
     );
   });
 
@@ -65,6 +73,13 @@ describe('validateUsername', () => {
     expect(validateUsername('user_name').isValid).toBe(true);
     expect(validateUsername('user-name').isValid).toBe(true);
     expect(validateUsername('user.name').isValid).toBe(true);
+  });
+
+  it('should accept valid email addresses', () => {
+    expect(validateUsername('user@example.com').isValid).toBe(true);
+    expect(validateUsername('john.doe@company.org').isValid).toBe(true);
+    expect(validateUsername('test+tag@email.co.uk').isValid).toBe(true);
+    expect(validateUsername('user123@test-domain.com').isValid).toBe(true);
   });
 
   it('should trim whitespace', () => {

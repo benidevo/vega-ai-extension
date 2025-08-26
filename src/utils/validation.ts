@@ -71,12 +71,12 @@ export function validatePassword(password: string): ValidationResult {
 
 /**
  * Validates username according to requirements
- * @param username - The username to validate
+ * @param username - The username to validate (can be email or username)
  * @returns Validation result with error message if invalid
  */
 export function validateUsername(username: string): ValidationResult {
   if (!username) {
-    return { isValid: false, error: 'Username is required' };
+    return { isValid: false, error: 'Username or email is required' };
   }
 
   const trimmed = username.trim();
@@ -88,16 +88,21 @@ export function validateUsername(username: string): ValidationResult {
     };
   }
 
-  if (trimmed.length > 50) {
-    return { isValid: false, error: 'Username must be 50 characters or less' };
+  if (trimmed.length > 100) {
+    return { isValid: false, error: 'Username must be 100 characters or less' };
   }
 
-  const validPattern = /^[a-zA-Z0-9._-]+$/;
-  if (!validPattern.test(trimmed)) {
+  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (emailPattern.test(trimmed)) {
+    return { isValid: true };
+  }
+
+  const usernamePattern = /^[a-zA-Z0-9._-]+$/;
+  if (!usernamePattern.test(trimmed)) {
     return {
       isValid: false,
       error:
-        'Username can only contain letters, numbers, periods, underscores, and hyphens',
+        'Please enter a valid email address or username (letters, numbers, periods, underscores, and hyphens only)',
     };
   }
 

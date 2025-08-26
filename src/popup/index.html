@@ -114,13 +114,16 @@
 
   <div class="px-4 pb-3 pt-2 border-t border-slate-700">
     <div class="flex items-center justify-between text-xs text-gray-500">
-      <span>v1.0.3</span>
-      <a href="https://github.com/benidevo/vega-ai-extension/releases" target="_blank" class="hover:text-gray-400 transition-colors flex items-center">
-        Check for updates
+      <span id="version-display">Loading...</span>
+      <button id="check-updates-btn" class="hover:text-gray-400 transition-colors flex items-center" title="Check for updates">
+        <span id="update-text">Check for updates</span>
         <svg class="w-3 h-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
         </svg>
-      </a>
+      </button>
+    </div>
+    <div id="update-status" class="hidden mt-2 text-xs">
+      <div id="update-message" class="text-center p-2 rounded"></div>
     </div>
   </div>
 

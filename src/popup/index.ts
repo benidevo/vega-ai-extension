@@ -24,14 +24,22 @@ class Popup {
   private pendingModeSwitch = false;
   private currentLoginRequestId: string | null = null;
   private logger = new Logger('Popup');
+  private currentVersion: string;
+  private latestVersion: string | null = null;
+  private isCheckingUpdate = false;
+  private lastUpdateCheck: number = 0;
+  private readonly UPDATE_CHECK_INTERVAL = 60000;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
     this.ctaElement = document.getElementById('cta')!;
     this.settingsView = document.getElementById('settings-view')!;
+    this.currentVersion = chrome.runtime.getManifest().version;
 
     this.setupGlobalEventDelegation();
     this.setupAuthStateListener();
+    this.setupVersionDisplay();
+    this.setupUpdateChecker();
   }
 
   private setupGlobalEventDelegation(): void {
@@ -262,11 +270,11 @@ class Popup {
           <input
             type="text"
             id="username-input"
-            placeholder="Username (3-50 characters)"
+            placeholder="Username or Email"
             class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           >
           <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
-          <div id="username-help" class="mt-1 text-xs text-gray-500">Letters, numbers, periods, underscores, and hyphens allowed</div>
+          <div id="username-help" class="mt-1 text-xs text-gray-500">Enter your username or email address</div>
         </div>
         <div>
           <div class="relative">
@@ -338,7 +346,7 @@ class Popup {
       'username-input'
     ) as HTMLInputElement;
     if (usernameInput) {
-      usernameInput.setAttribute('aria-label', 'Username');
+      usernameInput.setAttribute('aria-label', 'Username or Email');
       usernameInput.setAttribute(
         'aria-describedby',
         'username-help username-error'
@@ -826,6 +834,169 @@ class Popup {
     this.updateDashboardLink();
   }
 
+  private setupVersionDisplay(): void {
+    const versionDisplay = document.getElementById('version-display');
+    if (versionDisplay) {
+      versionDisplay.textContent = `v${this.currentVersion}`;
+    }
+  }
+
+  private setupUpdateChecker(): void {
+    const checkUpdatesBtn = document.getElementById('check-updates-btn');
+    if (checkUpdatesBtn) {
+      checkUpdatesBtn.addEventListener('click', () => this.checkForUpdates());
+    }
+  }
+
+  private async checkForUpdates(): Promise<void> {
+    if (this.isCheckingUpdate) return;
+
+    const now = Date.now();
+    if (now - this.lastUpdateCheck < this.UPDATE_CHECK_INTERVAL) {
+      const updateMessage = document.getElementById('update-message');
+      if (updateMessage) {
+        updateMessage.className =
+          'text-center p-2 rounded bg-yellow-900/50 text-yellow-400';
+        updateMessage.textContent = 'Please wait before checking again';
+        const updateStatus = document.getElementById('update-status');
+        if (updateStatus) {
+          updateStatus.classList.remove('hidden');
+          setTimeout(() => updateStatus.classList.add('hidden'), 2000);
+        }
+      }
+      return;
+    }
+
+    this.isCheckingUpdate = true;
+    this.lastUpdateCheck = now;
+    const updateText = document.getElementById('update-text');
+    const updateStatus = document.getElementById('update-status');
+    const updateMessage = document.getElementById('update-message');
+
+    if (!updateText || !updateStatus || !updateMessage) return;
+
+    try {
+      updateText.textContent = 'Checking...';
+
+      const response = await fetch(
+        'https://api.github.com/repos/benidevo/vega-ai-extension/releases/latest'
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to check for updates');
+      }
+
+      const data = await response.json();
+      const latestVersion =
+        data.tag_name?.replace('v', '') || data.name?.replace('v', '');
+
+      if (!latestVersion) {
+        throw new Error('Could not determine latest version');
+      }
+
+      this.latestVersion = latestVersion;
+
+      const isUpdateAvailable =
+        this.compareVersions(this.currentVersion, latestVersion) < 0;
+
+      updateStatus.classList.remove('hidden');
+
+      if (isUpdateAvailable) {
+        updateMessage.className =
+          'text-center p-2 rounded bg-green-900/50 text-green-400';
+
+        while (updateMessage.firstChild) {
+          updateMessage.removeChild(updateMessage.firstChild);
+        }
+
+        const versionDiv = document.createElement('div');
+        const sanitizedVersion = this.sanitizeVersionString(latestVersion);
+        versionDiv.textContent = `New version ${sanitizedVersion} available!`;
+
+        const link = document.createElement('a');
+
+        let isValidUrl = false;
+        if (data.html_url && typeof data.html_url === 'string') {
+          try {
+            const url = new URL(data.html_url);
+            // Strict whitelist pattern to prevent path traversal attacks
+            const releasePattern =
+              /^\/benidevo\/vega-ai-extension\/releases\/(tag\/v?\d+\.\d+\.\d+(-[\w.]+)?|latest)$/;
+            if (
+              url.protocol === 'https:' &&
+              url.hostname === 'github.com' &&
+              releasePattern.test(url.pathname)
+            ) {
+              link.href = url.toString();
+              isValidUrl = true;
+            }
+          } catch (e) {
+            this.logger.warn('Invalid release URL from GitHub API', e);
+          }
+        }
+
+        if (!isValidUrl) {
+          link.href = 'https://github.com/benidevo/vega-ai-extension/releases';
+        }
+
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'underline hover:text-green-300 mt-1 inline-block';
+        link.textContent = 'Download update';
+
+        updateMessage.appendChild(versionDiv);
+        updateMessage.appendChild(link);
+        updateText.textContent = 'Update available!';
+      } else {
+        updateMessage.className =
+          'text-center p-2 rounded bg-slate-800 text-gray-400';
+        updateMessage.textContent = 'You have the latest version';
+        updateText.textContent = 'Check for updates';
+
+        setTimeout(() => {
+          updateStatus.classList.add('hidden');
+        }, 3000);
+      }
+    } catch (error) {
+      updateMessage.className =
+        'text-center p-2 rounded bg-red-900/50 text-red-400';
+      updateMessage.textContent = 'Failed to check for updates';
+      updateText.textContent = 'Check for updates';
+
+      setTimeout(() => {
+        updateStatus.classList.add('hidden');
+      }, 3000);
+
+      this.logger.error('Failed to check for updates', error);
+    } finally {
+      this.isCheckingUpdate = false;
+    }
+  }
+
+  private compareVersions(current: string, latest: string): number {
+    const currentParts = current.split('.').map(Number);
+    const latestParts = latest.split('.').map(Number);
+
+    for (
+      let i = 0;
+      i < Math.max(currentParts.length, latestParts.length);
+      i++
+    ) {
+      const currentPart = currentParts[i] || 0;
+      const latestPart = latestParts[i] || 0;
+
+      if (currentPart < latestPart) return -1;
+      if (currentPart > latestPart) return 1;
+    }
+
+    return 0;
+  }
+
+  private sanitizeVersionString(version: string): string {
+    const sanitized = version.replace(/[^0-9.-]/g, '').slice(0, 20);
+    return sanitized || 'unknown';
+  }
+
   private async showSettings(): Promise<void> {
     this.currentView = 'settings';
 
@@ -1126,10 +1297,4 @@ class Popup {
 document.addEventListener('DOMContentLoaded', () => {
   const popup = new Popup();
   popup.initialize();
-
-  const manifest = chrome.runtime.getManifest();
-  const versionElement = document.querySelector('.text-xs.text-gray-500 span');
-  if (versionElement) {
-    versionElement.textContent = `v${manifest.version}`;
-  }
 });
