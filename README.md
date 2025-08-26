@@ -1,7 +1,7 @@
 # Vega AI Job Capture Extension
 
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
-[![Coverage Status](https://img.shields.io/badge/Coverage-85.68%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
+[![Coverage Status](https://img.shields.io/badge/Coverage-85.64%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![GitHub Release](https://img.shields.io/github/v/release/benidevo/vega-ai-extension?logo=github&logoColor=white)](https://github.com/benidevo/vega-ai-extension/releases/latest)
