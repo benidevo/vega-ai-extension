@@ -919,10 +919,13 @@ class Popup {
         if (data.html_url && typeof data.html_url === 'string') {
           try {
             const url = new URL(data.html_url);
+            // Strict whitelist pattern to prevent path traversal attacks
+            const releasePattern =
+              /^\/benidevo\/vega-ai-extension\/releases\/(tag\/v?\d+\.\d+\.\d+(-[\w.]+)?|latest)$/;
             if (
               url.protocol === 'https:' &&
               url.hostname === 'github.com' &&
-              url.pathname.startsWith('/benidevo/vega-ai-extension/releases/')
+              releasePattern.test(url.pathname)
             ) {
               link.href = url.toString();
               isValidUrl = true;
