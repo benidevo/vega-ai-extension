@@ -924,7 +924,7 @@ class Popup {
               url.hostname === 'github.com' &&
               url.pathname.startsWith('/benidevo/vega-ai-extension/releases/')
             ) {
-              link.href = data.html_url;
+              link.href = url.toString();
               isValidUrl = true;
             }
           } catch (e) {
