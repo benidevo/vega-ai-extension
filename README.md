@@ -1,26 +1,26 @@
 # Vega AI Job Capture Extension
 
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
-[![Coverage Status](https://img.shields.io/badge/Coverage-85.70%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
+[![Coverage Status](https://img.shields.io/badge/Coverage-85.77%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![GitHub Release](https://img.shields.io/github/v/release/benidevo/vega-ai-extension?logo=github&logoColor=white)](https://github.com/benidevo/vega-ai-extension/releases/latest)
-[![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
 
 **Save job listings to your personal dashboard with one click.**
 
-This user-initiated Chrome extension adds a floating button to LinkedIn job pages that lets you save jobs directly to your Vega AI dashboard. All actions are initiated by you. The extension never collects or saves data automatically. Works with both the cloud service and self-hosted backends.
+This Chrome extension adds a floating button to LinkedIn job pages that lets you save jobs directly to your Vega AI dashboard. All actions are initiated by you. The extension never collects or saves data automatically. Works with both the cloud service and self-hosted [Vega AI](https://vega.benidevo.com) backends.
 
 ## ✨ Features
 
 - 🎯 **Shows on** job pages on LinkedIn when you visit them
 - 💾 **User-initiated save** with the floating button
 - 📝 **Add notes** before saving (saved locally too)
-- 🔐 **Two auth options**: username/password or Google OAuth
+- 🔐 **Secure authentication**: username/password with encrypted storage
 - 🌐 **Cloud or self-hosted**: your choice
 - ⚡ **Keyboard shortcuts**: Ctrl+Shift+V to toggle, Ctrl+S to save
+- 🔔 **Version updates**: Automatic update notifications
 - 🔄 **Syncs across devices** when signed in
-- 🛡️ **Privacy-focused**: only saves when you click, data encrypted
 
 ## 🎬 How it Works
 
@@ -46,7 +46,7 @@ No more copy-pasting job details.
 
 #### Alternative: Build from Source
 
-See the [Developer Guide](#-for-developers) below for building from source
+See the Developer Guide below for building from source
 
 ### Set Up Your Account
 
@@ -103,25 +103,9 @@ By default, the extension uses username/password auth and connects to the cloud 
 
 **Authentication:**
 
-- Username/Password (always available)
-- Google OAuth (disabled by default)
-
-To enable Google OAuth, edit `src/config/index.ts`:
-
-```typescript
-production: {
-  features: {
-    enableGoogleAuth: true,
-  },
-  auth: {
-    providers: {
-      google: {
-        clientId: 'your-google-client-id.apps.googleusercontent.com'
-      }
-    }
-  }
-}
-```
+- Username/Password authentication with secure token storage
+- Encrypted local storage for credentials
+- Automatic session management
 
 ### Project Structure
 

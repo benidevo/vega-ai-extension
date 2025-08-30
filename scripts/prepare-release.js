@@ -3,23 +3,30 @@
 const fs = require('fs');
 const path = require('path');
 
-// Read package.json
 const packagePath = path.join(__dirname, '..', 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
 
-// Read manifest.json
 const manifestPath = path.join(__dirname, '..', 'src', 'manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-// Update manifest version to match package.json
 manifest.version = packageJson.version;
-
-// Write updated manifest
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-
 console.log(`✅ Updated manifest.json version to ${packageJson.version}`);
 
-// Validate manifest
+const readmePath = path.join(__dirname, '..', 'README.md');
+let readmeContent = fs.readFileSync(readmePath, 'utf8');
+
+const versionBadgeRegex = /\[!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-[\d.]+-(green|blue)\.svg\)\]/g;
+const newVersionBadge = `[![Version](https://img.shields.io/badge/version-${packageJson.version}-green.svg)]`;
+
+if (versionBadgeRegex.test(readmeContent)) {
+  readmeContent = readmeContent.replace(versionBadgeRegex, newVersionBadge);
+  fs.writeFileSync(readmePath, readmeContent);
+  console.log(`✅ Updated README.md version badge to ${packageJson.version}`);
+} else {
+  console.log('⚠️  Could not find version badge in README.md');
+}
+
 const requiredFields = ['manifest_version', 'name', 'version', 'description'];
 const missingFields = requiredFields.filter(field => !manifest[field]);
 

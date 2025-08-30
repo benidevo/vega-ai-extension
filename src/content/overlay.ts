@@ -125,12 +125,13 @@ export class VegaAIOverlay {
     svg.setAttribute('width', '24');
     svg.setAttribute('height', '24');
     svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('fill', 'currentColor');
 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', 'M12 5v14M5 12h14');
+    path.setAttribute(
+      'd',
+      'M12 2l2.472 5.008L20 7.938l-4 3.896.944 5.508L12 14.744l-4.944 2.598L8 11.834l-4-3.896 5.528-.93L12 2z'
+    );
     svg.appendChild(path);
 
     this.button.appendChild(svg);
@@ -165,20 +166,38 @@ export class VegaAIOverlay {
     const titleWrapper = document.createElement('div');
     titleWrapper.className =
       'vega-ai-flex vega-ai-items-center vega-ai-justify-between';
+    titleWrapper.style.cssText =
+      'width: 100% !important; min-width: 0 !important;';
 
     const brandingWrapper = document.createElement('div');
     brandingWrapper.className =
       'vega-ai-flex vega-ai-items-center vega-ai-gap-2';
+    brandingWrapper.style.cssText =
+      'flex-shrink: 0; min-width: 0; flex: 0 0 auto;';
 
     const logo = document.createElement('div');
     logo.className = 'vega-ai-logo';
-    logo.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#14b8a6" style="width: 24px; height: 24px;">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+    logo.style.cssText =
+      'flex-shrink: 0; width: 24px; height: 24px; min-width: 24px;';
+    logo.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0D9488" style="width: 24px; height: 24px; min-width: 24px;">
+      <path d="M12 2l2.472 5.008L20 7.938l-4 3.896.944 5.508L12 14.744l-4.944 2.598L8 11.834l-4-3.896 5.528-.93L12 2z"/>
     </svg>`;
 
     const title = document.createElement('h3');
     title.className = 'vega-ai-panel-title';
-    title.textContent = 'Vega AI';
+    title.style.cssText = `
+      white-space: nowrap !important;
+      margin: 0 !important;
+      flex-shrink: 0 !important;
+      display: inline-flex !important;
+      align-items: baseline !important;
+      font-size: 18px !important;
+      line-height: 1 !important;
+      font-weight: 500 !important;
+      color: white !important;
+    `;
+    title.innerHTML =
+      '<span style="display: inline !important; white-space: nowrap !important;">Vega</span>&nbsp;<span style="color: #9ca3af !important; font-weight: 300 !important; display: inline !important; white-space: nowrap !important;">AI</span>';
 
     brandingWrapper.appendChild(logo);
     brandingWrapper.appendChild(title);
