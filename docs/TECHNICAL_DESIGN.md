@@ -56,13 +56,9 @@ graph TB
 src/
 ├── background/          # Service worker and background services
 │   ├── services/       # Modular service implementations
-│   │   ├── auth/      # Multi-provider authentication
-│   │   │   ├── IAuthProvider.ts           # Provider interface
+│   │   ├── auth/      # Authentication service
 │   │   │   ├── IAuthService.ts            # Service interface
-│   │   │   ├── GoogleAuthProvider.ts      # Google OAuth implementation
-│   │   │   ├── PasswordAuthService.ts     # Username/password auth
-│   │   │   ├── MultiProviderAuthService.ts # Main auth service
-│   │   │   └── AuthProviderFactory.ts     # Provider factory
+│   │   │   └── PasswordAuthService.ts     # Username/password auth
 │   │   ├── api/       # Backend API communication
 │   │   ├── message/   # Chrome extension messaging
 │   │   ├── storage/   # Chrome storage wrapper
@@ -87,14 +83,13 @@ src/
 
 ### Background Services
 
-#### Authentication Service (`MultiProviderAuthService`)
+#### Authentication Service (`PasswordAuthService`)
 
-Handles both username/password and Google OAuth authentication. Automatically refreshes tokens when they expire. Each auth method has its own provider class, making it easy to add new methods.
+Handles username/password authentication with secure token management. Automatically refreshes tokens when they expire and manages session state.
 
 ```typescript
 interface IAuthService {
-  login(): Promise<void>;
-  loginWithProvider(provider: AuthProviderType, credentials?: unknown): Promise<void>;
+  login(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
   getAuthToken(): Promise<string | null>;
   refreshTokens(): Promise<void>;
@@ -175,7 +170,7 @@ The main interface users see when they click the extension icon. Handles sign in
 
 - Tokens stored in Chrome's encrypted storage
 - Auto-refresh when tokens expire
-- OAuth follows standard security practices
+- Secure token storage and refresh mechanism
 - Passwords validated before sending
 
 ### Data Protection
@@ -238,17 +233,9 @@ sequenceDiagram
     U->>P: Open popup
     P->>P: Show auth options
 
-    alt Username/Password
-        U->>P: Enter credentials
-        P->>BG: Login request
-        BG->>API: POST /auth/login
-    else Google OAuth
-        U->>P: Click Google signin
-        P->>BG: OAuth request
-        BG->>chrome.identity: Launch OAuth flow
-        chrome.identity-->>BG: Auth code
-        BG->>API: Exchange for tokens
-    end
+    U->>P: Enter credentials
+    P->>BG: Login request
+    BG->>API: POST /auth/login
 
     API-->>BG: Access + Refresh tokens
     BG->>CS: Store tokens

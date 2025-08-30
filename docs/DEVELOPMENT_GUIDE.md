@@ -41,27 +41,13 @@ The extension can connect to:
 
 Users can switch modes in the extension popup.
 
-### Authentication Options
+### Authentication
 
-- **Username/Password**: Always available
-- **Google OAuth**: Disabled by default
+The extension uses username/password authentication with secure token management:
 
-To enable Google OAuth, edit `src/config/index.ts`:
-
-```typescript
-production: {
-  features: {
-    enableGoogleAuth: true,
-  },
-  auth: {
-    providers: {
-      google: {
-        clientId: 'your-client-id.apps.googleusercontent.com'
-      }
-    }
-  }
-}
-```
+- **Token Storage**: Encrypted in Chrome's local storage
+- **Auto-refresh**: Tokens refresh automatically when they expire
+- **Session Management**: Handles login state across browser sessions
 
 ### Useful Commands
 
@@ -108,7 +94,10 @@ git pull origin master
 
 The `npm version` command will:
 
-- Update the version in `package.json` and `manifest.json`
+- Update the version in `package.json`
+- Run `prepare-release.js` which automatically:
+  - Updates `manifest.json` to match package.json version
+  - Updates the version badge in README.md
 - Create a git commit with message "vx.x.x"
 - Create a git tag "vx.x.x"
 
@@ -123,7 +112,7 @@ npm run release:minor
 npm run release:major
 ```
 
-Note: These scripts automatically sync versions between package.json and manifest.json
+Note: These scripts automatically sync versions between package.json, manifest.json, and README.md
 
 #### 3. Push the commit and tag
 
@@ -151,7 +140,9 @@ git push origin --tags
 
 ### Version Management
 
-The version in `package.json` is the source of truth. The `prepare-release.js` script syncs it to `manifest.json`.
+The version in `package.json` is the source of truth. The `prepare-release.js` script automatically syncs it to:
+- `manifest.json` (Chrome extension version)
+- `README.md` (version badge)
 
 ### Release Checklist
 
