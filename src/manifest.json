@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vega AI Job Capture",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Save job listings to your personal dashboard with one click. User-initiated tool for organizing your job search.",
   "homepage_url": "https://vega.benidevo.com/privacy",
   "author": "Benjamin Idewor",
