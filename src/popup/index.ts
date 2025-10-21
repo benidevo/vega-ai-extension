@@ -29,6 +29,13 @@ class Popup {
   private isCheckingUpdate = false;
   private lastUpdateCheck: number = 0;
   private readonly UPDATE_CHECK_INTERVAL = 60000;
+  private hasUnsavedChanges = false;
+  private settingsListenersAttached = false;
+  private lastSavedSettings: {
+    backendMode: 'cloud' | 'local';
+    apiHost: string;
+    apiProtocol: 'http' | 'https';
+  } | null = null;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
@@ -784,6 +791,8 @@ class Popup {
   }
 
   private attachSettingsEventListeners(): void {
+    if (this.settingsListenersAttached) return;
+
     const settingsBtn = document.getElementById('settings-btn');
     if (settingsBtn) {
       settingsBtn.addEventListener('click', () => this.showSettings());
@@ -801,11 +810,11 @@ class Popup {
     const localRadio = document.getElementById(
       'backend-local'
     ) as HTMLInputElement;
-    const handleBackendModeChange = async (e: Event) => {
+    const handleBackendModeChange = (e: Event) => {
       const target = e.target as HTMLInputElement;
       if (target.checked) {
         this.toggleLocalBackendSettings();
-        await this.saveSettings();
+        this.markDirty();
       }
     };
 
@@ -821,8 +830,19 @@ class Popup {
       'custom-host'
     ) as HTMLInputElement;
     if (customHostInput) {
-      customHostInput.addEventListener('input', () => this.validateHostInput());
+      customHostInput.addEventListener('input', () => {
+        this.validateHostInput();
+        this.markDirty();
+      });
       customHostInput.addEventListener('blur', () => this.validateHostInput());
+    }
+
+    // Add event listener for custom scheme dropdown
+    const customSchemeSelect = document.getElementById(
+      'custom-scheme'
+    ) as HTMLSelectElement;
+    if (customSchemeSelect) {
+      customSchemeSelect.addEventListener('change', () => this.markDirty());
     }
 
     // Add test connection button listener
@@ -831,7 +851,15 @@ class Popup {
       testConnectionBtn.addEventListener('click', () => this.testConnection());
     }
 
+    // Add save settings button listener
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    if (saveSettingsBtn) {
+      saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+    }
+
     this.updateDashboardLink();
+
+    this.settingsListenersAttached = true;
   }
 
   private setupVersionDisplay(): void {
@@ -1047,6 +1075,15 @@ class Popup {
 
     // Re-attach event listeners after showing settings
     this.attachSettingsEventListeners();
+
+    // Store current settings and reset dirty state
+    this.lastSavedSettings = {
+      backendMode: settings.backendMode,
+      apiHost: settings.apiHost,
+      apiProtocol: settings.apiProtocol,
+    };
+    this.hasUnsavedChanges = false;
+    this.updateSaveButtonState();
   }
 
   private async showMainView(): Promise<void> {
@@ -1107,6 +1144,9 @@ class Popup {
       }
 
       this.showNotification('Settings saved successfully!', 'success');
+
+      this.hasUnsavedChanges = false;
+      this.updateSaveButtonState();
 
       // Update dashboard link
       this.updateDashboardLink();
@@ -1220,6 +1260,28 @@ class Popup {
     }
 
     return validation;
+  }
+
+  private markDirty(): void {
+    this.hasUnsavedChanges = true;
+    this.updateSaveButtonState();
+  }
+
+  private updateSaveButtonState(): void {
+    const saveBtn = document.getElementById(
+      'save-settings-btn'
+    ) as HTMLButtonElement;
+    if (!saveBtn) return;
+
+    if (this.hasUnsavedChanges) {
+      saveBtn.textContent = 'Save Changes';
+      saveBtn.disabled = false;
+      saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      saveBtn.textContent = 'Save Settings';
+      saveBtn.disabled = true;
+      saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
   }
 
   private async testConnection(): Promise<void> {
