@@ -1,6 +1,6 @@
 {
   "name": "vega-ai-extension",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Save job listings to your personal dashboard with one click. User-initiated tool for organizing your job search.",
   "private": true,
   "scripts": {
