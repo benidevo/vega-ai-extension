@@ -85,16 +85,32 @@ export class Logger {
 
       switch (level) {
         case LogLevel.DEBUG:
-          console.debug(logMessage, data);
+          if (data !== undefined) {
+            console.debug(logMessage, data);
+          } else {
+            console.debug(logMessage);
+          }
           break;
         case LogLevel.INFO:
-          console.log(logMessage, data);
+          if (data !== undefined) {
+            console.log(logMessage, data);
+          } else {
+            console.log(logMessage);
+          }
           break;
         case LogLevel.WARN:
-          console.warn(logMessage, data);
+          if (data !== undefined) {
+            console.warn(logMessage, data);
+          } else {
+            console.warn(logMessage);
+          }
           break;
         case LogLevel.ERROR:
-          console.error(logMessage, error || data);
+          if (error || data !== undefined) {
+            console.error(logMessage, error || data);
+          } else {
+            console.error(logMessage);
+          }
           break;
       }
     }

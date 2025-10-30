@@ -174,9 +174,10 @@ describe('VegaAIOverlay', () => {
       await Promise.resolve();
 
       expect(readJobDetails).toHaveBeenCalled();
-      expect(document.querySelector('.vega-ai-field-value')?.textContent).toBe(
-        'Software Engineer'
-      );
+      const titleInput = document.querySelector(
+        '.vega-ai-input'
+      ) as HTMLInputElement;
+      expect(titleInput?.value).toBe('Software Engineer');
 
       newOverlay.destroy();
     });

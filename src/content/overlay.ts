@@ -399,31 +399,78 @@ export class VegaAIOverlay {
       loadingDiv.appendChild(text);
       container.appendChild(loadingDiv);
     } else if (state === 'data' && this.currentJob) {
-      const fields = [
-        { label: 'Position', value: this.currentJob.title },
-        { label: 'Company', value: this.currentJob.company },
-        { label: 'Location', value: this.currentJob.location },
-        { label: 'Type', value: this.formatJobType(this.currentJob.jobType) },
+      const editableFields = [
+        {
+          label: 'Position',
+          key: 'title' as const,
+          value: this.currentJob.title || '',
+        },
+        {
+          label: 'Company',
+          key: 'company' as const,
+          value: this.currentJob.company || '',
+        },
+        {
+          label: 'Location',
+          key: 'location' as const,
+          value: this.currentJob.location || '',
+        },
       ];
 
-      fields.forEach(field => {
-        if (field.value) {
-          const fieldDiv = document.createElement('div');
-          fieldDiv.className = 'vega-ai-field';
+      editableFields.forEach(field => {
+        const fieldDiv = document.createElement('div');
+        fieldDiv.className = 'vega-ai-field';
 
-          const label = document.createElement('div');
-          label.className = 'vega-ai-field-label';
-          label.textContent = field.label;
+        const label = document.createElement('div');
+        label.className = 'vega-ai-field-label';
+        label.textContent = field.label;
 
-          const value = document.createElement('div');
-          value.className = 'vega-ai-field-value';
-          value.textContent = field.value;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'vega-ai-input';
+        input.value = field.value;
+        input.placeholder =
+          field.key === 'title'
+            ? 'e.g., Senior Software Engineer'
+            : field.key === 'company'
+              ? 'e.g., Google'
+              : 'e.g., San Francisco, CA';
 
-          fieldDiv.appendChild(label);
-          fieldDiv.appendChild(value);
-          container.appendChild(fieldDiv);
-        }
+        const inputHandler = (e: Event) => {
+          if (this.currentJob && e.target instanceof HTMLInputElement) {
+            this.currentJob[field.key] = e.target.value;
+          }
+        };
+
+        input.addEventListener('input', inputHandler);
+        this.eventListeners.push({
+          element: input,
+          event: 'input',
+          handler: inputHandler,
+        });
+
+        fieldDiv.appendChild(label);
+        fieldDiv.appendChild(input);
+        container.appendChild(fieldDiv);
       });
+
+      // Type field (read-only)
+      if (this.currentJob.jobType) {
+        const typeDiv = document.createElement('div');
+        typeDiv.className = 'vega-ai-field';
+
+        const typeLabel = document.createElement('div');
+        typeLabel.className = 'vega-ai-field-label';
+        typeLabel.textContent = 'Type';
+
+        const typeValue = document.createElement('div');
+        typeValue.className = 'vega-ai-field-value';
+        typeValue.textContent = this.formatJobType(this.currentJob.jobType);
+
+        typeDiv.appendChild(typeLabel);
+        typeDiv.appendChild(typeValue);
+        container.appendChild(typeDiv);
+      }
 
       const notesDiv = document.createElement('div');
       notesDiv.className = 'vega-ai-field';

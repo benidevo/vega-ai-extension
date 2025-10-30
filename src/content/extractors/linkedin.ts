@@ -1,10 +1,6 @@
 import { JobListing } from '@/types';
 import { IJobReader } from './IJobReader';
-import {
-  cleanUrl,
-  isValidJobListing,
-  sanitizeJobListing,
-} from '../../utils/validation';
+import { cleanUrl } from '../../utils/validation';
 import { Logger } from '@/utils/logger';
 
 export class LinkedInJobReader implements IJobReader {
@@ -16,6 +12,8 @@ export class LinkedInJobReader implements IJobReader {
 
     if (url.includes('linkedin.com')) {
       const hasJobElements = !!(
+        document.querySelector('[data-view-name="job-detail-page"]') ||
+        document.querySelector('[data-view-name="job-card"]') ||
         document.querySelector('.jobs-unified-top-card') ||
         document.querySelector('.job-details-jobs-unified-top-card') ||
         document.querySelector('[data-job-id]')
@@ -36,72 +34,289 @@ export class LinkedInJobReader implements IJobReader {
   }
 
   private readFromDOM(doc: Document, url: string): JobListing | null {
-    const title = this.getText(
-      doc.querySelector(
-        '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.jobs-unified-top-card__job-title'
-      )
-    );
-    const company = this.getText(
-      doc.querySelector(
-        '.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__primary-description a'
-      )
-    );
+    const container = doc.querySelector('[data-view-name="job-detail-page"]');
 
-    const locationSelectors = [
-      '.job-details-jobs-unified-top-card__primary-description-container span:nth-child(1)',
-      '.jobs-unified-top-card__primary-description span',
-      '[class*="job-details-jobs-unified-top-card__primary-description"]',
+    if (!container) {
+      this.logger.warn(
+        'Job detail page container not found, trying legacy selectors'
+      );
+      return this.readFromDOMLegacy(doc, url);
+    }
+
+    const title = this.extractTitleByClass(doc) || 'Unknown Position';
+    const company = this.extractCompanyByClass(doc) || 'Unknown Company';
+    const location = this.extractLocationByClass(doc) || 'Unknown Location';
+    const description = this.extractDescription(doc);
+
+    return {
+      title,
+      company,
+      location,
+      description: this.getDescriptionOrFallback(
+        description,
+        title,
+        company,
+        location
+      ),
+      sourceUrl: cleanUrl(url),
+      jobType: this.determineJobTypeSmart(doc),
+    };
+  }
+
+  private extractTitleByClass(doc: Document): string {
+    const titleSelectors = [
+      '.job-details-jobs-unified-top-card__job-title',
+      '.jobs-unified-top-card__job-title',
+      'h1.jobs-unified-top-card__job-title',
+      '.top-card-layout__title',
+      '.topcard__title',
+      '[data-view-name="job-detail-page"] h1:first-of-type',
+      '.job-view-layout h1',
+      'main h1:first-of-type',
+      'h1:first-of-type',
     ];
 
-    let location = '';
-    for (const selector of locationSelectors) {
+    for (const selector of titleSelectors) {
       const element = doc.querySelector(selector);
       if (element) {
         const text = this.getText(element);
         if (
-          text &&
-          !text.includes('applicants') &&
-          !text.includes('Easy Apply')
+          text.length >= 5 &&
+          text.length <= 150 &&
+          !text.toLowerCase().includes('about the') &&
+          !text.toLowerCase().includes('unlock') &&
+          !text.toLowerCase().includes('application status')
         ) {
-          location =
-            text
-              .split('·')
-              .map(s => s.trim())
-              .find(s => s.length > 0) || text;
-          break;
+          return text;
         }
       }
     }
+    return '';
+  }
+
+  private extractCompanyByClass(doc: Document): string {
+    const companySelectors = [
+      '[data-view-name="job-detail-page"] a[href*="/company/"]:first-of-type',
+      '.job-details-jobs-unified-top-card__company-name',
+      '.jobs-unified-top-card__company-name',
+    ];
+
+    for (const selector of companySelectors) {
+      const element = doc.querySelector(selector);
+      if (element) {
+        const text = this.getText(element);
+        if (text.length >= 2 && text.length <= 100) {
+          return text;
+        }
+      }
+    }
+    return '';
+  }
+
+  private extractLocationByClass(doc: Document): string {
+    const locationSelectors = [
+      '.job-details-jobs-unified-top-card__bullet',
+      '.jobs-unified-top-card__bullet',
+      '[data-view-name="job-detail-page"] .jobs-unified-top-card__primary-description',
+    ];
+
+    for (const selector of locationSelectors) {
+      const element = doc.querySelector(selector);
+      if (element) {
+        const text = this.getText(element);
+        if (text.length >= 2 && text.length <= 100) {
+          return text;
+        }
+      }
+    }
+    return '';
+  }
+
+  private extractDescription(doc: Document): string {
+    const container = doc.querySelector('[data-view-name="job-detail-page"]');
+    if (!container) {
+      // Try legacy selectors
+      const legacyDesc =
+        this.getText(doc.querySelector('.jobs-description__content')) ||
+        this.getText(doc.querySelector('.jobs-description-content__text'));
+      return this.cleanupDescription(legacyDesc);
+    }
+
+    const allDivs = container.querySelectorAll('div');
+    let bestCandidate = '';
+    let bestScore = 0;
+
+    allDivs.forEach(el => {
+      const text = this.getText(el);
+
+      // Skip if too short or too long
+      if (text.length < 200 || text.length > 10000) return;
+
+      // Skip if it contains company or job listing sections
+      if (
+        text.includes('About the company') ||
+        text.includes('More jobs') ||
+        text.includes('Similar jobs') ||
+        text.includes('followersFollow') ||
+        text.includes('People also viewed')
+      ) {
+        return;
+      }
+
+      let score = 0;
+
+      // Starts with "About the job" is a strong indicator
+      if (text.startsWith('About the job')) {
+        score += 100;
+      }
+
+      // Contains job description keywords
+      const keywords = [
+        'responsibilities',
+        'requirements',
+        'qualifications',
+        'experience',
+        'skills',
+        'role',
+        'position',
+        'required',
+        'preferred',
+        'looking for',
+        'seeking',
+        'will be',
+        'you will',
+        'must have',
+        'should have',
+      ];
+
+      keywords.forEach(keyword => {
+        if (text.toLowerCase().includes(keyword)) {
+          score += 5;
+        }
+      });
+
+      // Optimal length range
+      if (text.length >= 500 && text.length <= 5000) {
+        score += 10;
+      }
+
+      // Prefer leaf-ish elements (not deep containers)
+      const childDivs = el.querySelectorAll('div');
+      if (childDivs.length < 5) {
+        score += 10;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = text;
+      }
+    });
+
+    return this.cleanupDescription(bestCandidate);
+  }
+
+  private determineJobTypeSmart(
+    doc: Document
+  ): JobListing['jobType'] | undefined {
+    // Get all visible text content
+    const bodyText = doc.body.textContent?.toLowerCase() || '';
+
+    // Job type indicators with patterns
+    const typePatterns = {
+      full_time: ['full-time', 'full time', 'fulltime', 'permanent'],
+      part_time: ['part-time', 'part time', 'parttime'],
+      contract: ['contract', 'contractor', 'fixed-term', 'temporary', 'temp'],
+      intern: ['intern', 'internship', 'co-op', 'coop'],
+      freelance: [
+        'freelance',
+        'freelancer',
+        'consultant',
+        'independent contractor',
+      ],
+      remote: [
+        'remote',
+        'work from home',
+        'wfh',
+        'fully remote',
+        '100% remote',
+      ],
+    };
+
+    // Score each type
+    const scores: Record<string, number> = {};
+
+    for (const [type, patterns] of Object.entries(typePatterns)) {
+      scores[type] = 0;
+      patterns.forEach(pattern => {
+        const regex = new RegExp(`\\b${pattern}\\b`, 'gi');
+        const matches = bodyText.match(regex);
+        if (matches) {
+          scores[type] += matches.length;
+        }
+      });
+    }
+
+    // Find the type with highest score
+    const maxScore = Math.max(...Object.values(scores));
+    if (maxScore === 0) return undefined;
+
+    const detectedType = Object.entries(scores).find(
+      ([, score]) => score === maxScore
+    )?.[0];
+
+    return detectedType as JobListing['jobType'];
+  }
+
+  private readFromDOMLegacy(doc: Document, url: string): JobListing | null {
+    const title =
+      this.getText(
+        doc.querySelector('.job-details-jobs-unified-top-card__job-title') ||
+          doc.querySelector('.jobs-unified-top-card__job-title')
+      ) || 'Unknown Position';
+
+    const company =
+      this.getText(
+        doc.querySelector('.job-details-jobs-unified-top-card__company-name') ||
+          doc.querySelector('.jobs-unified-top-card__company-name')
+      ) || 'Unknown Company';
+
+    const location =
+      this.getText(
+        doc.querySelector('.job-details-jobs-unified-top-card__bullet') ||
+          doc.querySelector('.jobs-unified-top-card__bullet')
+      ) || 'Unknown Location';
 
     const description = this.cleanupDescription(
       this.getText(
-        doc.querySelector(
-          '.jobs-description__content, .jobs-description-content__text'
-        )
+        doc.querySelector('.jobs-description__content') ||
+          doc.querySelector('.jobs-description-content__text')
       )
     );
 
-    if (!title || !company) {
-      return null;
-    }
-
-    const sourceUrl = cleanUrl(url);
-
-    const jobListing: JobListing = {
+    return {
       title,
       company,
-      location: location || 'Unknown Location',
-      description: description || '',
-      sourceUrl,
-      jobType: this.determineJobType(doc),
+      location,
+      description: this.getDescriptionOrFallback(
+        description,
+        title,
+        company,
+        location
+      ),
+      sourceUrl: cleanUrl(url),
+      jobType: this.determineJobTypeSmart(doc),
     };
+  }
 
-    if (!isValidJobListing(jobListing)) {
-      this.logger.error('Invalid job listing read', jobListing);
-      return null;
-    }
-
-    return sanitizeJobListing(jobListing);
+  private getDescriptionOrFallback(
+    description: string,
+    title: string,
+    company: string,
+    location: string
+  ): string {
+    return description && description.trim().length > 0
+      ? description
+      : `${title} at ${company}\nLocation: ${location}\n\nNo detailed description available. Please visit the source URL for more information.`;
   }
 
   private getText(element: Element | null): string {
@@ -116,67 +331,5 @@ export class LinkedInJobReader implements IJobReader {
     cleaned = cleaned.replace(/  /g, '\n');
 
     return cleaned;
-  }
-
-  private determineJobType(doc: Document): JobListing['jobType'] | undefined {
-    const jobTypeSelectors = [
-      '.job-details-jobs-unified-top-card__job-insight-view-model-secondary',
-      '.jobs-unified-top-card__job-insight',
-      '.jobs-details-top-card__job-info',
-      '[class*="job-details"] span',
-    ];
-
-    let jobTypeText = '';
-    for (const selector of jobTypeSelectors) {
-      const elements = doc.querySelectorAll(selector);
-      elements.forEach(element => {
-        jobTypeText += ' ' + this.getText(element).toLowerCase();
-      });
-    }
-
-    if (
-      jobTypeText.includes('full-time') ||
-      jobTypeText.includes('full time') ||
-      jobTypeText.includes('fulltime')
-    ) {
-      return 'full_time';
-    }
-    if (
-      jobTypeText.includes('part-time') ||
-      jobTypeText.includes('part time') ||
-      jobTypeText.includes('parttime')
-    ) {
-      return 'part_time';
-    }
-    if (
-      jobTypeText.includes('contract') ||
-      jobTypeText.includes('contractor') ||
-      jobTypeText.includes('fixed-term')
-    ) {
-      return 'contract';
-    }
-    if (
-      jobTypeText.includes('intern') ||
-      jobTypeText.includes('internship') ||
-      jobTypeText.includes('co-op')
-    ) {
-      return 'intern';
-    }
-    if (
-      jobTypeText.includes('freelance') ||
-      jobTypeText.includes('freelancer') ||
-      jobTypeText.includes('consultant')
-    ) {
-      return 'freelance';
-    }
-    if (
-      jobTypeText.includes('remote') ||
-      jobTypeText.includes('work from home') ||
-      jobTypeText.includes('wfh')
-    ) {
-      return 'remote';
-    }
-
-    return undefined;
   }
 }
