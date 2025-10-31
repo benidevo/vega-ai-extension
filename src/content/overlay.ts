@@ -375,6 +375,16 @@ export class VegaAIOverlay {
   ): void {
     if (!container) return;
 
+    // Clean up event listeners before destroying DOM elements
+    this.eventListeners.forEach(({ element, event, handler }) => {
+      if (container.contains(element as Node)) {
+        element.removeEventListener(event, handler);
+      }
+    });
+    this.eventListeners = this.eventListeners.filter(
+      ({ element }) => !container.contains(element as Node)
+    );
+
     container.innerHTML = '';
 
     // Show footer only when displaying data
@@ -454,23 +464,71 @@ export class VegaAIOverlay {
         container.appendChild(fieldDiv);
       });
 
-      // Type field (read-only)
-      if (this.currentJob.jobType) {
-        const typeDiv = document.createElement('div');
-        typeDiv.className = 'vega-ai-field';
+      // Type field (editable dropdown)
+      const typeDiv = document.createElement('div');
+      typeDiv.className = 'vega-ai-field';
 
-        const typeLabel = document.createElement('div');
-        typeLabel.className = 'vega-ai-field-label';
-        typeLabel.textContent = 'Type';
+      const typeLabel = document.createElement('div');
+      typeLabel.className = 'vega-ai-field-label';
+      typeLabel.textContent = 'Type';
 
-        const typeValue = document.createElement('div');
-        typeValue.className = 'vega-ai-field-value';
-        typeValue.textContent = this.formatJobType(this.currentJob.jobType);
+      const typeSelect = document.createElement('select');
+      typeSelect.className = 'vega-ai-select';
 
-        typeDiv.appendChild(typeLabel);
-        typeDiv.appendChild(typeValue);
-        container.appendChild(typeDiv);
-      }
+      const jobTypes: Array<{ value: string; label: string }> = [
+        { value: '', label: 'Not specified' },
+        { value: 'full_time', label: 'Full Time' },
+        { value: 'part_time', label: 'Part Time' },
+        { value: 'contract', label: 'Contract' },
+        { value: 'intern', label: 'Internship' },
+        { value: 'freelance', label: 'Freelance' },
+        { value: 'remote', label: 'Remote' },
+      ];
+
+      jobTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type.value;
+        option.textContent = type.label;
+        if (this.currentJob?.jobType === type.value) {
+          option.selected = true;
+        }
+        typeSelect.appendChild(option);
+      });
+
+      const selectHandler = (e: Event) => {
+        if (this.currentJob && e.target instanceof HTMLSelectElement) {
+          const value = e.target.value;
+          const validTypes = [
+            '',
+            'full_time',
+            'part_time',
+            'contract',
+            'intern',
+            'freelance',
+            'remote',
+          ];
+
+          if (validTypes.includes(value)) {
+            this.currentJob.jobType = value as JobListing['jobType'];
+          } else {
+            overlayLogger.warn('Invalid job type selected, reverting', {
+              attemptedValue: value,
+            });
+            e.target.value = this.currentJob.jobType || '';
+          }
+        }
+      };
+
+      typeSelect.addEventListener('change', selectHandler);
+      this.eventListeners.push({
+        element: typeSelect,
+        event: 'change',
+        handler: selectHandler,
+      });
+
+      typeDiv.appendChild(typeLabel);
+      typeDiv.appendChild(typeSelect);
+      container.appendChild(typeDiv);
 
       const notesDiv = document.createElement('div');
       notesDiv.className = 'vega-ai-field';
@@ -696,14 +754,6 @@ export class VegaAIOverlay {
 
       container.appendChild(errorDiv);
     }
-  }
-
-  private formatJobType(type?: string): string {
-    if (!type) return 'Not specified';
-    return type
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
   }
 
   private attachEventListeners(): void {
