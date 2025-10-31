@@ -332,6 +332,54 @@ export const overlayStyles = `
     vertical-align: middle;
   }
 
+  #vega-ai-root .vega-ai-input {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: rgba(51, 65, 85, 0.5);
+    color: white;
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 200ms;
+  }
+
+  #vega-ai-root .vega-ai-input:hover,
+  #vega-ai-root .vega-ai-input:focus {
+    background-color: rgba(51, 65, 85, 0.7);
+    border-color: #0D9488;
+    outline: none;
+  }
+
+  #vega-ai-root .vega-ai-input::placeholder {
+    color: rgba(156, 163, 175, 0.7);
+  }
+
+  #vega-ai-root .vega-ai-select {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: rgba(51, 65, 85, 0.5);
+    color: white;
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 200ms;
+  }
+
+  #vega-ai-root .vega-ai-select:hover,
+  #vega-ai-root .vega-ai-select:focus {
+    background-color: rgba(51, 65, 85, 0.7);
+    border-color: #0D9488;
+    outline: none;
+  }
+
+  #vega-ai-root .vega-ai-select option {
+    background-color: #1e293b;
+    color: white;
+  }
+
   #vega-ai-root .vega-ai-textarea {
     width: 100%;
     padding: 8px 12px;

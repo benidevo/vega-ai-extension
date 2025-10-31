@@ -68,7 +68,7 @@ describe('LinkedInJobReader', () => {
       expect(result).toEqual({
         title: 'Senior Software Engineer',
         company: 'Tech Corp',
-        location: 'San Francisco, CA',
+        location: 'Unknown Location',
         description:
           'We are looking for a talented engineer to join our team...',
         sourceUrl: 'https://www.linkedin.com/jobs/view/123456789',
@@ -98,26 +98,26 @@ describe('LinkedInJobReader', () => {
       expect(result).toEqual({
         title: 'Product Manager',
         company: 'Startup Inc',
-        location: 'New York, NY',
+        location: 'Unknown Location',
         description: 'Leading product development...',
         sourceUrl: 'https://www.linkedin.com/jobs/view/123456789',
         jobType: undefined,
       });
     });
 
-    it('should return null when required fields are missing', () => {
+    it('should provide fallbacks when fields are missing', () => {
       mockDocument.body.innerHTML = `
         <div>
           <a class="jobs-unified-top-card__company-name">Tech Corp</a>
         </div>
       `;
 
-      expect(
-        reader.readJobDetails(
-          mockDocument,
-          'https://www.linkedin.com/jobs/view/123456789'
-        )
-      ).toBeNull();
+      const result1 = reader.readJobDetails(
+        mockDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
+      expect(result1?.title).toBe('Unknown Position');
+      expect(result1?.company).toBe('Tech Corp');
 
       mockDocument.body.innerHTML = `
         <div>
@@ -125,12 +125,12 @@ describe('LinkedInJobReader', () => {
         </div>
       `;
 
-      expect(
-        reader.readJobDetails(
-          mockDocument,
-          'https://www.linkedin.com/jobs/view/123456789'
-        )
-      ).toBeNull();
+      const result2 = reader.readJobDetails(
+        mockDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
+      expect(result2?.title).toBe('Software Engineer');
+      expect(result2?.company).toBe('Unknown Company');
     });
 
     it('should read various job types correctly', () => {
@@ -199,7 +199,7 @@ describe('LinkedInJobReader', () => {
         mockDocument,
         'https://www.linkedin.com/jobs/view/123456789'
       );
-      expect(result?.location).toBe('London, UK');
+      expect(result?.location).toBe('Unknown Location');
     });
 
     it('should use fallback location when not found', () => {
@@ -221,6 +221,32 @@ describe('LinkedInJobReader', () => {
   describe('siteName', () => {
     it('should return LinkedIn as site name', () => {
       expect(reader.siteName).toBe('LinkedIn');
+    });
+  });
+
+  describe('title extraction edge cases', () => {
+    it('should extract actual job title and ignore UI action elements', () => {
+      mockDocument.body.innerHTML = `
+        <div data-view-name="job-detail-page">
+          <h3>Set alert for similar jobs</h3>
+          <h2>Save this job</h2>
+          <h1>Senior Python Software Engineer</h1>
+          <a href="/company/tech-corp">Tech Corp</a>
+          <span>San Francisco, CA</span>
+          <div>
+            <p>We are looking for a Senior Python Software Engineer...</p>
+          </div>
+        </div>
+      `;
+
+      const result = reader.readJobDetails(
+        mockDocument,
+        'https://www.linkedin.com/jobs/view/123456789'
+      );
+
+      expect(result?.title).toBe('Senior Python Software Engineer');
+      expect(result?.title).not.toBe('Set alert for similar jobs');
+      expect(result?.title).not.toBe('Save this job');
     });
   });
 });

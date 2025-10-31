@@ -56,8 +56,7 @@ describe('StorageService', () => {
       expect(result).toBeNull();
       expect(console.error).toHaveBeenCalled();
       expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Storage get error'),
-        undefined // Logger passes undefined as second param when logging to console
+        expect.stringContaining('Storage get error')
       );
 
       chrome.runtime.lastError = null;

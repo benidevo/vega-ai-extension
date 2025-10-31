@@ -205,7 +205,6 @@ export class APIService implements IAPIService {
       return data;
     } catch (error) {
       clearTimeout(timeoutId);
-
       const normalizedError = this.normalizeError(error);
 
       // Update circuit breaker on failure (but not on auth errors)
@@ -234,7 +233,7 @@ export class APIService implements IAPIService {
       const errorData = await response.json();
       return {
         code: errorData.code || 'API_ERROR',
-        message: errorData.message || response.statusText,
+        message: errorData.message || errorData.error || response.statusText,
         details: errorData.details,
       };
     } catch {

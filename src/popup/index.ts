@@ -210,11 +210,15 @@ class Popup {
     }
 
     if (isAuthenticated) {
+      const baseUrl = await SettingsService.getApiBaseUrl();
+      const dashboardUrl = `${baseUrl}/jobs`;
+
       this.ctaElement.innerHTML = `
         <a
-          href="#"
+          href="${dashboardUrl}"
           id="dashboard-link"
           target="_blank"
+          rel="noopener noreferrer"
           class="vega-btn vega-btn-primary w-full block text-center"
         >
           Open Dashboard
