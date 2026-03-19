@@ -218,8 +218,13 @@ export class LinkedInJobReader implements IJobReader {
   private determineJobTypeSmart(
     doc: Document
   ): JobListing['jobType'] | undefined {
-    // Get all visible text content
-    const bodyText = doc.body.textContent?.toLowerCase() || '';
+    // Scope text to job detail container to avoid false positives from sidebar/ads
+    const jobContainer =
+      doc.querySelector('[data-view-name="job-detail-page"]') ||
+      doc.querySelector('.jobs-unified-top-card')?.closest('main') ||
+      doc.querySelector('.job-details-jobs-unified-top-card')?.closest('main');
+    const bodyText =
+      (jobContainer || doc.body).textContent?.toLowerCase() || '';
 
     // Job type indicators with patterns
     const typePatterns = {

@@ -146,7 +146,7 @@ export class PasswordAuthService implements IAuthProvider {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Your session has expired. Please sign in again.');
+          throw new Error('Refresh token expired');
         }
         throw new Error(
           'Unable to refresh your session. Please sign in again.'

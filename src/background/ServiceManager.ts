@@ -302,6 +302,12 @@ export class ServiceManager {
         return true;
       }
     );
+
+    this.messageService.on('CLEAR_BADGE', (message, sender, sendResponse) => {
+      chrome.action.setBadgeText({ text: '' });
+      sendResponse({ success: true });
+      return false;
+    });
   }
 
   private async handleReloadSettings(

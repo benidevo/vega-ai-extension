@@ -249,7 +249,7 @@ describe('PasswordAuthService', () => {
       });
 
       await expect(authService.refreshTokens('refresh-token')).rejects.toThrow(
-        'Your session has expired. Please sign in again.'
+        'Refresh token expired'
       );
     });
 
