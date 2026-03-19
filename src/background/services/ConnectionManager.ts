@@ -14,8 +14,8 @@ export class ConnectionManager {
   private static instance: ConnectionManager;
   private logger = new Logger('ConnectionManager');
   private connections = new Map<string, Connection>();
-  private reconnectAttempts = new Map<string, number>();
-  private readonly MAX_RECONNECT_ATTEMPTS = 3;
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private initialized = false;
 
   private constructor() {}
 
@@ -27,15 +27,18 @@ export class ConnectionManager {
   }
 
   initialize(): void {
+    if (this.initialized) return;
+
     chrome.runtime.onConnect.addListener(port => {
       this.handleNewConnection(port);
     });
 
     // Periodically clean up stale connections
-    setInterval(() => {
+    this.cleanupInterval = setInterval(() => {
       this.cleanupStaleConnections();
     }, 60000); // Every minute
 
+    this.initialized = true;
     this.logger.info('Connection manager initialized');
   }
 
@@ -138,6 +141,11 @@ export class ConnectionManager {
   }
 
   destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+
     for (const connection of this.connections.values()) {
       try {
         connection.port.disconnect();
@@ -147,7 +155,7 @@ export class ConnectionManager {
     }
 
     this.connections.clear();
-    this.reconnectAttempts.clear();
+    this.initialized = false;
     this.logger.info('Connection manager destroyed');
   }
 }

@@ -5,6 +5,7 @@ import { contentConnection } from './connection';
 
 let overlay: VegaAIOverlay | null = null;
 let isInitializing = false;
+let urlCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 contentConnection.connect();
 
@@ -114,11 +115,14 @@ function isContextValid(): boolean {
 }
 
 function cleanup(): void {
+  if (urlCheckInterval) {
+    clearInterval(urlCheckInterval);
+    urlCheckInterval = null;
+  }
   if (overlay) {
     overlay.destroy();
     overlay = null;
   }
-  mutationObserver.disconnect();
   contentConnection.disconnect();
   contentLogger.info('Cleaned up due to invalid extension context');
 }
@@ -180,19 +184,16 @@ const checkForUrlChange = () => {
     if (!isSupportedJobPage() && overlay) {
       overlay.destroy();
       overlay = null;
-      chrome.action.setBadgeText({ text: '' });
+      chrome.runtime.sendMessage({ type: 'CLEAR_BADGE' }).catch(() => {});
     } else if (isSupportedJobPage()) {
       setTimeout(initializeWhenVisible, 300);
     }
   }
 };
 
-const mutationObserver = new MutationObserver(() => checkForUrlChange());
-mutationObserver.observe(document, { subtree: true, childList: true });
-
-if (location.hostname.includes('linkedin.com')) {
-  setInterval(checkForUrlChange, 1000);
-}
+// Use setInterval for SPA URL change detection instead of a broad MutationObserver
+// on the entire document, which fires excessively on DOM-heavy pages like LinkedIn.
+urlCheckInterval = setInterval(checkForUrlChange, 1000);
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
@@ -218,10 +219,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 window.addEventListener('unload', () => {
+  if (urlCheckInterval) {
+    clearInterval(urlCheckInterval);
+    urlCheckInterval = null;
+  }
   if (overlay) {
     overlay.destroy();
     overlay = null;
   }
-  mutationObserver.disconnect();
   contentConnection.disconnect();
 });

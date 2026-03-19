@@ -17,8 +17,6 @@ class Popup {
   private isSigningIn = false;
   private initializationPromise: Promise<void> | null = null;
   private authStateListenerAttached = false;
-  private buttonListenerCount = 0;
-  private passwordClickHandler: ((e: Event) => Promise<void>) | null = null;
   private currentView: 'main' | 'settings' = 'main';
   private errorTimeout: number | null = null;
   private pendingModeSwitch = false;
@@ -31,11 +29,6 @@ class Popup {
   private readonly UPDATE_CHECK_INTERVAL = 60000;
   private hasUnsavedChanges = false;
   private settingsListenersAttached = false;
-  private lastSavedSettings: {
-    backendMode: 'cloud' | 'local';
-    apiHost: string;
-    apiProtocol: 'http' | 'https';
-  } | null = null;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
@@ -245,10 +238,14 @@ class Popup {
           <svg class="w-5 h-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span class="text-sm text-red-400">${message}</span>
+          <span id="error-message-text" class="text-sm text-red-400"></span>
         </div>
       </div>
     `;
+    const errorSpan = document.getElementById('error-message-text');
+    if (errorSpan) {
+      errorSpan.textContent = message;
+    }
   }
 
   private attachEventListeners(isAuthenticated: boolean): void {
@@ -333,23 +330,6 @@ class Popup {
         </a>
       </div>
     `;
-  }
-
-  private removeExistingEventListeners(): void {
-    const elementsToClean = [
-      'username-input',
-      'password-input',
-      'password-toggle',
-      'password-signin-btn',
-    ];
-
-    elementsToClean.forEach(id => {
-      const element = document.getElementById(id);
-      if (element) {
-        const newElement = element.cloneNode(true) as HTMLElement;
-        element.parentNode?.replaceChild(newElement, element);
-      }
-    });
   }
 
   private attachAuthEventListeners(): void {
@@ -717,9 +697,13 @@ class Popup {
 
     notificationEl.innerHTML = `
       <div style="padding: 0.5rem; background-color: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 0.375rem;">
-        <span style="font-size: 0.75rem; line-height: 1rem; color: ${textColor}; display: block;">${message}</span>
+        <span id="notification-message-text" style="font-size: 0.75rem; line-height: 1rem; color: ${textColor}; display: block;"></span>
       </div>
     `;
+    const msgSpan = notificationEl.querySelector('#notification-message-text');
+    if (msgSpan) {
+      msgSpan.textContent = message;
+    }
 
     notificationEl.style.display = 'block';
 
@@ -1077,15 +1061,8 @@ class Popup {
     // Show/hide local backend settings based on current mode
     this.toggleLocalBackendSettings();
 
-    // Re-attach event listeners after showing settings
     this.attachSettingsEventListeners();
 
-    // Store current settings and reset dirty state
-    this.lastSavedSettings = {
-      backendMode: settings.backendMode,
-      apiHost: settings.apiHost,
-      apiProtocol: settings.apiProtocol,
-    };
     this.hasUnsavedChanges = false;
     this.updateSaveButtonState();
   }
