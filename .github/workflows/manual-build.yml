@@ -24,7 +24,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.x'
         cache: 'npm'
 
     - name: Install dependencies
@@ -41,14 +41,17 @@ jobs:
       run: npm run build
 
     - name: Create build zip
+      env:
+        VERSION: ${{ inputs.version }}
       run: |
+        DATE=$(date +%Y%m%d-%H%M%S)
         cd dist
-        zip -r ../vega-extension-${{ inputs.version }}-$(date +%Y%m%d-%H%M%S).zip .
+        zip -r "../vega-extension-${VERSION}-${DATE}.zip" .
         cd ..
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
-        name: vega-extension-${{ inputs.version }}-build
+        name: vega-extension-${{ inputs.version }}-${{ github.run_id }}
         path: vega-extension-*.zip
         retention-days: 30

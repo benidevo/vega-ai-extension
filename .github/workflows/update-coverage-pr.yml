@@ -12,6 +12,10 @@ on:
       - 'tsconfig.json'
       - 'jest.config.js'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   update-coverage:
     runs-on: ubuntu-latest
@@ -27,7 +31,7 @@ jobs:
     
     - uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.x'
         cache: 'npm'
     
     - run: npm ci

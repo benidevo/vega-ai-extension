@@ -1,7 +1,7 @@
 # Vega AI Job Capture Extension
 
 [![CI](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/benidevo/vega-ai-extension/actions/workflows/ci.yml)
-[![Coverage Status](https://img.shields.io/badge/Coverage-84.25%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
+[![Coverage Status](https://img.shields.io/badge/Coverage-84.29%25-green.svg)](https://github.com/benidevo/vega-ai-extension)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![GitHub Release](https://img.shields.io/github/v/release/benidevo/vega-ai-extension?logo=github&logoColor=white)](https://github.com/benidevo/vega-ai-extension/releases/latest)
@@ -11,18 +11,18 @@
 
 This Chrome extension adds a floating button to LinkedIn job pages that lets you save jobs directly to your Vega AI dashboard. All actions are initiated by you. The extension never collects or saves data automatically. Works with both the cloud service and self-hosted [Vega AI](https://vega.benidevo.com) backends.
 
-## ✨ Features
+## Features
 
-- 🎯 **Shows on** job pages on LinkedIn when you visit them
-- 💾 **User-initiated save** with the floating button
-- 📝 **Add notes** before saving (saved locally too)
-- 🔐 **Secure authentication**: username/password with encrypted storage
-- 🌐 **Cloud or self-hosted**: your choice
-- ⚡ **Keyboard shortcuts**: Ctrl+Shift+V to toggle, Ctrl+S to save
-- 🔔 **Version updates**: Automatic update notifications
-- 🔄 **Syncs across devices** when signed in
+- **Shows on** job pages on LinkedIn when you visit them
+- **User-initiated save** with the floating button
+- **Add notes** before saving (saved locally too)
+- **Secure authentication**: username/password with encrypted storage
+- **Cloud or self-hosted**: your choice
+- **Keyboard shortcuts**: Ctrl+Shift+V to toggle, Ctrl+S to save
+- **Version updates**: Automatic update notifications
+- **Syncs across devices** when signed in
 
-## 🎬 How it Works
+## How it Works
 
 1. Go to any LinkedIn job posting
 2. Click the floating Vega AI button
@@ -31,7 +31,7 @@ This Chrome extension adds a floating button to LinkedIn job pages that lets you
 
 No more copy-pasting job details.
 
-## 📥 Get Started
+## Get Started
 
 ### Install the Extension
 
@@ -46,7 +46,11 @@ No more copy-pasting job details.
 
 #### Alternative: Build from Source
 
-See the Developer Guide below for building from source
+1. Clone the repository: `git clone https://github.com/benidevo/vega-ai-extension.git`
+2. Ensure you have **Node.js 22.x (LTS)** installed (you can use `nvm use` with the provided `.nvmrc`).
+3. Install dependencies: `npm install`
+4. Build the extension: `npm run build`
+5. Follow the "Direct Download" instructions above, but select the `dist` folder when clicking "Load unpacked".
 
 ### Set Up Your Account
 
@@ -58,7 +62,7 @@ See the Developer Guide below for building from source
 
 ---
 
-## 🛠️ For Developers
+## For Developers
 
 <details>
 <summary>Click to expand developer setup instructions</summary>
@@ -116,41 +120,41 @@ The code is organized into these main parts:
 - **Popup**: The extension popup where users sign in and change settings
 - **Services**: Reusable modules for common functionality
 
-### 📚 Documentation
+### Documentation
 
-- 📖 **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - How to build and contribute
-- 🏗️ **[Technical Design](docs/TECHNICAL_DESIGN.md)** - Architecture and implementation details
+- **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - How to build and contribute
+- **[Technical Design](docs/TECHNICAL_DESIGN.md)** - Architecture and implementation details
 
 </details>
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
-**Your privacy is priority:**
+**Privacy details:**
 
-- ✅ **User-initiated only**: The extension never reads or saves data automatically
-- ✅ **You control your data**: Only saves jobs when you explicitly click the save button
-- ✅ **No tracking**: No analytics, no data collection beyond what you choose to save
-- ✅ **Encrypted storage**: Your authentication tokens are encrypted locally
-- ✅ **Open source**: Review the code to see exactly what the extension does
-- ✅ **Minimal permissions**: Only accesses LinkedIn job pages, nothing else
+- **User-initiated only**: The extension never reads or saves data automatically
+- **User controlled**: Only saves jobs when you explicitly click the save button
+- **No tracking**: No analytics or data collection beyond what you choose to save
+- **Encrypted storage**: Authentication tokens are encrypted locally
+- **Open source**: Review the code to see exactly what the extension does
+- **Minimal permissions**: Only accesses LinkedIn job pages
 
 Read the full **[Privacy Policy](https://vega.benidevo.com/privacy)** for complete details.
 
-## 🆘 Need Help?
+## Support
 
-- 📖 **[FAQ](https://vega.benidevo.com/#faq)**
-- 🐛 **[Report a bug](https://github.com/benidevo/vega-ai-extension/issues)**
-- 💡 **[Request a feature](https://github.com/benidevo/vega-ai-extension/issues)**
-- 💬 **[Discussions](https://github.com/benidevo/vega-ai-extension/discussions)**
+- **[FAQ](https://vega.benidevo.com/#faq)**
+- **[Report a bug](https://github.com/benidevo/vega-ai-extension/issues)**
+- **[Request a feature](https://github.com/benidevo/vega-ai-extension/issues)**
+- **[Discussions](https://github.com/benidevo/vega-ai-extension/discussions)**
 
-## 📝 License
+## License
 
 This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0).
 
 What this means:
 
-- ✅ You can use, study, modify, and distribute the code
-- ✅ If you run this software on a server, you must make your source code available to users
-- ✅ Any modifications must also be released under AGPL-3.0
+- You can use, study, modify, and distribute the code
+- If you run this software on a server, you must make your source code available to users
+- Any modifications must also be released under AGPL-3.0
 
 For commercial licensing without AGPL requirements, email [vega@benidevo.com](mailto:vega@benidevo.com).

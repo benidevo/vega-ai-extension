@@ -14,16 +14,18 @@ export class SettingsService {
   static async getSettings(): Promise<UserSettings> {
     try {
       const result = await chrome.storage.local.get(this.STORAGE_KEY);
-      let settings = result[this.STORAGE_KEY];
+      let settings = result[this.STORAGE_KEY] as UserSettings | undefined;
 
       if (!settings) {
-        // First time - use DEFAULT_SETTINGS and save them
         settings = { ...DEFAULT_SETTINGS };
         await this.saveSettings(settings);
       } else {
+        let needsSave = false;
+
         // Ensure backendMode exists for migration
         if (!settings.backendMode) {
           settings.backendMode = 'cloud';
+          needsSave = true;
         }
 
         // Ensure cloud mode uses correct settings
@@ -35,8 +37,12 @@ export class SettingsService {
           ) {
             settings.apiHost = cloudConfig.apiHost;
             settings.apiProtocol = cloudConfig.apiProtocol;
-            await this.saveSettings(settings);
+            needsSave = true;
           }
+        }
+
+        if (needsSave) {
+          await this.saveSettings(settings);
         }
       }
 
@@ -56,12 +62,10 @@ export class SettingsService {
   static async getApiBaseUrl(): Promise<string> {
     const settings = await this.getSettings();
 
-    // For local mode, use the custom host/protocol if set
     if (settings.backendMode === 'local') {
       return `${settings.apiProtocol}://${settings.apiHost}`;
     }
 
-    // For cloud mode, always use the predefined config
     const config = BACKEND_CONFIGS[settings.backendMode];
     return `${config.apiProtocol}://${config.apiHost}`;
   }
@@ -77,11 +81,9 @@ export class SettingsService {
     settings.backendMode = mode;
 
     if (mode === 'local' && customHost && customProtocol) {
-      // For local mode with custom settings
       settings.apiHost = customHost;
       settings.apiProtocol = customProtocol;
     } else {
-      // Use default config for the mode
       settings.apiHost = config.apiHost;
       settings.apiProtocol = config.apiProtocol;
     }
