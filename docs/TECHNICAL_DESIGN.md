@@ -6,7 +6,7 @@
 
 A Chrome extension that allows users to save job listings from LinkedIn to the Vega AI backend. Built with TypeScript and Manifest V3. All actions are user-initiated. The extension never automatically collects data. Supports both cloud and self-hosted backends.
 
-## 🏗️ Architecture
+## Architecture
 
 ### High-Level Design
 
@@ -79,7 +79,7 @@ src/
 └── utils/             # Shared utilities (logger, etc.)
 ```
 
-## 🔧 Core Components
+## Core Components
 
 ### Background Services
 
@@ -111,7 +111,7 @@ Wrapper around Chrome's storage API. Makes it easy to save and load data with pr
 
 #### Badge Service
 
-Shows a little green checkmark or red X on the extension icon to give quick feedback when saving jobs.
+Shows a green checkmark or red X on the extension icon to give quick feedback when saving jobs.
 
 ### Content Scripts
 
@@ -141,7 +141,7 @@ Creates the floating button and panel that appears on job pages. Positions itsel
 
 The main interface users see when they click the extension icon. Handles sign in, backend mode switching (cloud vs local), and connection testing. Built with Tailwind CSS for a clean look.
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Core Technologies
 
@@ -164,7 +164,7 @@ The main interface users see when they click the extension icon. Handles sign in
 - **Automated releases**: Tag-based release creation
 - **Quality gates**: Lint, test, and typecheck on every commit
 
-## 🔒 Security
+## Security
 
 ### Authentication
 
@@ -191,7 +191,7 @@ The extension only asks for what it needs:
 - No cookie access
 - User must click to save jobs
 
-## 📊 Data Flow
+## Data Flow
 
 ### Job Save Flow
 
@@ -217,7 +217,7 @@ sequenceDiagram
     BG->>API: POST /api/jobs
     API-->>BG: Success response
     BG-->>OV: Show success
-    OV-->>U: ✓ Green checkmark
+    OV-->>U: Success checkmark
 ```
 
 ### Authentication Flow
@@ -243,7 +243,7 @@ sequenceDiagram
     P-->>U: Show dashboard button
 ```
 
-## 🧪 Testing Strategy
+## Testing Strategy
 
 ### Unit Tests
 
@@ -263,7 +263,7 @@ sequenceDiagram
 - **Job sites**: Verification on supported platforms
 - **User flows**: Complete save workflows
 
-## 🚀 Deployment
+## Deployment
 
 ### Build Process
 
@@ -287,7 +287,7 @@ sequenceDiagram
 - **Staging**: Manual build triggers for testing
 - **Production**: Tag-based releases for users
 
-## 🔄 Configuration
+## Configuration
 
 ### Config Structure
 

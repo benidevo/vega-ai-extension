@@ -1,14 +1,12 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-echo "🔍 Running pre-commit checks..."
+echo "Running pre-commit checks..."
 
-# Run lint-staged (handles linting and formatting of staged files)
-echo "📝 Linting and formatting staged files..."
-npx lint-staged
+# Run linting on staged files only
+npx lint-staged || { echo "Linting failed. Fix errors before committing."; exit 1; }
 
-# Run type check
-echo "🔎 Type checking..."
-npm run typecheck
+# Run type checking
+npm run typecheck || { echo "Type checking failed. Fix errors before committing."; exit 1; }
 
-echo "✅ Pre-commit checks passed!"
+echo "Pre-commit checks passed!"

@@ -26,7 +26,8 @@ export class StorageService implements IStorageService {
           this.logger.error('Storage get error', chrome.runtime.lastError);
           resolve(null);
         } else {
-          resolve(result[key] !== undefined ? result[key] : null);
+          const value = result[key] !== undefined ? result[key] : null;
+          resolve(value as T | null);
         }
       });
     });

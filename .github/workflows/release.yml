@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name to release (e.g., v1.0.0)'
+        required: false
+        type: string
 
 jobs:
   build-and-release:
@@ -16,11 +22,13 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.tag_name || github.ref }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.x'
         cache: 'npm'
 
     - name: Install dependencies
@@ -30,18 +38,21 @@ jobs:
       run: npm run build
 
     - name: Create release zip
+      env:
+        RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
       run: |
         cd dist
-        zip -r ../vega-ai-job-capture-${{ github.ref_name }}.zip .
+        zip -r "../vega-extension-${RELEASE_TAG}.zip" .
         cd ..
 
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
-        files: vega-ai-job-capture-${{ github.ref_name }}.zip
+        tag_name: ${{ inputs.tag_name || github.ref_name }}
+        files: vega-extension-${{ inputs.tag_name || github.ref_name }}.zip
         generate_release_notes: true
         body: |
-          ## Vega AI Job Capture ${{ github.ref_name }}
+          ## Vega AI Job Capture ${{ inputs.tag_name || github.ref_name }}
 
           ### 📥 Installation Instructions
 
@@ -49,7 +60,11 @@ jobs:
 
           ### 💻 How to Install
 
-          Download the attached ZIP file for manual installation or development.
+          1. Download the attached `vega-extension-*.zip` file.
+          2. Unzip the file to a folder on your computer.
+          3. Open Chrome and go to `chrome://extensions/`.
+          4. Turn on "Developer mode" (toggle in top right).
+          5. Click "Load unpacked" and select your unzipped folder.
 
           ### 🆕 What's Changed
 

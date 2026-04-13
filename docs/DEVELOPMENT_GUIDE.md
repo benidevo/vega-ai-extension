@@ -1,6 +1,6 @@
 # Development Guide
 
-## 🛠️ Getting Started
+## Getting Started
 
 ### What You'll Need
 
@@ -79,7 +79,7 @@ npm run release:major    # 1.0.0 → 2.0.0
 - **Manual Build**: Trigger from GitHub Actions for testing
 - **Release**: Auto-triggered by git tags
 
-## 📦 Creating Releases
+## Creating Releases
 
 Releases happen automatically when you push a version tag:
 
@@ -206,7 +206,7 @@ Want to add Indeed or another job site? Here's how:
 
    Note: Only request access to job-specific paths to minimize permissions.
 
-## 🧪 Testing
+## Testing
 
 ### Running Tests
 
@@ -231,7 +231,7 @@ describe('IndeedJobReader', () => {
 });
 ```
 
-## 🔧 Development Tips
+## Development Tips
 
 ### Loading Your Changes
 
@@ -248,7 +248,7 @@ After running `npm run dev`:
 - **Popup changes**: Just close and reopen the popup
 - **Manifest changes**: Always reload the extension
 
-## 📁 Code Organization
+## Code Organization
 
 ```plaintext
 src/
@@ -271,7 +271,7 @@ src/
 └── styles/             # CSS files
 ```
 
-## 🔐 Security Notes
+## Security Notes
 
 - OAuth client IDs are public (safe in code)
 - Never log user passwords or tokens
@@ -279,7 +279,7 @@ src/
 - Run `npm audit` regularly to check dependencies
 - Test with minimal permissions first
 
-## 🤝 Contributing
+## Contributing
 
 ### How to Contribute
 
