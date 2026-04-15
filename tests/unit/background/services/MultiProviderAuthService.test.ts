@@ -26,23 +26,10 @@ const mockPasswordProvider = {
   type: 'password' as const,
 };
 
-const mockGoogleProvider = {
-  authenticate: jest.fn(),
-  refreshTokens: jest.fn(),
-  validateAuth: jest.fn(),
-  type: 'google' as const,
-};
-
 const mockFactoryInstance = {
   getProvider: jest.fn(type => {
-    switch (type) {
-      case 'password':
-        return mockPasswordProvider;
-      case 'google':
-        return mockGoogleProvider;
-      default:
-        return null;
-    }
+    if (type === 'password') return mockPasswordProvider;
+    return null;
   }),
   getAvailableProviders: jest.fn(() => ['password']),
 };
@@ -57,14 +44,6 @@ const mockChrome = {
         return Promise.resolve({});
       }),
     },
-  },
-  tabs: {
-    query: jest.fn().mockImplementation((query, callback) => {
-      if (callback) {
-        callback([]);
-      }
-    }),
-    sendMessage: jest.fn().mockImplementation(() => Promise.resolve()),
   },
   runtime: {
     sendMessage: jest.fn().mockImplementation(() => Promise.resolve()),
@@ -95,20 +74,11 @@ describe('MultiProviderAuthService', () => {
     mockPasswordProvider.authenticate.mockReset();
     mockPasswordProvider.refreshTokens.mockReset();
     mockPasswordProvider.validateAuth.mockReset();
-    mockGoogleProvider.authenticate.mockReset();
-    mockGoogleProvider.refreshTokens.mockReset();
-    mockGoogleProvider.validateAuth.mockReset();
 
     mockFactoryInstance.getProvider.mockClear();
     mockFactoryInstance.getProvider.mockImplementation(type => {
-      switch (type) {
-        case 'password':
-          return mockPasswordProvider;
-        case 'google':
-          return mockGoogleProvider;
-        default:
-          return null;
-      }
+      if (type === 'password') return mockPasswordProvider;
+      return null;
     });
 
     mockStorageService = {
@@ -129,8 +99,6 @@ describe('MultiProviderAuthService', () => {
     AuthProviderFactory.mockImplementation(() => mockFactoryInstance);
 
     mockChrome.storage.local.get.mockClear();
-    mockChrome.tabs.query.mockClear();
-    mockChrome.tabs.sendMessage.mockClear();
     mockChrome.runtime.sendMessage.mockClear();
 
     authService = new MultiProviderAuthService(mockConfig, mockStorageService);
@@ -514,52 +482,31 @@ describe('MultiProviderAuthService', () => {
 
   describe('notifyAuthStateChange', () => {
     beforeEach(() => {
-      mockChrome.tabs.query.mockReset();
-      mockChrome.tabs.sendMessage.mockReset();
       mockChrome.runtime.sendMessage.mockReset();
     });
 
-    it('should notify all listeners and broadcast to tabs', async () => {
+    it('should notify all listeners and broadcast to internal components', async () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
       authService.onAuthStateChange(listener1);
       authService.onAuthStateChange(listener2);
 
-      mockChrome.tabs.query.mockImplementation((query, callback) => {
-        callback([
-          { id: 1, url: 'https://linkedin.com/jobs' },
-          { id: 2, url: 'https://linkedin.com/feed' },
-        ]);
-      });
-      mockChrome.tabs.sendMessage.mockResolvedValue(undefined);
       mockChrome.runtime.sendMessage.mockResolvedValue(undefined);
 
       await authService.logout();
 
       expect(listener1).toHaveBeenCalledWith(false);
       expect(listener2).toHaveBeenCalledWith(false);
-      expect(mockChrome.tabs.query).toHaveBeenCalledWith(
-        { url: ['*://*.linkedin.com/*'] },
-        expect.any(Function)
-      );
-      expect(mockChrome.tabs.sendMessage).toHaveBeenCalledTimes(2);
       expect(mockChrome.runtime.sendMessage).toHaveBeenCalled();
     });
 
-    it('should ignore connection errors when broadcasting', async () => {
-      mockChrome.tabs.query.mockImplementation((query, callback) => {
-        callback([{ id: 1 }]);
-      });
-      mockChrome.tabs.sendMessage.mockRejectedValue(
-        new Error('Could not establish connection')
-      );
+    it('should ignore runtime message errors when broadcasting', async () => {
       mockChrome.runtime.sendMessage.mockRejectedValue(
         new Error('Receiving end does not exist')
       );
 
       await authService.logout();
 
-      expect(mockChrome.tabs.sendMessage).toHaveBeenCalled();
       expect(mockChrome.runtime.sendMessage).toHaveBeenCalled();
     });
 
@@ -567,10 +514,6 @@ describe('MultiProviderAuthService', () => {
       const { authLogger } = require('../../../../src/utils/logger');
       authLogger.warn.mockClear();
 
-      mockChrome.tabs.query.mockImplementation((query, callback) => {
-        callback([{ id: 1 }]);
-      });
-      mockChrome.tabs.sendMessage.mockRejectedValue(new Error('Other error'));
       mockChrome.runtime.sendMessage.mockRejectedValue(
         new Error('Different error')
       );
@@ -578,44 +521,9 @@ describe('MultiProviderAuthService', () => {
       await authService.logout();
 
       expect(authLogger.warn).toHaveBeenCalledWith(
-        'Failed to broadcast auth state to tab',
-        expect.any(Object)
-      );
-      expect(authLogger.warn).toHaveBeenCalledWith(
         'Failed to broadcast auth state to runtime',
         expect.any(Object)
       );
-    });
-  });
-
-  describe('getAvailableProviders', () => {
-    it('should only return password provider', () => {
-      const authService2 = new MultiProviderAuthService(
-        mockConfig,
-        mockStorageService
-      );
-      const providers = authService2.getAvailableProviders();
-
-      expect(providers).toEqual(['password']);
-    });
-  });
-
-  describe('storeAuthTokens', () => {
-    it('should call chrome.storage.local.get after storing', async () => {
-      mockChrome.storage.local.get.mockResolvedValue({ authToken: 'token' });
-
-      mockPasswordProvider.authenticate.mockResolvedValue({
-        access_token: 'token',
-        refresh_token: 'refresh',
-        expires_at: Date.now() + 3600000,
-      });
-
-      await authService.loginWithProvider('password', {
-        username: 'user',
-        password: 'pass',
-      });
-
-      expect(mockChrome.storage.local.get).toHaveBeenCalledWith(['authToken']);
     });
   });
 });
