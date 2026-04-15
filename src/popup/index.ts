@@ -395,7 +395,7 @@ class Popup {
         <p class="text-xs text-gray-500 leading-relaxed mb-4">
           The easiest way to track and organize your job search across the entire web.
         </p>
-        
+
         <div class="grid grid-cols-1 gap-2.5">
           <div class="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
             <div class="flex-shrink-0 w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm">
@@ -679,7 +679,6 @@ class Popup {
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
 
-    // Final validation before submission
     const usernameValidation = validateUsername(username);
     const passwordValidation = validatePassword(password);
 
@@ -734,7 +733,6 @@ class Popup {
         }, 5000);
       }
     } catch (error) {
-      console.error('[Popup] Login error:', error);
       const errorDetails = errorService.handleError(error, {
         action: 'password_auth',
       });
@@ -787,20 +785,13 @@ class Popup {
     message: string,
     type: 'success' | 'error' | 'info' = 'info'
   ): void {
-    this.logger.info('showNotification called', {
-      message,
-      type,
-      currentView: this.currentView,
-    });
-
     const notificationEl = document.getElementById('global-notification');
 
     if (!notificationEl) {
-      this.logger.error('Global notification element not found!');
+      this.logger.error('Global notification element not found');
       return;
     }
 
-    this.logger.info('Displaying notification in global area');
     this.displayNotificationContent(notificationEl, message, type);
   }
 
@@ -876,10 +867,8 @@ class Popup {
         this.errorTimeout = null;
       }, 300);
 
-      // Reset isLoggingIn flag after error is hidden
       if (this.isLoggingIn) {
         this.isLoggingIn = false;
-        this.logger.info('Reset isLoggingIn after notification timeout');
       }
     }, 3000);
   }
@@ -943,7 +932,6 @@ class Popup {
       backBtn.addEventListener('click', async () => await this.showMainView());
     }
 
-    // Add event listeners for backend mode radio buttons
     const cloudRadio = document.getElementById(
       'backend-cloud'
     ) as HTMLInputElement;
@@ -965,7 +953,6 @@ class Popup {
       localRadio.addEventListener('change', handleBackendModeChange);
     }
 
-    // Add event listener for custom host input validation
     const customHostInput = document.getElementById(
       'custom-host'
     ) as HTMLInputElement;
@@ -977,7 +964,6 @@ class Popup {
       customHostInput.addEventListener('blur', () => this.validateHostInput());
     }
 
-    // Add event listener for custom scheme dropdown
     const customSchemeSelect = document.getElementById(
       'custom-scheme'
     ) as HTMLSelectElement;
@@ -985,13 +971,11 @@ class Popup {
       customSchemeSelect.addEventListener('change', () => this.markDirty());
     }
 
-    // Add test connection button listener
     const testConnectionBtn = document.getElementById('test-connection-btn');
     if (testConnectionBtn) {
       testConnectionBtn.addEventListener('click', () => this.testConnection());
     }
 
-    // Add save settings button listener
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) {
       saveSettingsBtn.addEventListener('click', () => this.saveSettings());
@@ -1176,7 +1160,6 @@ class Popup {
     const settings = await SettingsService.getSettings();
     const backendMode = settings.backendMode;
 
-    // Set the appropriate radio button
     const cloudRadio = document.getElementById(
       'backend-cloud'
     ) as HTMLInputElement;
@@ -1189,7 +1172,6 @@ class Popup {
       localRadio.checked = backendMode === 'local';
     }
 
-    // Set custom host and scheme values
     const customHostInput = document.getElementById(
       'custom-host'
     ) as HTMLInputElement;
@@ -1198,19 +1180,15 @@ class Popup {
     ) as HTMLSelectElement;
 
     if (customHostInput && customSchemeSelect) {
-      // If in local mode, show the current settings
-      // Otherwise, show the default local settings
       if (backendMode === 'local') {
         customHostInput.value = settings.apiHost;
         customSchemeSelect.value = settings.apiProtocol;
       } else {
-        // Show default local settings when not in local mode
         customHostInput.value = 'localhost:8765';
         customSchemeSelect.value = 'http';
       }
     }
 
-    // Show/hide local backend settings based on current mode
     this.toggleLocalBackendSettings();
 
     this.attachSettingsEventListeners();
@@ -1274,7 +1252,6 @@ class Popup {
     }
 
     try {
-      // Save the backend mode with custom settings if local
       if (newMode === 'local' && customHostInput && customSchemeSelect) {
         await SettingsService.setBackendMode(
           newMode,
@@ -1290,10 +1267,8 @@ class Popup {
       this.hasUnsavedChanges = false;
       this.updateSaveButtonState();
 
-      // Update dashboard link
       this.updateDashboardLink();
 
-      // Notify background script to reload services with new settings
       const reloadResponse = await chrome.runtime.sendMessage({
         type: 'RELOAD_SETTINGS',
       });
@@ -1302,7 +1277,6 @@ class Popup {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-      // Check if significant settings changed
       const settingsChanged =
         currentMode !== newMode ||
         (newMode === 'local' &&
@@ -1323,7 +1297,6 @@ class Popup {
             this.pendingModeSwitch = false;
           }, 3000);
         } else {
-          // If not authenticated and settings changed, re-render to show correct login form
           await this.showMainView();
           setTimeout(() => {
             this.pendingModeSwitch = false;
@@ -1358,8 +1331,6 @@ class Popup {
       if (localRadio.checked) {
         localSettingsDiv.classList.remove('hidden');
 
-        // When switching to local mode, if the fields are empty or have cloud values,
-        // set them to default local values
         if (customHostInput && customSchemeSelect) {
           if (
             !customHostInput.value ||
@@ -1432,7 +1403,6 @@ class Popup {
     testBtn.disabled = true;
 
     try {
-      // Get current settings based on mode
       const cloudRadio = document.getElementById(
         'backend-cloud'
       ) as HTMLInputElement;
@@ -1450,11 +1420,9 @@ class Popup {
       let protocol: 'http' | 'https';
 
       if (cloudRadio?.checked) {
-        // Use cloud settings
         host = 'vega.benidevo.com';
         protocol = 'https';
       } else if (localRadio?.checked && customHostInput && customSchemeSelect) {
-        // Validate custom host first
         const hostValidation = validateHost(customHostInput.value);
         if (!hostValidation.isValid) {
           throw new Error(hostValidation.error || 'Invalid host');
@@ -1465,10 +1433,8 @@ class Popup {
         throw new Error('Invalid configuration');
       }
 
-      // Test the connection
       const isConnected = await SettingsService.testConnection(host, protocol);
 
-      // Show result
       if (isConnected) {
         this.showNotification('Connected', 'success');
       } else {
@@ -1479,7 +1445,6 @@ class Popup {
         error instanceof Error ? error.message : 'Connection test failed';
       this.showNotification(errorMessage, 'error');
     } finally {
-      // Re-enable button
       testBtn.disabled = false;
     }
   }
@@ -1520,6 +1485,21 @@ class Popup {
       'job-description'
     ) as HTMLTextAreaElement;
 
+    [titleInput, companyInput, locationInput, descriptionArea].forEach(el => {
+      if (el) {
+        el.classList.remove(
+          'border-red-500',
+          'focus:ring-red-500',
+          'focus:border-red-500'
+        );
+        el.classList.add(
+          'border-gray-200',
+          'focus:ring-teal-500',
+          'focus:border-teal-500'
+        );
+      }
+    });
+
     if (titleInput) titleInput.value = job.title || '';
     if (companyInput) companyInput.value = job.company || '';
     if (locationInput) locationInput.value = job.location || '';
@@ -1531,9 +1511,13 @@ class Popup {
   }
 
   private attachCaptureEventListeners(): void {
-    const saveBtn = document.getElementById('save-job-btn');
+    const saveBtn = document.getElementById(
+      'save-job-btn'
+    ) as HTMLButtonElement;
     if (saveBtn) {
-      const newSaveBtn = saveBtn.cloneNode(true);
+      const newSaveBtn = saveBtn.cloneNode(true) as HTMLButtonElement;
+      newSaveBtn.textContent = 'Save';
+      newSaveBtn.disabled = false;
       saveBtn.parentNode?.replaceChild(newSaveBtn, saveBtn);
       newSaveBtn.addEventListener('click', () => this.handleSaveJob());
     }
@@ -1544,6 +1528,92 @@ class Popup {
       cancelBtn.parentNode?.replaceChild(newCancelBtn, cancelBtn);
       newCancelBtn.addEventListener('click', () => this.handleCancelCapture());
     }
+
+    const fields = [
+      'job-title',
+      'job-company',
+      'job-location',
+      'job-description',
+    ];
+    fields.forEach(id => {
+      const element = document.getElementById(id) as
+        | HTMLInputElement
+        | HTMLTextAreaElement;
+      if (element) {
+        const newElement = element.cloneNode(true) as
+          | HTMLInputElement
+          | HTMLTextAreaElement;
+        newElement.value = element.value;
+        element.parentNode?.replaceChild(newElement, element);
+
+        newElement.addEventListener('input', () =>
+          this.validateField(newElement)
+        );
+        newElement.addEventListener('blur', () =>
+          this.validateField(newElement)
+        );
+      }
+    });
+  }
+
+  private validateField(
+    element: HTMLInputElement | HTMLTextAreaElement
+  ): boolean {
+    const value = element.value.trim();
+    const isRequired = [
+      'job-title',
+      'job-company',
+      'job-location',
+      'job-description',
+    ].includes(element.id);
+
+    if (isRequired && !value) {
+      element.classList.add(
+        'border-red-500',
+        'focus:ring-red-500',
+        'focus:border-red-500'
+      );
+      element.classList.remove(
+        'border-gray-200',
+        'focus:ring-teal-500',
+        'focus:border-teal-500'
+      );
+      return false;
+    } else {
+      element.classList.remove(
+        'border-red-500',
+        'focus:ring-red-500',
+        'focus:border-red-500'
+      );
+      element.classList.add(
+        'border-gray-200',
+        'focus:ring-teal-500',
+        'focus:border-teal-500'
+      );
+      return true;
+    }
+  }
+
+  private validateCaptureForm(): boolean {
+    const titleInput = document.getElementById('job-title') as HTMLInputElement;
+    const companyInput = document.getElementById(
+      'job-company'
+    ) as HTMLInputElement;
+    const locationInput = document.getElementById(
+      'job-location'
+    ) as HTMLInputElement;
+    const descriptionArea = document.getElementById(
+      'job-description'
+    ) as HTMLTextAreaElement;
+
+    const isTitleValid = this.validateField(titleInput);
+    const isCompanyValid = this.validateField(companyInput);
+    const isLocationValid = this.validateField(locationInput);
+    const isDescriptionValid = this.validateField(descriptionArea);
+
+    return (
+      isTitleValid && isCompanyValid && isLocationValid && isDescriptionValid
+    );
   }
 
   private async handleSaveJob(): Promise<void> {
@@ -1570,8 +1640,8 @@ class Popup {
     const title = titleInput?.value.trim() || '';
     const company = companyInput?.value.trim() || '';
 
-    if (!title || !company) {
-      this.showNotification('Title and company are required', 'error');
+    if (!this.validateCaptureForm()) {
+      this.showNotification('Please fill in all required fields', 'error');
       return;
     }
 

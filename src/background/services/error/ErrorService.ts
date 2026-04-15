@@ -35,8 +35,7 @@ export class ErrorService {
   }
 
   handleError(error: unknown, context?: Record<string, unknown>): ErrorDetails {
-    const errorDetails = this.categorizeError(error, context);
-    return errorDetails;
+    return this.categorizeError(error, context);
   }
 
   handleAndLogError(
@@ -182,7 +181,7 @@ export class ErrorService {
       return {
         category: ErrorCategory.VALIDATION,
         message: error.message,
-        userMessage: 'Invalid input.',
+        userMessage: error.message,
         originalError: error,
         context,
         retryable: false,
@@ -273,7 +272,7 @@ export class ErrorService {
       } catch (error) {
         lastError = this.handleError(error, {
           ...context,
-          attempt,
+          attemptNumber: attempt,
           maxRetries,
         });
 
