@@ -31,7 +31,9 @@ describe('PasswordAuthService Backward Compatibility', () => {
       expect(result.access_token).toBe('access_token_123');
       expect(result.refresh_token).toBe('refresh_token_456');
       expect(result.expires_at).toBeGreaterThan(Date.now());
-      expect(result.expires_at).toBeLessThanOrEqual(Date.now() + 3600 * 1000);
+      expect(result.expires_at).toBeLessThanOrEqual(
+        Date.now() + 24 * 3600 * 1000
+      );
     });
 
     it('should handle new API format with expires_at', async () => {

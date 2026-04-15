@@ -34,28 +34,28 @@
   }
 }
 
-/* Extension-specific styles */
+/* Extension-specific styles — runs as Chrome side panel, fills full panel width */
 body {
-  width: 320px;
-  min-height: 200px;
-  max-height: 600px;
+  width: 100%;
+  min-width: 300px;
+  min-height: 100vh;
 }
 
-/* Scrollbar styles for dark theme */
+/* Scrollbar styles for light theme */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-800;
+  @apply bg-gray-50;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-600 rounded-full;
+  @apply bg-gray-300 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-500;
+  @apply bg-gray-400;
 }
 
 /* Loading spinner animation */
@@ -78,6 +78,21 @@ body {
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 200ms ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -123,9 +138,7 @@ body {
 
 /* Glass morphism utility */
 .glass {
-  background-color: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  @apply bg-white/20 backdrop-blur-md border border-white/20;
 }
 
 /* Focus visible utilities */

@@ -56,7 +56,7 @@ describe('validateUsername', () => {
     const result = validateUsername('user!name');
     expect(result.isValid).toBe(false);
     expect(result.error).toBe(
-      'Please enter a valid email address or username (letters, numbers, periods, underscores, and hyphens only)'
+      'Use a valid email or username (letters, numbers, . _ - only)'
     );
   });
 
@@ -64,7 +64,7 @@ describe('validateUsername', () => {
     const result = validateUsername('user@');
     expect(result.isValid).toBe(false);
     expect(result.error).toBe(
-      'Please enter a valid email address or username (letters, numbers, periods, underscores, and hyphens only)'
+      'Use a valid email or username (letters, numbers, . _ - only)'
     );
   });
 
@@ -141,7 +141,7 @@ describe('validateHost', () => {
     const result = validateHost('invalid host');
     expect(result.isValid).toBe(false);
     expect(result.error).toBe(
-      'Invalid host format. Use format like localhost:8080 or api.example.com'
+      'Invalid host. Use host:port or a domain (e.g. localhost:8080)'
     );
   });
 
@@ -163,7 +163,8 @@ describe('isValidJobListing', () => {
     expect(isValidJobListing(validJob)).toBe(true);
   });
 
-  it('should reject missing required fields', () => {
+  it('should require title and company; location is optional', () => {
+    // title is required
     expect(
       isValidJobListing({
         company: 'Tech Corp',
@@ -172,6 +173,7 @@ describe('isValidJobListing', () => {
       })
     ).toBe(false);
 
+    // company is required
     expect(
       isValidJobListing({
         title: 'Software Engineer',
@@ -180,13 +182,14 @@ describe('isValidJobListing', () => {
       })
     ).toBe(false);
 
+    // location is NOT required — LinkedIn no longer exposes it via stable selectors
     expect(
       isValidJobListing({
         title: 'Software Engineer',
         company: 'Tech Corp',
         sourceUrl: 'https://example.com/job/123',
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('should reject empty or whitespace-only strings', () => {

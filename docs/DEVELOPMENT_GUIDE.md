@@ -1,298 +1,98 @@
 # Development Guide
 
-## Getting Started
+## Setup
 
-### What You'll Need
-
-- Node.js 22+ and npm
-- Chrome browser
-- Git
-- VS Code (or any editor with TypeScript support)
-
-### Quick Setup
+You need Node.js 22+. Run `nvm use` if you have nvm.
 
 ```bash
-# Clone and install
 git clone https://github.com/benidevo/vega-ai-extension.git
 cd vega-ai-extension
 npm install
-
-# Start development
 npm run dev
+```
 
-# In another terminal (optional)
+Go to `chrome://extensions/`, enable Developer mode, click "Load unpacked", select the `dist` folder. Click the extension icon on any page to open the side panel.
+
+## Commands
+
+```bash
+npm run dev              # watch mode
+npm run build            # production build
+npm run clean            # wipe dist/
+
+npm run lint
+npm run lint:fix
+npm run typecheck
+npm run format
+
+npm test
 npm run test:watch
+
+npm run release:patch    # 1.0.0 -> 1.0.1
+npm run release:minor    # 1.0.0 -> 1.1.0
+npm run release:major    # 1.0.0 -> 2.0.0
 ```
 
-### Loading the Extension in Chrome
+## Backend
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in top right)
-3. Click "Load unpacked"
-4. Select the `dist` folder from your project directory
-5. The extension icon will appear in your toolbar
+The extension hits `vega.benidevo.com` by default. For local development, open the side panel settings, switch to Local Mode, and set your host. Webpack adds `http://localhost:*/*` to `host_permissions` in dev builds so you do not need to configure CORS locally.
 
-### Backend Configuration
-
-The extension can connect to:
-
-- **Cloud** (default): The hosted Vega AI service
-- **Local**: Your own backend
-
-Users can switch modes in the extension popup.
-
-### Authentication
-
-The extension uses username/password authentication with secure token management:
-
-- **Token Storage**: Encrypted in Chrome's local storage
-- **Auto-refresh**: Tokens refresh automatically when they expire
-- **Session Management**: Handles login state across browser sessions
-
-### Useful Commands
+## Releasing
 
 ```bash
-# Development
-npm run dev              # Watch mode
-npm run build            # Production build
-npm run clean            # Clean dist folder
+git checkout master && git pull
 
-# Code Quality
-npm run lint             # Check code style
-npm run lint:fix         # Fix style issues
-npm run typecheck        # Check types
-npm run format           # Format code
-
-# Testing
-npm test                 # Run tests
-npm run test:watch       # Watch mode
-
-# Releases
-npm run release:patch    # 1.0.0 → 1.0.1
-npm run release:minor    # 1.0.0 → 1.1.0
-npm run release:major    # 1.0.0 → 2.0.0
-```
-
-### Build & Release
-
-- **CI**: Runs on every push/PR (quality checks + build verification)
-- **Manual Build**: Trigger from GitHub Actions for testing
-- **Release**: Auto-triggered by git tags
-
-## Creating Releases
-
-Releases happen automatically when you push a version tag:
-
-### 1. Ensure your changes are merged to master
-
-```bash
-git checkout master
-git pull origin master
-```
-
-#### 2. Update the version
-
-The `npm version` command will:
-
-- Update the version in `package.json`
-- Run `prepare-release.js` which automatically:
-  - Updates `manifest.json` to match package.json version
-  - Updates the version badge in README.md
-- Create a git commit with message "vx.x.x"
-- Create a git tag "vx.x.x"
-
-```bash
-# For bug fixes (v0.1.0 → v0.1.1)
+# bumps version in package.json, manifest.json, README badge, creates commit + tag
 npm run release:patch
 
-# For new features (v0.1.0 → v0.2.0)
-npm run release:minor
-
-# For breaking changes (v0.1.0 → v1.0.0)
-npm run release:major
-```
-
-Note: These scripts automatically sync versions between package.json, manifest.json, and README.md
-
-#### 3. Push the commit and tag
-
-```bash
-# Push the version commit
 git push origin master
-
-# Push the tag to trigger the release workflow
 git push origin --tags
 ```
 
-#### 4. Manual release process
+CI picks up the tag and publishes the ZIP. If a release fails, delete the tag and retry:
 
-- Run tests and linting: `npm test && npm run lint`
-- Build the extension: `npm run build`
-- Create a ZIP file: `cd dist && zip -r ../extension.zip . && cd ..`
-- Create a GitHub release with the ZIP file
-- Users will download directly from the releases page
+```bash
+git tag -d v1.2.3
+git push origin :refs/tags/v1.2.3
+```
 
-#### 5. Manual verification
+Before tagging: `npm test && npm run lint && npm run build` should all pass, and the capture flow should work end-to-end in the built extension.
 
-- Check the [Releases page](https://github.com/benidevo/vega-ai-extension/releases)
-- Download and test the built extension
-- Edit release notes if needed
+## JOB_URL_PATTERNS
 
-### Version Management
-
-The version in `package.json` is the source of truth. The `prepare-release.js` script automatically syncs it to:
-- `manifest.json` (Chrome extension version)
-- `README.md` (version badge)
-
-### Release Checklist
-
-Before creating a release:
-
-- [ ] All tests pass (`npm test`)
-- [ ] TypeScript has no errors (`npm run typecheck`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] Extension works in development (`npm run dev`)
-- [ ] Production build succeeds (`npm run build`)
-- [ ] Update CHANGELOG.md if maintaining one
-- [ ] Ensure README.md is up to date
-
-### Troubleshooting Releases
-
-If the release workflow fails:
-
-1. Check [Actions tab](https://github.com/benidevo/vega-ai-extension/actions) for error logs
-2. Fix any build or test issues
-3. Delete the tag locally and remotely:
-
-   ```bash
-   git tag -d v0.1.2
-   git push origin :refs/tags/v0.1.2
-   ```
-
-4. Start the release process again
-
-### Code Quality
-
-Pre-commit hooks run automatically to check your code. They run ESLint, Prettier, and TypeScript checks. If something fails, fix it and try again.
-
-### Adding New Job Sites
-
-Want to add Indeed or another job site? Here's how:
-
-1. Create a new reader in `src/content/extractors/`:
-
-   ```typescript
-   export class IndeedJobReader implements IJobReader {
-     canRead(url: string): boolean {
-       return url.includes('indeed.com/viewjob');
-     }
-
-     readJobDetails(): JobListing | null {
-       // Read data from the page
-     }
-   }
-   ```
-
-2. Add it to `src/content/extractors/index.ts`
-
-3. Add the domain to `manifest.json`:
-
-   ```json
-   "host_permissions": [
-     "https://*.linkedin.com/jobs/*",
-     "https://*.indeed.com/jobs/*"
-   ]
-   ```
-
-   Note: Only request access to job-specific paths to minimize permissions.
+The capture form works on any site. `JOB_URL_PATTERNS` in `src/popup/index.ts` only controls a UI label ("Job page detected") shown when the current URL matches a known job site. To add a new site to that hint, append its URL pattern.
 
 ## Testing
 
-### Running Tests
-
-```bash
-npm test              # Run once
-npm run test:watch    # Keep running
-```
-
-### Writing Tests
-
-Tests use Jest and mock the Chrome APIs. Example:
+Tests use Jest with Chrome APIs mocked. Run `npm test` or `npm run test:watch`. Mock at the boundary (`chrome.storage`, `chrome.runtime.sendMessage`) rather than the implementation.
 
 ```typescript
-describe('IndeedJobReader', () => {
-  it('reads job data', () => {
-    document.body.innerHTML = '<div>Mock Indeed HTML</div>';
-    const reader = new IndeedJobReader();
-    const job = reader.readJobDetails();
-
-    expect(job?.title).toBe('Software Engineer');
+describe('isValidJobListing', () => {
+  it('requires title and company', () => {
+    expect(isValidJobListing({ company: 'Acme' })).toBe(false);
+    expect(isValidJobListing({ title: 'Engineer', company: 'Acme', sourceUrl: '...' })).toBe(true);
   });
 });
 ```
 
-## Development Tips
+## Reloading Changes
 
-### Loading Your Changes
+- Background changes: reload the extension at `chrome://extensions/`
+- Panel changes: close and reopen the side panel
+- Manifest changes: always reload the extension
 
-After running `npm run dev`:
-
-1. Go to `chrome://extensions/`
-2. Click "Reload" on the Vega AI extension
-3. Refresh the LinkedIn page you're testing on
-
-### What Needs Reloading
-
-- **Content script changes**: Refresh the LinkedIn page
-- **Background changes**: Reload the extension
-- **Popup changes**: Just close and reopen the popup
-- **Manifest changes**: Always reload the extension
-
-## Code Organization
+## Code Layout
 
 ```plaintext
 src/
-├── background/          # Service worker (runs in background)
-│   ├── services/       # All the main logic
-│   └── index.ts        # Entry point
-│
-├── content/            # Runs on LinkedIn pages
-│   ├── extractors/     # Reads job data from pages
-│   ├── overlay.ts      # The floating button/panel
-│   └── index.ts        # Entry point
-│
-├── popup/              # The extension popup
-│   ├── index.html      # UI structure
-│   └── index.ts        # Sign in logic
-│
-├── config/             # Settings
-├── types/              # TypeScript types
-├── utils/              # Helper functions
-└── styles/             # CSS files
+├── background/       # service worker + services (auth, API, storage, badge, messaging)
+├── popup/            # side panel HTML and TypeScript
+├── config/
+├── types/
+├── utils/            # logger, validation
+└── styles/
 ```
-
-## Security Notes
-
-- OAuth client IDs are public (safe in code)
-- Never log user passwords or tokens
-- Always use HTTPS in production
-- Run `npm audit` regularly to check dependencies
-- Test with minimal permissions first
 
 ## Contributing
 
-### How to Contribute
-
-1. Fork the repo and clone it
-2. Create a branch: `git checkout -b feature/cool-feature`
-3. Make your changes
-4. Test everything: `npm test && npm run lint`
-5. Push and open a PR
-
-### PR Guidelines
-
-Write a clear title and description. Make sure tests pass. Keep changes focused on one thing.
-
-### Getting Help
-
-Open an issue if you're stuck or have questions.
+Fork, branch off master, make changes, run `npm test && npm run lint`, open a PR. Keep PRs focused on one thing. Open an issue first if you are planning something large.

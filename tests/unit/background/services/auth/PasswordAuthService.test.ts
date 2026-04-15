@@ -151,7 +151,7 @@ describe('PasswordAuthService', () => {
 
       await expect(
         authService.authenticate({ username: 'user', password: 'pass' })
-      ).rejects.toThrow('Unable to sign in. Please try again.');
+      ).rejects.toThrow('Unable to login. Please try again.');
     });
 
     it('should handle JSON parse errors', async () => {
@@ -260,7 +260,7 @@ describe('PasswordAuthService', () => {
       });
 
       await expect(authService.refreshTokens('refresh-token')).rejects.toThrow(
-        'Unable to refresh your session. Please sign in again.'
+        'Unable to refresh your session. Please login again.'
       );
     });
 

@@ -2,7 +2,7 @@ export interface JobListing {
   title: string;
   company: string;
   location: string;
-  description: string;
+  description?: string;
   jobType?:
     | 'full_time'
     | 'part_time'

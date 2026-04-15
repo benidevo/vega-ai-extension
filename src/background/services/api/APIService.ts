@@ -66,7 +66,11 @@ export class APIService implements IAPIService {
   }
 
   async saveJob(job: JobListing): Promise<SaveJobResponse> {
-    apiLogger.info('Saving job', { title: job.title, company: job.company });
+    apiLogger.info('Saving job', {
+      title: job.title,
+      company: job.company,
+      jobType: job.jobType,
+    });
 
     const response = await apiLogger.time('save_job_request', () =>
       this.request<SaveJobResponse>('/api/jobs', {

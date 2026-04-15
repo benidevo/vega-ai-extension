@@ -12,7 +12,6 @@ module.exports = (env, argv) => {
     devtool: isProduction ? false : 'inline-source-map',
     entry: {
       background: './src/background/index.ts',
-      content: './src/content/index.ts',
       popup: './src/popup/index.ts',
     },
     output: {
@@ -76,13 +75,8 @@ module.exports = (env, argv) => {
 
               delete manifest.oauth2;
 
-              if (isProduction) {
+              if (!isProduction) {
                 manifest.host_permissions = [
-                  "https://*.linkedin.com/jobs/*"
-                ];
-              } else {
-                manifest.host_permissions = [
-                  "https://*.linkedin.com/jobs/*",
                   "http://localhost:*/*"
                 ];
               }

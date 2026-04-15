@@ -6,16 +6,15 @@ import { JobListing } from '@/types';
  * @returns True if valid, false otherwise
  */
 export function isValidJobListing(job: Partial<JobListing>): job is JobListing {
+  // location is intentionally not required — LinkedIn no longer exposes it
+  // via stable DOM selectors and we don't want to block saves over a missing field.
   return !!(
     job.title &&
     job.company &&
-    job.location &&
     typeof job.title === 'string' &&
     typeof job.company === 'string' &&
-    typeof job.location === 'string' &&
     job.title.trim().length > 0 &&
-    job.company.trim().length > 0 &&
-    job.location.trim().length > 0
+    job.company.trim().length > 0
   );
 }
 
@@ -30,7 +29,7 @@ export function sanitizeJobListing(job: JobListing): JobListing {
     title: job.title.trim(),
     company: job.company.trim(),
     location: job.location.trim(),
-    description: (job.description || '').trim(),
+    description: job.description?.trim(),
     sourceUrl: job.sourceUrl.trim(),
     applicationUrl: job.applicationUrl?.trim(),
     notes: job.notes?.trim(),
@@ -101,8 +100,7 @@ export function validateUsername(username: string): ValidationResult {
   if (!usernamePattern.test(trimmed)) {
     return {
       isValid: false,
-      error:
-        'Please enter a valid email address or username (letters, numbers, periods, underscores, and hyphens only)',
+      error: 'Use a valid email or username (letters, numbers, . _ - only)',
     };
   }
 
@@ -139,8 +137,7 @@ export function validateHost(host: string): ValidationResult {
   ) {
     return {
       isValid: false,
-      error:
-        'Invalid host format. Use format like localhost:8080 or api.example.com',
+      error: 'Invalid host. Use host:port or a domain (e.g. localhost:8080)',
     };
   }
 

@@ -7,154 +7,51 @@
 [![GitHub Release](https://img.shields.io/github/v/release/benidevo/vega-ai-extension?logo=github&logoColor=white)](https://github.com/benidevo/vega-ai-extension/releases/latest)
 [![Version](https://img.shields.io/badge/version-1.2.2-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
 
-**Save job listings to your personal dashboard with one click.**
-
-This Chrome extension adds a floating button to LinkedIn job pages that lets you save jobs directly to your Vega AI dashboard. All actions are initiated by you. The extension never collects or saves data automatically. Works with both the cloud service and self-hosted [Vega AI](https://vega.benidevo.com) backends.
-
-## Features
-
-- **Shows on** job pages on LinkedIn when you visit them
-- **User-initiated save** with the floating button
-- **Add notes** before saving (saved locally too)
-- **Secure authentication**: username/password with encrypted storage
-- **Cloud or self-hosted**: your choice
-- **Keyboard shortcuts**: Ctrl+Shift+V to toggle, Ctrl+S to save
-- **Version updates**: Automatic update notifications
-- **Syncs across devices** when signed in
+Save job listings from any site to your [Vega AI](https://vega.benidevo.com) dashboard. Click the icon, fill in the details, done. Works with the cloud service or a self-hosted backend.
 
 ## How it Works
 
-1. Go to any LinkedIn job posting
-2. Click the floating Vega AI button
-3. Add your notes (optional)
-4. Hit save and you're done
+Click the extension icon on any page. A side panel opens for that tab. Fill in the job details, add notes if you want, and save.
 
-No more copy-pasting job details.
+## Install
 
-## Get Started
+### Download from GitHub
 
-### Install the Extension
+1. Grab the `vega-extension-*.zip` from the [latest release](https://github.com/benidevo/vega-ai-extension/releases/latest)
+2. Unzip it somewhere
+3. Go to `chrome://extensions/`, turn on Developer mode, click "Load unpacked", select the unzipped folder
 
-**Direct Download from GitHub** (Recommended)
+### Build from Source
 
-1. Visit the [latest release page](https://github.com/benidevo/vega-ai-extension/releases/latest)
-2. Download the `vega-extension-*.zip` file
-3. Unzip the file to a folder on your computer
-4. Open Chrome and go to `chrome://extensions/`
-5. Turn on "Developer mode" (toggle in top right)
-6. Click "Load unpacked" and select your unzipped folder
-
-#### Alternative: Build from Source
-
-1. Clone the repository: `git clone https://github.com/benidevo/vega-ai-extension.git`
-2. Ensure you have **Node.js 22.x (LTS)** installed (you can use `nvm use` with the provided `.nvmrc`).
-3. Install dependencies: `npm install`
-4. Build the extension: `npm run build`
-5. Follow the "Direct Download" instructions above, but select the `dist` folder when clicking "Load unpacked".
-
-### Set Up Your Account
-
-1. Create an account at [vega.benidevo.com](https://vega.benidevo.com)
-2. Click the Vega AI icon in your browser toolbar
-3. If you're using the cloud service, just sign in
-4. For self-hosted backends, switch to Local Mode in settings
-5. Browse LinkedIn jobs and start saving!
-
----
-
-## For Developers
-
-<details>
-<summary>Click to expand developer setup instructions</summary>
-
-### Prerequisites
-
-- Node.js 22+ and npm
-- Chrome browser
-
-### Quick Setup
+You need Node.js 22+. Run `nvm use` if you have nvm.
 
 ```bash
-# Clone and install
 git clone https://github.com/benidevo/vega-ai-extension.git
 cd vega-ai-extension
 npm install
-
-# Build and load
 npm run build
 ```
 
-Then load the `dist` folder as an unpacked extension in Chrome.
+Then load the `dist` folder the same way as above.
 
-### Development Commands
+## Setup
 
-```bash
-npm run dev        # Watch mode for development
-npm run build      # Production build
-npm run test       # Run tests
-npm run lint       # Check code style
-npm run typecheck  # Check TypeScript types
-```
+Create an account at [vega.benidevo.com](https://vega.benidevo.com), then sign in through the side panel. If you're running your own backend, switch to Local Mode in settings and point it at your host.
 
-### Configuration
+## For Developers
 
-By default, the extension uses username/password auth and connects to the cloud backend. You can change these defaults:
+See [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) to get up and running and [TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md) for architecture details.
 
-**Backend Modes:**
+## Privacy
 
-- Cloud Mode: `https://vega.benidevo.com` (default)
-- Local Mode: Your own backend (set host/port in settings)
+The extension has no content scripts and never reads page content. It only sends data when you explicitly click save. Tokens are stored in Chrome's encrypted local storage. Permissions: `storage`, `alarms`, `sidePanel`, `tabs`.
 
-**Authentication:**
-
-- Username/Password authentication with secure token storage
-- Encrypted local storage for credentials
-- Automatic session management
-
-### Project Structure
-
-The code is organized into these main parts:
-
-- **Background**: Service worker that handles auth, API calls, and messaging
-- **Content**: Scripts that run on LinkedIn pages to detect jobs
-- **Popup**: The extension popup where users sign in and change settings
-- **Services**: Reusable modules for common functionality
-
-### Documentation
-
-- **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - How to build and contribute
-- **[Technical Design](docs/TECHNICAL_DESIGN.md)** - Architecture and implementation details
-
-</details>
-
-## Privacy & Security
-
-**Privacy details:**
-
-- **User-initiated only**: The extension never reads or saves data automatically
-- **User controlled**: Only saves jobs when you explicitly click the save button
-- **No tracking**: No analytics or data collection beyond what you choose to save
-- **Encrypted storage**: Authentication tokens are encrypted locally
-- **Open source**: Review the code to see exactly what the extension does
-- **Minimal permissions**: Only accesses LinkedIn job pages
-
-Read the full **[Privacy Policy](https://vega.benidevo.com/privacy)** for complete details.
+Full [Privacy Policy](https://vega.benidevo.com/privacy).
 
 ## Support
 
-- **[FAQ](https://vega.benidevo.com/#faq)**
-- **[Report a bug](https://github.com/benidevo/vega-ai-extension/issues)**
-- **[Request a feature](https://github.com/benidevo/vega-ai-extension/issues)**
-- **[Discussions](https://github.com/benidevo/vega-ai-extension/discussions)**
+[FAQ](https://vega.benidevo.com/#faq) · [Report a bug](https://github.com/benidevo/vega-ai-extension/issues) · [Discussions](https://github.com/benidevo/vega-ai-extension/discussions)
 
 ## License
 
-This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0).
-
-What this means:
-
-- You can use, study, modify, and distribute the code
-- If you run this software on a server, you must make your source code available to users
-- Any modifications must also be released under AGPL-3.0
-
-For commercial licensing without AGPL requirements, email [vega@benidevo.com](mailto:vega@benidevo.com).
+[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0). If you run a modified version on a server, you must make the source available. For commercial licensing, email [vega@benidevo.com](mailto:vega@benidevo.com).

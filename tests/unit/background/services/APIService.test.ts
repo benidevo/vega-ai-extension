@@ -17,9 +17,7 @@ describe('APIService', () => {
   let apiService: APIService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     jest.resetAllMocks();
-    (global.fetch as jest.Mock).mockClear();
     jest.useFakeTimers();
 
     (apiLogger.time as jest.Mock).mockImplementation((label, fn) => fn());
@@ -52,9 +50,13 @@ describe('APIService', () => {
     };
 
     it('should save job successfully', async () => {
+      const jobWithJobType = {
+        ...mockJob,
+        jobType: 'full_time' as const,
+      };
       const mockResponse = {
         id: '123',
-        job: mockJob,
+        job: jobWithJobType,
         createdAt: '2024-01-01T00:00:00Z',
       };
 
@@ -66,7 +68,7 @@ describe('APIService', () => {
       });
 
       await apiService.initialize();
-      const result = await apiService.saveJob(mockJob);
+      const result = await apiService.saveJob(jobWithJobType);
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8765/api/jobs',
@@ -75,7 +77,7 @@ describe('APIService', () => {
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
-          body: JSON.stringify(mockJob),
+          body: JSON.stringify(jobWithJobType),
           signal: expect.any(AbortSignal),
         })
       );
