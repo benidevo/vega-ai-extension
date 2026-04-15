@@ -9,15 +9,18 @@ import {
   ValidationResult,
 } from '@/utils/validation';
 import { MessageType } from '@/background/services/message/IMessageService';
+import { JobListing } from '@/types';
 
 class Popup {
   private statusElement: HTMLElement;
   private ctaElement: HTMLElement;
   private settingsView: HTMLElement;
-  private isSigningIn = false;
+  private captureView: HTMLElement;
+  private isLoggingIn = false;
   private initializationPromise: Promise<void> | null = null;
   private authStateListenerAttached = false;
-  private currentView: 'main' | 'settings' = 'main';
+  private currentView: 'main' | 'settings' | 'capture' = 'main';
+  private currentJob: JobListing | null = null;
   private errorTimeout: number | null = null;
   private pendingModeSwitch = false;
   private currentLoginRequestId: string | null = null;
@@ -29,15 +32,18 @@ class Popup {
   private readonly UPDATE_CHECK_INTERVAL = 60000;
   private hasUnsavedChanges = false;
   private settingsListenersAttached = false;
+  private lastKnownJobPageState: boolean | null = null;
 
   constructor() {
     this.statusElement = document.getElementById('status')!;
     this.ctaElement = document.getElementById('cta')!;
     this.settingsView = document.getElementById('settings-view')!;
+    this.captureView = document.getElementById('capture-view')!;
     this.currentVersion = chrome.runtime.getManifest().version;
 
     this.setupGlobalEventDelegation();
     this.setupAuthStateListener();
+    this.setupTabChangeListeners();
     this.setupVersionDisplay();
     this.setupUpdateChecker();
   }
@@ -55,13 +61,13 @@ class Popup {
       const target = e.target as HTMLElement;
 
       if (
-        target.id === 'password-signin-btn' ||
-        target.closest('#password-signin-btn')
+        target.id === 'password-login-btn' ||
+        target.closest('#password-login-btn')
       ) {
         e.preventDefault();
 
-        if (!this.isSigningIn && this.isFormValid()) {
-          await this.handlePasswordSignIn();
+        if (!this.isLoggingIn && this.isFormValid()) {
+          await this.handlePasswordLogin();
         }
       }
     });
@@ -76,8 +82,8 @@ class Popup {
       ) {
         e.preventDefault();
 
-        if (!this.isSigningIn && this.isFormValid()) {
-          await this.handlePasswordSignIn();
+        if (!this.isLoggingIn && this.isFormValid()) {
+          await this.handlePasswordLogin();
         }
       }
     });
@@ -103,7 +109,9 @@ class Popup {
         globalNotification.setAttribute('aria-live', 'polite');
       }
 
-      const isJobPage = await this.checkIfJobPage();
+      const url = await this.getCurrentTabUrl();
+      const isJobPage = this.isKnownJobPage(url);
+      this.lastKnownJobPageState = isJobPage;
       const isAuthenticated = await this.checkAuthStatus();
 
       const activeNotification = this.preserveActiveNotification();
@@ -135,28 +143,53 @@ class Popup {
     chrome.runtime.onMessage.addListener(message => {
       if (message.type === MessageType.AUTH_STATE_CHANGED) {
         if (
-          !this.isSigningIn &&
+          !this.isLoggingIn &&
           !this.errorTimeout &&
           !this.pendingModeSwitch
         ) {
           this.logger.info('Auth state changed, re-initializing', {
-            isSigningIn: this.isSigningIn,
+            isLoggingIn: this.isLoggingIn,
             hasErrorTimeout: !!this.errorTimeout,
             pendingModeSwitch: this.pendingModeSwitch,
           });
           this.initialize();
         } else {
           this.logger.info('Auth state changed but skipping re-init', {
-            isSigningIn: this.isSigningIn,
+            isLoggingIn: this.isLoggingIn,
             hasErrorTimeout: !!this.errorTimeout,
             pendingModeSwitch: this.pendingModeSwitch,
-            reason: this.isSigningIn
-              ? 'sign-in in progress'
+            reason: this.isLoggingIn
+              ? 'login in progress'
               : 'error notification active',
           });
         }
       }
     });
+  }
+
+  private setupTabChangeListeners(): void {
+    const shouldRerender = () =>
+      this.currentView === 'main' &&
+      !this.isLoggingIn &&
+      !this.pendingModeSwitch;
+
+    try {
+      // Panel is tab-specific — only re-render when the owning tab navigates
+      // and the job-page status changes (e.g. user leaves a job listing).
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+        if (changeInfo.url === undefined || !shouldRerender()) return;
+        chrome.tabs.query(
+          { active: true, lastFocusedWindow: true },
+          ([activeTab]) => {
+            if (activeTab?.id !== tabId) return;
+            const isJobPage = this.isKnownJobPage(changeInfo.url!);
+            if (isJobPage !== this.lastKnownJobPageState) this.initialize();
+          }
+        );
+      });
+    } catch {
+      // tab listeners unavailable in some contexts
+    }
   }
 
   private async checkAuthStatus(): Promise<boolean> {
@@ -169,76 +202,157 @@ class Popup {
     }
   }
 
-  private async checkIfJobPage(): Promise<boolean> {
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    const url = tab.url || '';
-    return url.includes('linkedin.com/jobs/');
+  private readonly JOB_URL_PATTERNS = [
+    'linkedin.com/jobs/',
+    'indeed.com/viewjob',
+    'glassdoor.com/job-listing',
+    'greenhouse.io/jobs/',
+    'lever.co/',
+    'workday.com/',
+    'jobs.ashbyhq.com/',
+    'boards.greenhouse.io/',
+    'myworkdayjobs.com/',
+    'careers.smartrecruiters.com/',
+  ];
+
+  private isKnownJobPage(url: string): boolean {
+    return this.JOB_URL_PATTERNS.some(p => url.includes(p));
   }
 
   private async render(
     isAuthenticated: boolean,
     isJobPage: boolean
   ): Promise<void> {
-    if (isJobPage) {
-      this.statusElement.innerHTML = `
-        <div class="flex items-center justify-center p-3 bg-primary bg-opacity-10 rounded-lg border border-primary border-opacity-30">
-          <svg class="w-5 h-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span class="text-sm font-medium text-primary">Ready to save job</span>
-        </div>
-      `;
-    } else {
-      this.statusElement.innerHTML = `
-        <div class="flex items-center justify-center p-3 bg-slate-800 bg-opacity-50 rounded-lg">
-          <svg class="w-5 h-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span class="text-sm text-gray-400">Navigate to a job listing</span>
-        </div>
-      `;
+    if (this.currentView === 'settings') {
+      this.statusElement.classList.add('hidden');
+      this.ctaElement.classList.add('hidden');
+      this.captureView.classList.remove('flex', 'flex-1');
+      this.captureView.classList.add('hidden');
+      this.settingsView.classList.remove('hidden');
+      this.settingsView.classList.add('flex', 'flex-1');
+      return;
     }
 
+    if (this.currentView === 'capture') {
+      this.statusElement.classList.add('hidden');
+      this.ctaElement.classList.add('hidden');
+      this.settingsView.classList.remove('flex', 'flex-1');
+      this.settingsView.classList.add('hidden');
+      this.captureView.classList.remove('hidden');
+      this.captureView.classList.add('flex', 'flex-1');
+      return;
+    }
+
+    // Reset view-specific flex classes when returning to main
+    this.settingsView.classList.remove('flex', 'flex-1');
+    this.settingsView.classList.add('hidden');
+    this.captureView.classList.remove('flex', 'flex-1');
+    this.captureView.classList.add('hidden');
+
     if (isAuthenticated) {
+      this.statusElement.classList.add('hidden');
+      this.ctaElement.classList.remove('hidden');
+      this.ctaElement.className = 'flex-1 flex flex-col gap-4 animate-fade-in';
+
       const baseUrl = await SettingsService.getApiBaseUrl();
       const dashboardUrl = `${baseUrl}/jobs`;
 
-      this.ctaElement.innerHTML = `
-        <a
-          href="${dashboardUrl}"
-          id="dashboard-link"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="vega-btn vega-btn-primary w-full block text-center"
-        >
-          Open Dashboard
-          <svg class="inline-block w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
+      const headerTitle = isJobPage
+        ? 'Job page detected'
+        : 'Save a job listing';
+      const headerSubtitle = isJobPage
+        ? 'Ready to save'
+        : 'Fill in the details';
 
-        <div class="mt-3 text-center">
-          <a href="#" id="signout-btn" class="text-xs text-gray-500 hover:text-gray-400 transition-colors">
-            Sign out
+      this.ctaElement.innerHTML = `
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-4">
+          <div class="px-4 py-3 border-b border-gray-100">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">How to use</p>
+          </div>
+          <div class="divide-y divide-gray-50">
+            <div class="flex items-start gap-3 px-4 py-3">
+              <div class="flex-shrink-0 w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center mt-0.5">
+                <span class="text-[10px] font-bold text-teal-600">1</span>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-gray-800">Browse any job site</p>
+                <p class="text-[10px] text-gray-400 leading-tight">LinkedIn, Indeed, Glassdoor, etc.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 px-4 py-3">
+              <div class="flex-shrink-0 w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center mt-0.5">
+                <span class="text-[10px] font-bold text-teal-600">2</span>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-gray-800">Click Capture Job</p>
+                <p class="text-[10px] text-gray-400 leading-tight">Save details directly to your tracker</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-teal-200 overflow-hidden shadow-sm">
+          <div class="px-4 py-3 bg-teal-50 border-b border-teal-100 flex items-center gap-3">
+            <div class="p-1.5 bg-teal-100 rounded-lg flex-shrink-0">
+              <svg class="w-4 h-4 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-teal-900">${headerTitle}</p>
+              <p class="text-xs text-teal-600">${headerSubtitle}</p>
+            </div>
+          </div>
+          <div class="px-4 py-3">
+            <button id="capture-btn" class="w-full py-3 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-sm hover:shadow">
+              Capture Job
+            </button>
+          </div>
+        </div>
+
+        <!-- Spacer pushes dashboard/logout to bottom -->
+        <div class="flex-1"></div>
+
+        <div class="space-y-2">
+          <a
+            href="${dashboardUrl}"
+            id="dashboard-link"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-full py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all"
+          >
+            Open Dashboard
+            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
           </a>
+          <div class="text-center">
+            <button id="logout-btn" class="text-xs text-gray-400 hover:text-red-500 transition-colors font-medium px-3 py-1.5 rounded-lg hover:bg-red-50">
+              Logout
+            </button>
+          </div>
         </div>
       `;
     } else {
+      this.ctaElement.classList.remove('hidden');
+      this.ctaElement.className = 'flex-1 flex flex-col gap-4 animate-fade-in';
+      this.statusElement.classList.add('hidden');
+
       await this.renderAuthOptions();
     }
   }
 
   private renderError(message: string): void {
     this.statusElement.innerHTML = `
-      <div class="vega-alert vega-alert-error">
-        <div class="flex items-center justify-center">
-          <svg class="w-5 h-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div class="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100 animate-fade-in">
+        <div class="flex-shrink-0 p-1.5 bg-red-100 rounded-lg">
+          <svg class="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span id="error-message-text" class="text-sm text-red-400"></span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold text-red-800 mb-0.5">Something went wrong</p>
+          <p id="error-message-text" class="text-xs text-red-600 truncate"></p>
         </div>
       </div>
     `;
@@ -249,12 +363,24 @@ class Popup {
   }
 
   private attachEventListeners(isAuthenticated: boolean): void {
+    if (this.currentView === 'capture') {
+      this.attachCaptureEventListeners();
+      return;
+    }
+
+    const captureBtn = document.getElementById('capture-btn');
+    if (captureBtn) {
+      captureBtn.addEventListener('click', async () => {
+        await this.openCaptureForm();
+      });
+    }
+
     if (isAuthenticated) {
-      const signoutBtn = document.getElementById('signout-btn');
-      if (signoutBtn) {
-        signoutBtn.addEventListener('click', async e => {
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async e => {
           e.preventDefault();
-          await this.handleSignOut();
+          await this.handleLogout();
         });
       }
     } else {
@@ -264,69 +390,93 @@ class Popup {
 
   private async renderAuthOptions(): Promise<void> {
     this.ctaElement.innerHTML = `
-      <div class="space-y-4">
-        <div id="auth-form-container"></div>
-      </div>
-    `;
+      <div class="px-1 mb-6 animate-fade-in">
+        <h2 class="text-base font-bold text-gray-900 mb-2 text-balance">Capture your next career move</h2>
+        <p class="text-xs text-gray-500 leading-relaxed mb-4">
+          The easiest way to track and organize your job search across the entire web.
+        </p>
 
-    const formContainer = document.getElementById('auth-form-container');
-    if (!formContainer) return;
-
-    formContainer.innerHTML = `
-      <div class="space-y-3">
-        <div>
-          <input
-            type="text"
-            id="username-input"
-            placeholder="Username or Email"
-            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-          >
-          <div id="username-error" class="hidden mt-1 text-xs text-red-400"></div>
-          <div id="username-help" class="mt-1 text-xs text-gray-500">Enter your username or email address</div>
-        </div>
-        <div>
-          <div class="relative">
-            <input
-              type="password"
-              id="password-input"
-              placeholder="Password (8-64 characters)"
-              class="w-full px-3 py-2 pr-10 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-            >
-            <button
-              type="button"
-              id="password-toggle"
-              class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-300"
-              aria-label="Toggle password visibility"
-            >
-              <svg id="password-show-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        <div class="grid grid-cols-1 gap-2.5">
+          <div class="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+            <div class="flex-shrink-0 w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm">
+              <svg class="w-3.5 h-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <svg id="password-hide-icon" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-              </svg>
-            </button>
+            </div>
+            <p class="text-[11px] text-gray-600 font-medium">Capture jobs from any platform</p>
           </div>
-          <div id="password-error" class="hidden mt-1 text-xs text-red-400"></div>
-          <div id="password-help" class="mt-1 text-xs text-gray-500">Use a strong, unique password for security</div>
+          <div class="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+            <div class="flex-shrink-0 w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm">
+              <svg class="w-3.5 h-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <p class="text-[11px] text-gray-600 font-medium">Keep notes and details organized</p>
+          </div>
         </div>
-        <button
-          id="password-signin-btn"
-          type="button"
-          class="vega-btn vega-btn-primary w-full text-sm"
-          disabled
-        >
-          Sign In
-        </button>
       </div>
 
-      <div class="text-center mt-4">
-        <a
-          href="https://vega.benidevo.com"
-          target="_blank"
-          class="text-xs text-gray-400 hover:text-gray-300 transition-colors"
-        >
-          Don't have an account, get started
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h3 class="text-sm font-semibold text-gray-900">Login</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Access your personal tracker</p>
+        </div>
+        <div class="px-5 py-4 space-y-4">
+          <div class="group">
+            <label for="username-input" class="block text-sm font-medium text-gray-700 mb-1.5">Username / Email</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-4 w-4 text-gray-400 group-focus-within:text-teal-600 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <input type="text" id="username-input" placeholder="e.g. alex@example.com" autocomplete="username"
+                class="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all duration-200">
+            </div>
+            <div id="username-help" class="hidden mt-1 text-xs text-teal-600"></div>
+            <div id="username-error" class="hidden mt-1 text-xs text-red-500"></div>
+          </div>
+          <div class="group">
+            <label for="password-input" class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-4 w-4 text-gray-400 group-focus-within:text-teal-600 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <input type="password" id="password-input" placeholder="••••••••" autocomplete="current-password"
+                class="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all duration-200">
+              <button type="button" id="password-toggle" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-teal-600 transition-colors" aria-label="Toggle password visibility">
+                <svg id="password-show-icon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <svg id="password-hide-icon" class="w-4 h-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              </button>
+            </div>
+            <div id="password-help" class="hidden mt-1 text-xs text-teal-600"></div>
+            <div id="password-error" class="hidden mt-1 text-xs text-red-500"></div>
+          </div>
+          <button id="password-login-btn" type="button" disabled
+            class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+            Login
+          </button>
+        </div>
+      </div>
+
+      <!-- Spacer pushes create-account to bottom -->
+      <div class="flex-1"></div>
+
+      <div class="py-3 flex items-center justify-center gap-1.5">
+        <span class="text-xs text-gray-400">New to Vega?</span>
+        <a href="https://vega.benidevo.com" target="_blank"
+          class="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors flex items-center gap-0.5">
+          Create your account
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
         </a>
       </div>
     `;
@@ -345,7 +495,7 @@ class Popup {
       usernameInput.setAttribute('aria-required', 'true');
       usernameInput.addEventListener('input', () => {
         this.validateUsernameInput();
-        this.updateSignInButtonState();
+        this.updateLoginButtonState();
       });
       usernameInput.addEventListener('blur', () => {
         this.validateUsernameInput();
@@ -364,7 +514,7 @@ class Popup {
       passwordInput.setAttribute('aria-required', 'true');
       passwordInput.addEventListener('input', () => {
         this.validatePasswordInput();
-        this.updateSignInButtonState();
+        this.updateLoginButtonState();
       });
       passwordInput.addEventListener('blur', () => {
         this.validatePasswordInput();
@@ -389,11 +539,11 @@ class Popup {
       });
     }
 
-    const passwordBtn = document.getElementById('password-signin-btn');
+    const passwordBtn = document.getElementById('password-login-btn');
     if (passwordBtn) {
       passwordBtn.setAttribute(
         'aria-label',
-        'Sign in with username and password'
+        'Login with username and password'
       );
     }
 
@@ -482,14 +632,14 @@ class Popup {
     return usernameValid && passwordValid;
   }
 
-  private updateSignInButtonState(): void {
+  private updateLoginButtonState(): void {
     const passwordBtn = document.getElementById(
-      'password-signin-btn'
+      'password-login-btn'
     ) as HTMLButtonElement;
     if (!passwordBtn) return;
 
     const isValid = this.isFormValid();
-    passwordBtn.disabled = !isValid || this.isSigningIn;
+    passwordBtn.disabled = !isValid || this.isLoggingIn;
 
     if (isValid) {
       passwordBtn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -498,8 +648,8 @@ class Popup {
     }
   }
 
-  private async handlePasswordSignIn(): Promise<void> {
-    if (this.isSigningIn || !this.isFormValid()) {
+  private async handlePasswordLogin(): Promise<void> {
+    if (this.isLoggingIn || !this.isFormValid()) {
       return;
     }
 
@@ -518,7 +668,7 @@ class Popup {
       'password-input'
     ) as HTMLInputElement;
     const passwordBtn = document.getElementById(
-      'password-signin-btn'
+      'password-login-btn'
     ) as HTMLButtonElement;
 
     if (!usernameInput || !passwordInput || !passwordBtn) {
@@ -529,7 +679,6 @@ class Popup {
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
 
-    // Final validation before submission
     const usernameValidation = validateUsername(username);
     const passwordValidation = validatePassword(password);
 
@@ -545,33 +694,17 @@ class Popup {
       return;
     }
 
-    this.isSigningIn = true;
+    this.isLoggingIn = true;
     const originalText = passwordBtn.textContent;
     passwordBtn.disabled = true;
-    passwordBtn.textContent = 'Signing in...';
+    passwordBtn.textContent = 'Logging in...';
 
     try {
-      if (chrome.runtime.lastError) {
-        console.error(
-          '[Popup] Chrome runtime error before send:',
-          chrome.runtime.lastError
-        );
-      }
-
-      console.trace('[Popup] sendMessage call stack');
-
       const response = await chrome.runtime.sendMessage({
         type: 'LOGIN_WITH_PASSWORD',
         payload: { username, password },
         requestId: requestId,
       });
-
-      if (chrome.runtime.lastError) {
-        console.error(
-          '[Popup] Chrome runtime error after send:',
-          chrome.runtime.lastError
-        );
-      }
 
       if (!response) {
         throw new Error('No response received from background service');
@@ -580,10 +713,11 @@ class Popup {
       if (response.success) {
         await new Promise(resolve => setTimeout(resolve, 100));
         await this.initialize();
-        this.isSigningIn = false;
+        this.isLoggingIn = false;
         this.currentLoginRequestId = null;
       } else {
-        const errorMessage = response?.error || 'Sign in failed';
+        const errorMessage =
+          response?.error || 'Login failed. Check your credentials.';
 
         passwordBtn.disabled = false;
         passwordBtn.textContent = originalText;
@@ -593,13 +727,12 @@ class Popup {
         usernameInput.focus();
 
         setTimeout(() => {
-          this.isSigningIn = false;
+          this.isLoggingIn = false;
           this.currentLoginRequestId = null;
-          this.updateSignInButtonState();
+          this.updateLoginButtonState();
         }, 5000);
       }
     } catch (error) {
-      console.error('[Popup] Login error:', error);
       const errorDetails = errorService.handleError(error, {
         action: 'password_auth',
       });
@@ -612,9 +745,9 @@ class Popup {
       usernameInput.focus();
 
       setTimeout(() => {
-        this.isSigningIn = false;
+        this.isLoggingIn = false;
         this.currentLoginRequestId = null;
-        this.updateSignInButtonState();
+        this.updateLoginButtonState();
       }, 5000);
     }
   }
@@ -652,20 +785,13 @@ class Popup {
     message: string,
     type: 'success' | 'error' | 'info' = 'info'
   ): void {
-    this.logger.info('showNotification called', {
-      message,
-      type,
-      currentView: this.currentView,
-    });
-
     const notificationEl = document.getElementById('global-notification');
 
     if (!notificationEl) {
-      this.logger.error('Global notification element not found!');
+      this.logger.error('Global notification element not found');
       return;
     }
 
-    this.logger.info('Displaying notification in global area');
     this.displayNotificationContent(notificationEl, message, type);
   }
 
@@ -680,44 +806,71 @@ class Popup {
       this.errorTimeout = null;
     }
 
-    const bgColor =
+    const bgClass =
       type === 'success'
-        ? 'rgba(16, 185, 129, 0.1)'
+        ? 'bg-emerald-50'
         : type === 'error'
-          ? 'rgba(127, 29, 29, 0.5)'
-          : 'rgba(59, 130, 246, 0.1)';
-    const borderColor =
+          ? 'bg-red-50'
+          : 'bg-blue-50';
+    const borderClass =
       type === 'success'
-        ? 'rgba(16, 185, 129, 0.5)'
+        ? 'border-emerald-100'
         : type === 'error'
-          ? 'rgba(239, 68, 68, 0.5)'
-          : 'rgba(59, 130, 246, 0.5)';
-    const textColor =
-      type === 'success' ? '#10b981' : type === 'error' ? '#f87171' : '#60a5fa';
+          ? 'border-red-100'
+          : 'border-blue-100';
+    const textClass =
+      type === 'success'
+        ? 'text-emerald-700'
+        : type === 'error'
+          ? 'text-red-700'
+          : 'text-blue-700';
+    const iconClass =
+      type === 'success'
+        ? 'text-emerald-500'
+        : type === 'error'
+          ? 'text-red-500'
+          : 'text-blue-500';
 
+    const icon =
+      type === 'success'
+        ? `<svg class="w-4 h-4 ${iconClass}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+        : type === 'error'
+          ? `<svg class="w-4 h-4 ${iconClass}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+          : `<svg class="w-4 h-4 ${iconClass}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+
+    notificationEl.className = `p-3 ${bgClass} border ${borderClass} rounded-2xl flex items-center space-x-3 mb-4 animate-slide-in`;
     notificationEl.innerHTML = `
-      <div style="padding: 0.5rem; background-color: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 0.375rem;">
-        <span id="notification-message-text" style="font-size: 0.75rem; line-height: 1rem; color: ${textColor}; display: block;"></span>
-      </div>
+      <div class="flex-shrink-0">${icon}</div>
+      <span id="notification-message-text" class="text-xs font-bold ${textClass}"></span>
     `;
     const msgSpan = notificationEl.querySelector('#notification-message-text');
     if (msgSpan) {
       msgSpan.textContent = message;
     }
 
-    notificationEl.style.display = 'block';
+    notificationEl.style.display = 'flex';
 
-    // Auto-hide after 2.5 seconds
+    // Auto-hide after 3 seconds
     this.errorTimeout = window.setTimeout(() => {
-      notificationEl.style.display = 'none';
-      this.errorTimeout = null;
+      notificationEl.classList.add(
+        'opacity-0',
+        'transition-opacity',
+        'duration-300'
+      );
+      setTimeout(() => {
+        notificationEl.style.display = 'none';
+        notificationEl.classList.remove(
+          'opacity-0',
+          'transition-opacity',
+          'duration-300'
+        );
+        this.errorTimeout = null;
+      }, 300);
 
-      // Reset isSigningIn flag after error is hidden
-      if (this.isSigningIn) {
-        this.isSigningIn = false;
-        this.logger.info('Reset isSigningIn after notification timeout');
+      if (this.isLoggingIn) {
+        this.isLoggingIn = false;
       }
-    }, 2500);
+    }, 3000);
   }
 
   private showAuthError(message: string): void {
@@ -728,23 +881,12 @@ class Popup {
       this.logger.error(
         'Global notification element not found when showing auth error'
       );
-      const mainContainer = document.querySelector('#status')?.parentElement;
+      const mainContainer = document.querySelector('main');
       if (mainContainer) {
         const newNotificationEl = document.createElement('div');
         newNotificationEl.id = 'global-notification';
         newNotificationEl.style.display = 'none';
-        newNotificationEl.style.marginBottom = '1rem';
-        newNotificationEl.setAttribute('role', 'alert');
-        newNotificationEl.setAttribute('aria-live', 'polite');
-        const statusEl = document.getElementById('status');
-        if (statusEl) {
-          mainContainer.insertBefore(newNotificationEl, statusEl);
-        } else {
-          mainContainer.insertBefore(
-            newNotificationEl,
-            mainContainer.firstChild
-          );
-        }
+        mainContainer.insertBefore(newNotificationEl, mainContainer.firstChild);
         this.logger.info('Created missing global notification element');
         notificationEl = newNotificationEl;
       }
@@ -757,22 +899,21 @@ class Popup {
         'Failed to show auth error notification, using fallback',
         { message }
       );
-      console.error('Authentication Error:', message);
     }
   }
 
-  private async handleSignOut(): Promise<void> {
+  private async handleLogout(): Promise<void> {
     try {
       const response = await chrome.runtime.sendMessage({ type: 'LOGOUT' });
 
       if (response && response.success) {
         await this.initialize();
       } else {
-        this.renderError(response?.error || 'Failed to sign out');
+        this.renderError(response?.error || 'Failed to logout');
       }
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
-        action: 'sign_out',
+        action: 'logout',
       });
       this.renderError(errorDetails.userMessage);
     }
@@ -791,7 +932,6 @@ class Popup {
       backBtn.addEventListener('click', async () => await this.showMainView());
     }
 
-    // Add event listeners for backend mode radio buttons
     const cloudRadio = document.getElementById(
       'backend-cloud'
     ) as HTMLInputElement;
@@ -813,7 +953,6 @@ class Popup {
       localRadio.addEventListener('change', handleBackendModeChange);
     }
 
-    // Add event listener for custom host input validation
     const customHostInput = document.getElementById(
       'custom-host'
     ) as HTMLInputElement;
@@ -825,7 +964,6 @@ class Popup {
       customHostInput.addEventListener('blur', () => this.validateHostInput());
     }
 
-    // Add event listener for custom scheme dropdown
     const customSchemeSelect = document.getElementById(
       'custom-scheme'
     ) as HTMLSelectElement;
@@ -833,13 +971,11 @@ class Popup {
       customSchemeSelect.addEventListener('change', () => this.markDirty());
     }
 
-    // Add test connection button listener
     const testConnectionBtn = document.getElementById('test-connection-btn');
     if (testConnectionBtn) {
       testConnectionBtn.addEventListener('click', () => this.testConnection());
     }
 
-    // Add save settings button listener
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) {
       saveSettingsBtn.addEventListener('click', () => this.saveSettings());
@@ -872,7 +1008,7 @@ class Popup {
       const updateMessage = document.getElementById('update-message');
       if (updateMessage) {
         updateMessage.className =
-          'text-center p-2 rounded bg-yellow-900/50 text-yellow-400';
+          'text-center p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100 shadow-sm animate-fade-in';
         updateMessage.textContent = 'Please wait before checking again';
         const updateStatus = document.getElementById('update-status');
         if (updateStatus) {
@@ -1024,7 +1160,6 @@ class Popup {
     const settings = await SettingsService.getSettings();
     const backendMode = settings.backendMode;
 
-    // Set the appropriate radio button
     const cloudRadio = document.getElementById(
       'backend-cloud'
     ) as HTMLInputElement;
@@ -1037,7 +1172,6 @@ class Popup {
       localRadio.checked = backendMode === 'local';
     }
 
-    // Set custom host and scheme values
     const customHostInput = document.getElementById(
       'custom-host'
     ) as HTMLInputElement;
@@ -1046,25 +1180,29 @@ class Popup {
     ) as HTMLSelectElement;
 
     if (customHostInput && customSchemeSelect) {
-      // If in local mode, show the current settings
-      // Otherwise, show the default local settings
       if (backendMode === 'local') {
         customHostInput.value = settings.apiHost;
         customSchemeSelect.value = settings.apiProtocol;
       } else {
-        // Show default local settings when not in local mode
         customHostInput.value = 'localhost:8765';
         customSchemeSelect.value = 'http';
       }
     }
 
-    // Show/hide local backend settings based on current mode
     this.toggleLocalBackendSettings();
 
     this.attachSettingsEventListeners();
 
     this.hasUnsavedChanges = false;
     this.updateSaveButtonState();
+  }
+
+  private async getCurrentTabUrl(): Promise<string> {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true,
+    });
+    return tab?.url || '';
   }
 
   private async showMainView(): Promise<void> {
@@ -1077,7 +1215,8 @@ class Popup {
 
     // Re-render to ensure correct auth form is shown based on current settings
     const isAuthenticated = await this.checkAuthStatus();
-    const isJobPage = await this.checkIfJobPage();
+    const url = await this.getCurrentTabUrl();
+    const isJobPage = this.isKnownJobPage(url);
     await this.render(isAuthenticated, isJobPage);
     this.attachEventListeners(isAuthenticated);
     this.attachSettingsEventListeners();
@@ -1113,7 +1252,6 @@ class Popup {
     }
 
     try {
-      // Save the backend mode with custom settings if local
       if (newMode === 'local' && customHostInput && customSchemeSelect) {
         await SettingsService.setBackendMode(
           newMode,
@@ -1124,15 +1262,13 @@ class Popup {
         await SettingsService.setBackendMode(newMode);
       }
 
-      this.showNotification('Settings saved successfully!', 'success');
+      this.showNotification('Settings saved', 'success');
 
       this.hasUnsavedChanges = false;
       this.updateSaveButtonState();
 
-      // Update dashboard link
       this.updateDashboardLink();
 
-      // Notify background script to reload services with new settings
       const reloadResponse = await chrome.runtime.sendMessage({
         type: 'RELOAD_SETTINGS',
       });
@@ -1141,7 +1277,6 @@ class Popup {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-      // Check if significant settings changed
       const settingsChanged =
         currentMode !== newMode ||
         (newMode === 'local' &&
@@ -1154,7 +1289,7 @@ class Popup {
         const isAuthenticated = await this.checkAuthStatus();
         if (isAuthenticated) {
           this.showNotification(
-            'Backend settings changed. Please sign out and sign in again.',
+            'Backend changed. Logout and login again to continue.',
             'info'
           );
           setTimeout(async () => {
@@ -1162,7 +1297,6 @@ class Popup {
             this.pendingModeSwitch = false;
           }, 3000);
         } else {
-          // If not authenticated and settings changed, re-render to show correct login form
           await this.showMainView();
           setTimeout(() => {
             this.pendingModeSwitch = false;
@@ -1197,8 +1331,6 @@ class Popup {
       if (localRadio.checked) {
         localSettingsDiv.classList.remove('hidden');
 
-        // When switching to local mode, if the fields are empty or have cloud values,
-        // set them to default local values
         if (customHostInput && customSchemeSelect) {
           if (
             !customHostInput.value ||
@@ -1219,9 +1351,8 @@ class Popup {
       'custom-host'
     ) as HTMLInputElement;
     const hostError = document.getElementById('host-error');
-    const hostHelp = document.getElementById('host-help');
 
-    if (!hostInput || !hostError || !hostHelp) {
+    if (!hostInput || !hostError) {
       return { isValid: false };
     }
 
@@ -1231,13 +1362,11 @@ class Popup {
       hostInput.classList.remove('border-red-500');
       hostInput.classList.add('border-green-500');
       hostError.classList.add('hidden');
-      hostHelp.classList.remove('hidden');
     } else {
       hostInput.classList.remove('border-green-500');
       hostInput.classList.add('border-red-500');
       hostError.textContent = validation.error || '';
       hostError.classList.remove('hidden');
-      hostHelp.classList.add('hidden');
     }
 
     return validation;
@@ -1274,7 +1403,6 @@ class Popup {
     testBtn.disabled = true;
 
     try {
-      // Get current settings based on mode
       const cloudRadio = document.getElementById(
         'backend-cloud'
       ) as HTMLInputElement;
@@ -1292,11 +1420,9 @@ class Popup {
       let protocol: 'http' | 'https';
 
       if (cloudRadio?.checked) {
-        // Use cloud settings
         host = 'vega.benidevo.com';
         protocol = 'https';
       } else if (localRadio?.checked && customHostInput && customSchemeSelect) {
-        // Validate custom host first
         const hostValidation = validateHost(customHostInput.value);
         if (!hostValidation.isValid) {
           throw new Error(hostValidation.error || 'Invalid host');
@@ -1307,12 +1433,10 @@ class Popup {
         throw new Error('Invalid configuration');
       }
 
-      // Test the connection
       const isConnected = await SettingsService.testConnection(host, protocol);
 
-      // Show result
       if (isConnected) {
-        this.showNotification('Connection successful!', 'success');
+        this.showNotification('Connected', 'success');
       } else {
         throw new Error('Connection failed');
       }
@@ -1321,9 +1445,260 @@ class Popup {
         error instanceof Error ? error.message : 'Connection test failed';
       this.showNotification(errorMessage, 'error');
     } finally {
-      // Re-enable button
       testBtn.disabled = false;
     }
+  }
+
+  private async openCaptureForm(): Promise<void> {
+    const url = await this.getCurrentTabUrl();
+
+    this.currentJob = {
+      title: '',
+      company: '',
+      location: '',
+      jobType: 'full_time',
+      sourceUrl: url,
+      description: '',
+    };
+
+    this.currentView = 'capture';
+    const isJobPage = this.isKnownJobPage(url);
+    const isAuthenticated = await this.checkAuthStatus();
+    await this.render(isAuthenticated, isJobPage);
+    this.renderCaptureView(this.currentJob);
+    this.attachCaptureEventListeners();
+  }
+
+  private renderCaptureView(job: JobListing): void {
+    const titleInput = document.getElementById('job-title') as HTMLInputElement;
+    const companyInput = document.getElementById(
+      'job-company'
+    ) as HTMLInputElement;
+    const locationInput = document.getElementById(
+      'job-location'
+    ) as HTMLInputElement;
+    const typeSelect = document.getElementById('job-type') as HTMLSelectElement;
+    const notesArea = document.getElementById(
+      'job-notes'
+    ) as HTMLTextAreaElement;
+    const descriptionArea = document.getElementById(
+      'job-description'
+    ) as HTMLTextAreaElement;
+
+    [titleInput, companyInput, locationInput, descriptionArea].forEach(el => {
+      if (el) {
+        el.classList.remove(
+          'border-red-500',
+          'focus:ring-red-500',
+          'focus:border-red-500'
+        );
+        el.classList.add(
+          'border-gray-200',
+          'focus:ring-teal-500',
+          'focus:border-teal-500'
+        );
+      }
+    });
+
+    if (titleInput) titleInput.value = job.title || '';
+    if (companyInput) companyInput.value = job.company || '';
+    if (locationInput) locationInput.value = job.location || '';
+    if (typeSelect && job.jobType) {
+      typeSelect.value = job.jobType;
+    }
+    if (notesArea) notesArea.value = job.notes || '';
+    if (descriptionArea) descriptionArea.value = job.description || '';
+  }
+
+  private attachCaptureEventListeners(): void {
+    const saveBtn = document.getElementById(
+      'save-job-btn'
+    ) as HTMLButtonElement;
+    if (saveBtn) {
+      const newSaveBtn = saveBtn.cloneNode(true) as HTMLButtonElement;
+      newSaveBtn.textContent = 'Save';
+      newSaveBtn.disabled = false;
+      saveBtn.parentNode?.replaceChild(newSaveBtn, saveBtn);
+      newSaveBtn.addEventListener('click', () => this.handleSaveJob());
+    }
+
+    const cancelBtn = document.getElementById('cancel-capture-btn');
+    if (cancelBtn) {
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      cancelBtn.parentNode?.replaceChild(newCancelBtn, cancelBtn);
+      newCancelBtn.addEventListener('click', () => this.handleCancelCapture());
+    }
+
+    const fields = [
+      'job-title',
+      'job-company',
+      'job-location',
+      'job-description',
+    ];
+    fields.forEach(id => {
+      const element = document.getElementById(id) as
+        | HTMLInputElement
+        | HTMLTextAreaElement;
+      if (element) {
+        const newElement = element.cloneNode(true) as
+          | HTMLInputElement
+          | HTMLTextAreaElement;
+        newElement.value = element.value;
+        element.parentNode?.replaceChild(newElement, element);
+
+        newElement.addEventListener('input', () =>
+          this.validateField(newElement)
+        );
+        newElement.addEventListener('blur', () =>
+          this.validateField(newElement)
+        );
+      }
+    });
+  }
+
+  private validateField(
+    element: HTMLInputElement | HTMLTextAreaElement
+  ): boolean {
+    const value = element.value.trim();
+    const isRequired = [
+      'job-title',
+      'job-company',
+      'job-location',
+      'job-description',
+    ].includes(element.id);
+
+    if (isRequired && !value) {
+      element.classList.add(
+        'border-red-500',
+        'focus:ring-red-500',
+        'focus:border-red-500'
+      );
+      element.classList.remove(
+        'border-gray-200',
+        'focus:ring-teal-500',
+        'focus:border-teal-500'
+      );
+      return false;
+    } else {
+      element.classList.remove(
+        'border-red-500',
+        'focus:ring-red-500',
+        'focus:border-red-500'
+      );
+      element.classList.add(
+        'border-gray-200',
+        'focus:ring-teal-500',
+        'focus:border-teal-500'
+      );
+      return true;
+    }
+  }
+
+  private validateCaptureForm(): boolean {
+    const titleInput = document.getElementById('job-title') as HTMLInputElement;
+    const companyInput = document.getElementById(
+      'job-company'
+    ) as HTMLInputElement;
+    const locationInput = document.getElementById(
+      'job-location'
+    ) as HTMLInputElement;
+    const descriptionArea = document.getElementById(
+      'job-description'
+    ) as HTMLTextAreaElement;
+
+    const isTitleValid = this.validateField(titleInput);
+    const isCompanyValid = this.validateField(companyInput);
+    const isLocationValid = this.validateField(locationInput);
+    const isDescriptionValid = this.validateField(descriptionArea);
+
+    return (
+      isTitleValid && isCompanyValid && isLocationValid && isDescriptionValid
+    );
+  }
+
+  private async handleSaveJob(): Promise<void> {
+    const saveBtn = document.getElementById(
+      'save-job-btn'
+    ) as HTMLButtonElement;
+    if (!saveBtn || !this.currentJob) return;
+
+    const titleInput = document.getElementById('job-title') as HTMLInputElement;
+    const companyInput = document.getElementById(
+      'job-company'
+    ) as HTMLInputElement;
+    const locationInput = document.getElementById(
+      'job-location'
+    ) as HTMLInputElement;
+    const typeSelect = document.getElementById('job-type') as HTMLSelectElement;
+    const notesArea = document.getElementById(
+      'job-notes'
+    ) as HTMLTextAreaElement;
+    const descriptionArea = document.getElementById(
+      'job-description'
+    ) as HTMLTextAreaElement;
+
+    const title = titleInput?.value.trim() || '';
+    const company = companyInput?.value.trim() || '';
+
+    if (!this.validateCaptureForm()) {
+      this.showNotification('Please fill in all required fields', 'error');
+      return;
+    }
+
+    // Capture the latest URL at save time, but only if it matches a known job page.
+    // Otherwise, we fallback to the URL captured when they clicked 'Capture'.
+    const latestUrl = await this.getCurrentTabUrl();
+    const sourceUrl =
+      latestUrl && this.isKnownJobPage(latestUrl)
+        ? latestUrl
+        : this.currentJob.sourceUrl;
+
+    const updatedJob: JobListing = {
+      ...this.currentJob,
+      title,
+      company,
+      location: locationInput?.value.trim() || '',
+      jobType: (typeSelect?.value as JobListing['jobType']) || 'full_time',
+      notes: notesArea?.value.trim() || '',
+      description: descriptionArea?.value.trim() || '',
+      sourceUrl,
+    };
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: MessageType.SAVE_JOB,
+        payload: updatedJob,
+      });
+
+      if (response && response.success) {
+        this.showNotification('Job saved', 'success');
+        setTimeout(() => this.handleCancelCapture(), 1500);
+      } else {
+        throw new Error(response?.error || 'Failed to save job');
+      }
+    } catch (error) {
+      this.logger.error('Error saving job', error);
+      this.showNotification(
+        error instanceof Error ? error.message : 'Failed to save job',
+        'error'
+      );
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
+  }
+
+  private async handleCancelCapture(): Promise<void> {
+    this.currentView = 'main';
+    this.currentJob = null;
+    const isAuthenticated = await this.checkAuthStatus();
+    const url = await this.getCurrentTabUrl();
+    const isJobPage = this.isKnownJobPage(url);
+    await this.render(isAuthenticated, isJobPage);
+    this.attachEventListeners(isAuthenticated);
+    this.attachSettingsEventListeners();
   }
 
   private async updateDashboardLink(): Promise<void> {

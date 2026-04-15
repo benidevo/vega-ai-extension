@@ -1,28 +1,14 @@
-# Technical Design Document
+# Technical Design: Vega AI Browser Extension
 
-## Vega AI Browser Extension
-
-### Overview
-
-A Chrome extension that allows users to save job listings from LinkedIn to the Vega AI backend. Built with TypeScript and Manifest V3. All actions are user-initiated. The extension never automatically collects data. Supports both cloud and self-hosted backends.
+A Chrome MV3 extension for capturing job listings to the Vega AI backend. No content scripts, no automatic page reading. The user opens the panel, fills in a form, and saves.
 
 ## Architecture
-
-### High-Level Design
 
 ```mermaid
 graph TB
     subgraph "Chrome Browser"
-        subgraph "Web Page"
-            LP[LinkedIn Job Page]
-            CS[Content Script]
-            OV[Overlay UI]
-            LP --> CS
-            CS --> OV
-        end
-
         subgraph "Extension Core"
-            POP[Popup UI]
+            SP[Side Panel UI]
             BG[Background Service Worker]
 
             subgraph "Services"
@@ -40,52 +26,60 @@ graph TB
             BG --> BADGE
         end
 
-        CS <-->|Messages| BG
-        POP <-->|Messages| BG
+        SP <-->|Messages| BG
     end
 
     BG -->|HTTPS| BACKEND[Vega AI Backend]
 
-    style LP fill:#f9f,stroke:#333,stroke-width:2px
     style BACKEND fill:#9f9,stroke:#333,stroke-width:2px
 ```
 
-### Directory Structure
-
 ```plaintext
 src/
-├── background/          # Service worker and background services
-│   ├── services/       # Modular service implementations
-│   │   ├── auth/      # Authentication service
-│   │   │   ├── IAuthService.ts            # Service interface
-│   │   │   └── PasswordAuthService.ts     # Username/password auth
-│   │   ├── api/       # Backend API communication
-│   │   ├── message/   # Chrome extension messaging
-│   │   ├── storage/   # Chrome storage wrapper
-│   │   └── badge/     # Extension badge management
-│   └── ServiceManager.ts # Coordinates all services
-│
-├── content/            # Content scripts injected into web pages
-│   ├── extractors/    # Job data reading modules
-│   │   ├── IJobReader.ts       # Common interface
-│   │   └── linkedin.ts         # LinkedIn-specific reader
-│   ├── overlay.ts     # Floating UI component
-│   └── index.ts       # Content script entry point
-│
-├── popup/             # Extension popup UI
-├── styles/            # Global styles (Tailwind CSS)
-├── types/             # TypeScript type definitions
-├── config/            # Configuration management
-└── utils/             # Shared utilities (logger, etc.)
+├── background/
+│   ├── services/
+│   │   ├── auth/
+│   │   │   ├── IAuthService.ts
+│   │   │   ├── MultiProviderAuthService.ts
+│   │   │   └── PasswordAuthService.ts
+│   │   ├── api/
+│   │   ├── message/
+│   │   ├── storage/
+│   │   └── badge/
+│   └── ServiceManager.ts
+├── popup/
+│   ├── index.html
+│   └── index.ts
+├── styles/
+├── types/
+├── config/
+└── utils/
 ```
 
-## Core Components
+## Side Panel
 
-### Background Services
+The panel opens for a specific tab via `chrome.action.onClicked` -> `chrome.sidePanel.open({ tabId })`. It is tab-specific: hidden when you switch away, visible again when you come back. This avoids tracking state across all open tabs.
 
-#### Authentication Service (`PasswordAuthService`)
+Three views: main (capture button and dashboard link), capture (the job form), settings (backend mode and connection test).
 
-Handles username/password authentication with secure token management. Automatically refreshes tokens when they expire and manages session state.
+The panel re-renders when the owning tab navigates to a new URL, but only if the `JOB_URL_PATTERNS` match result changes. Navigating between two non-job pages triggers no re-render.
+
+```typescript
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url === undefined || !shouldRerender()) return;
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([activeTab]) => {
+    if (activeTab?.id !== tabId) return;
+    const isJobPage = this.isKnownJobPage(changeInfo.url!);
+    if (isJobPage !== this.lastKnownJobPageState) this.initialize();
+  });
+});
+```
+
+`JOB_URL_PATTERNS` controls the "Job page detected" UI hint only. It does not gate the capture form, which works on any site.
+
+## Background Services
+
+**Auth (`PasswordAuthService`)**: username/password login, token storage, auto-refresh 1 minute before expiry. Tokens go in Chrome's encrypted local storage.
 
 ```typescript
 interface IAuthService {
@@ -97,220 +91,70 @@ interface IAuthService {
 }
 ```
 
-#### API Service
+**API**: all backend requests, with retry, exponential backoff, and a circuit breaker that trips after 5 consecutive failures and resets after 60 seconds.
 
-Handles all backend communication. If a request gets a 401, it automatically refreshes the auth token and retries. Includes a circuit breaker that temporarily stops requests after multiple failures to prevent hammering a down server.
+**Message**: typed message routing between the panel and service worker.
 
-#### Message Service
+**Storage**: thin wrapper around `chrome.storage` with error handling.
 
-Routes messages between the popup, content scripts, and background service worker. All message types are defined in TypeScript for type safety.
-
-#### Storage Service
-
-Wrapper around Chrome's storage API. Makes it easy to save and load data with proper error handling.
-
-#### Badge Service
-
-Shows a green checkmark or red X on the extension icon to give quick feedback when saving jobs.
-
-### Content Scripts
-
-#### Job Readers
-
-Site-specific modules that implement the `IJobReader` interface:
-
-```typescript
-interface IJobReader {
-  canRead(url: string): boolean;
-  readJobDetails(): JobListing | null;
-  isJobPage(url: string): boolean;
-  watchForChanges(callback: (job: JobListing | null) => void): void;
-}
-```
-
-**Current Readers**:
-
-- **LinkedIn**: Reads job data from LinkedIn job view pages when user initiates save
-- **Extensible**: Easy to add new job sites
-
-#### Overlay Manager
-
-Creates the floating button and panel that appears on job pages. Positions itself to avoid covering page content. Shows a preview of the job data before saving.
-
-### Popup UI
-
-The main interface users see when they click the extension icon. Handles sign in, backend mode switching (cloud vs local), and connection testing. Built with Tailwind CSS for a clean look.
-
-## Technology Stack
-
-### Core Technologies
-
-- **TypeScript**: Type-safe development with strict compilation
-- **Chrome Extension Manifest V3**: Latest extension platform with service workers
-- **Webpack 5**: Module bundling with optimization and code splitting
-- **Tailwind CSS**: Utility-first styling framework
-
-### Development Tools
-
-- **ESLint**: Code quality and consistency
-- **Prettier**: Code formatting
-- **Jest**: Testing framework with TypeScript support
-- **Husky**: Git hooks for quality gates
-- **lint-staged**: Staged file processing
-
-### Build & Deployment
-
-- **GitHub Actions**: CI/CD pipeline
-- **Automated releases**: Tag-based release creation
-- **Quality gates**: Lint, test, and typecheck on every commit
-
-## Security
-
-### Authentication
-
-- Tokens stored in Chrome's encrypted storage
-- Auto-refresh when tokens expire
-- Secure token storage and refresh mechanism
-- Passwords validated before sending
-
-### Data Protection
-
-- Jobs sent directly to backend (not stored locally)
-- All API calls use HTTPS
-- Input validation prevents malicious data
-- Content scripts run in isolated environment
-- Token auth prevents CSRF attacks
-
-### Permissions
-
-The extension only asks for what it needs:
-
-- Access to LinkedIn job pages only (`/jobs/*`)
-- No access to LinkedIn profiles, messages, or feed
-- No browsing history access
-- No cookie access
-- User must click to save jobs
+**Badge**: green/red icon feedback after save operations.
 
 ## Data Flow
 
-### Job Save Flow
+### Save
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant LP as LinkedIn Page
-    participant CS as Content Script
-    participant OV as Overlay
+    participant SP as Side Panel
     participant BG as Background Worker
     participant API as Backend API
 
-    U->>LP: Visit job page
-    LP->>CS: Page loads
-    CS->>CS: Detect job listing
-    CS->>OV: Show floating button
-    U->>OV: Click button
-    OV->>CS: Read job data
-    CS->>OV: Display job preview
-    U->>OV: Add notes (optional)
-    U->>OV: Click save
-    OV->>BG: Send job data
+    U->>SP: Click extension icon
+    SP->>SP: Open for this tab
+    U->>SP: Click "Capture Job"
+    U->>SP: Fill in form + save
+    SP->>BG: SAVE_JOB message
     BG->>API: POST /api/jobs
-    API-->>BG: Success response
-    BG-->>OV: Show success
-    OV-->>U: Success checkmark
+    API-->>BG: 200 OK
+    BG-->>SP: success
+    SP-->>U: confirmation, back to main view
 ```
 
-### Authentication Flow
+### Auth
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant P as Popup
+    participant SP as Side Panel
     participant BG as Background Worker
     participant API as Backend API
-    participant CS as Chrome Storage
 
-    U->>P: Open popup
-    P->>P: Show auth options
-
-    U->>P: Enter credentials
-    P->>BG: Login request
+    U->>SP: Open panel (not logged in)
+    U->>SP: Enter credentials
+    SP->>BG: LOGIN_WITH_PASSWORD
     BG->>API: POST /auth/login
-
-    API-->>BG: Access + Refresh tokens
-    BG->>CS: Store tokens
-    BG-->>P: Auth success
-    P-->>U: Show dashboard button
+    API-->>BG: access + refresh tokens
+    BG->>BG: store tokens in chrome.storage
+    BG-->>SP: AUTH_STATE_CHANGED
+    SP-->>U: main view
 ```
 
-## Testing Strategy
+## Permissions
 
-### Unit Tests
+| Permission | Why |
+| --- | --- |
+| `storage` | tokens and settings |
+| `alarms` | background token refresh scheduling |
+| `sidePanel` | open the side panel |
+| `tabs` | read the active tab URL to check against `JOB_URL_PATTERNS` |
 
-- **Service classes**: Isolated testing with mocks
-- **Readers**: Job data reading validation
-- **Utilities**: Helper function testing
+No `host_permissions` are required. API calls go through the backend's CORS config. In development, webpack injects `http://localhost:*/*` into `host_permissions` so local backends work without CORS configuration.
 
-### Integration Tests
+## Stack
 
-- **Message passing**: Component communication
-- **Auth flows**: End-to-end authentication testing
-- **API integration**: Backend communication testing
-
-### Manual Testing
-
-- **Cross-browser**: Chrome and Edge testing
-- **Job sites**: Verification on supported platforms
-- **User flows**: Complete save workflows
+TypeScript, Chrome MV3, Webpack 5, Tailwind CSS, Jest, ESLint/Prettier, Husky.
 
 ## Deployment
 
-### Build Process
-
-1. Run quality checks (lint, test, typecheck)
-2. Webpack bundles everything
-3. Sync version numbers
-4. Optimize CSS and images
-5. Include source maps for debugging (dev only)
-
-### Release Pipeline
-
-1. Bump version: `npm version patch`
-2. Build the extension: `npm run build`
-3. Create ZIP file from `dist/` directory
-4. Create GitHub release with the ZIP file
-5. Users download directly from GitHub releases
-
-### Environment Management
-
-- **Development**: Local development with hot reload
-- **Staging**: Manual build triggers for testing
-- **Production**: Tag-based releases for users
-
-## Configuration
-
-### Config Structure
-
-```typescript
-interface ExtensionConfig {
-  features: {
-    enableGoogleAuth: boolean;    // Off by default
-    enableAnalytics: boolean;     // Future feature
-    debugMode: boolean;           // Extra logging
-  };
-  backend: {
-    mode: 'cloud' | 'local';
-    apiHost: string;
-    apiProtocol: 'http' | 'https';
-  };
-  limits: {
-    maxRetries: number;           // 3 by default
-    requestTimeout: number;       // 30 seconds
-    cacheExpiry: number;         // 5 minutes
-  };
-}
-```
-
-### Settings Service
-
-Settings are saved to Chrome sync storage so they follow users across devices. Users can switch between cloud and local mode in the popup, and test their connection before saving.
+Tag a release with `npm run release:patch|minor|major`, push the tag, CI builds and publishes the ZIP. Webpack syncs the version from `package.json` into the built manifest. Source maps are included in dev builds only.

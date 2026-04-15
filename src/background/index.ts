@@ -46,6 +46,14 @@ chrome.runtime.onInstalled.addListener(async details => {
   }
 });
 
+// Open the side panel for the specific tab the user clicked on
+chrome.action.onClicked.addListener(tab => {
+  if (!tab.id) return;
+  chrome.sidePanel.open({ tabId: tab.id }).catch(error => {
+    logger.error('Failed to open side panel', error);
+  });
+});
+
 chrome.runtime.onSuspend.addListener(async () => {
   logger.info('Extension suspending, cleaning up...');
   await serviceManager.destroy();

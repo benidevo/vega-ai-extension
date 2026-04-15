@@ -35,8 +35,7 @@ export class ErrorService {
   }
 
   handleError(error: unknown, context?: Record<string, unknown>): ErrorDetails {
-    const errorDetails = this.categorizeError(error, context);
-    return errorDetails;
+    return this.categorizeError(error, context);
   }
 
   handleAndLogError(
@@ -63,7 +62,7 @@ export class ErrorService {
     return {
       category: ErrorCategory.UNKNOWN,
       message: String(error),
-      userMessage: 'An unexpected error occurred. Please try again.',
+      userMessage: 'Something went wrong.',
       context,
       retryable: false,
     };
@@ -94,8 +93,7 @@ export class ErrorService {
       }
 
       const isRetrying = context?.attemptNumber && context?.maxRetries;
-      let userMessage =
-        'Network connection error. Please check your internet connection.';
+      let userMessage = 'No network connection.';
 
       if (isRetrying) {
         const attempt = context.attemptNumber as number;
@@ -103,8 +101,7 @@ export class ErrorService {
         if (attempt < maxRetries) {
           userMessage = `Network error - retrying (${attempt}/${maxRetries})...`;
         } else {
-          userMessage =
-            'Network error - please check your connection and try again.';
+          userMessage = 'Network error. Check your connection and try again.';
         }
       }
 
@@ -133,7 +130,7 @@ export class ErrorService {
         message.includes('credentials') ||
         message.includes('invalid username')
           ? error.message
-          : 'Authentication failed. Please sign in again.';
+          : 'Session expired. Sign in again.';
 
       return {
         category: ErrorCategory.AUTH,
@@ -154,7 +151,7 @@ export class ErrorService {
       return {
         category: ErrorCategory.STORAGE,
         message: error.message,
-        userMessage: 'Storage error. Please clear some space and try again.',
+        userMessage: 'Storage full. Clear some space and try again.',
         originalError: error,
         context,
         retryable: false,
@@ -169,8 +166,7 @@ export class ErrorService {
       return {
         category: ErrorCategory.PERMISSION,
         message: error.message,
-        userMessage:
-          'Permission denied. Please check your extension permissions.',
+        userMessage: 'Permission denied.',
         originalError: error,
         context,
         retryable: false,
@@ -185,7 +181,7 @@ export class ErrorService {
       return {
         category: ErrorCategory.VALIDATION,
         message: error.message,
-        userMessage: 'Invalid input. Please check your data and try again.',
+        userMessage: error.message,
         originalError: error,
         context,
         retryable: false,
@@ -201,8 +197,7 @@ export class ErrorService {
       message.includes('service unavailable')
     ) {
       const isRetrying = context?.attemptNumber && context?.maxRetries;
-      let userMessage =
-        'Server is temporarily unavailable. Please try again later.';
+      let userMessage = 'Server unavailable. Try again later.';
 
       if (isRetrying) {
         const attempt = context.attemptNumber as number;
@@ -223,7 +218,7 @@ export class ErrorService {
     return {
       category: ErrorCategory.UNKNOWN,
       message: error.message,
-      userMessage: 'An unexpected error occurred. Please try again later.',
+      userMessage: 'Something went wrong.',
       originalError: error,
       context,
       retryable: false,
@@ -277,7 +272,7 @@ export class ErrorService {
       } catch (error) {
         lastError = this.handleError(error, {
           ...context,
-          attempt,
+          attemptNumber: attempt,
           maxRetries,
         });
 

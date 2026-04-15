@@ -10,30 +10,20 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "alarms", "sidePanel", "tabs"],
+  "side_panel": {
+    "default_path": "popup/index.html"
+  },
   "optional_permissions": [],
-  "host_permissions": [
-    "https://*.linkedin.com/jobs/*",
-    "http://localhost/*",
-    "http://127.0.0.1/*",
-    "https://vega.benidevo.com/*"
-  ],
+  "host_permissions": [],
   "background": {
     "service_worker": "background/index.js"
   },
   "action": {
-    "default_popup": "popup/index.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://*.linkedin.com/jobs/*"],
-      "js": ["content/index.js"],
-      "run_at": "document_idle"
-    }
-  ]
+  }
 }

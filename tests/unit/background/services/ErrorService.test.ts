@@ -60,7 +60,7 @@ describe('ErrorService', () => {
       expect(result).toMatchObject({
         category: ErrorCategory.UNKNOWN,
         message: '[object Object]',
-        userMessage: 'An unexpected error occurred. Please try again.',
+        userMessage: 'Something went wrong.',
         context,
       });
     });

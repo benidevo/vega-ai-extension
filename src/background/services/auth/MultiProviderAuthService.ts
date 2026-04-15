@@ -112,7 +112,7 @@ export class MultiProviderAuthService implements IAuthService {
     const tokenData = await this.getAuthTokenData();
     if (!tokenData) return null;
 
-    const isExpired = Date.now() >= tokenData.expires_at - 5 * 60 * 1000;
+    const isExpired = Date.now() >= tokenData.expires_at - 60 * 1000;
     if (isExpired) {
       try {
         await this.refreshAuthToken();

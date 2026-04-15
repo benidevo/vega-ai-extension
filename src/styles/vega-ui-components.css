@@ -4,7 +4,7 @@
  */
 
 /* Fonts */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 /* CSS Variables for Brand Colors */
 :root {
@@ -20,13 +20,14 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  transition: all 0.15s ease;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
   cursor: pointer;
   border: none;
   text-decoration: none;
-  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .vega-btn:focus {
@@ -42,62 +43,70 @@
 
 .vega-btn-primary:hover {
   background-color: var(--primary-dark);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .vega-btn-secondary {
-  background-color: var(--secondary);
-  color: white;
+  background-color: white;
+  color: #374151;
+  border: 1px solid #e5e7eb;
   padding: 0.75rem 1.5rem;
 }
 
 .vega-btn-secondary:hover {
-  background-color: #d97706;
+  background-color: #f9fafb;
 }
 
 .vega-btn-danger {
-  background-color: #dc2626;
-  color: white;
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
   padding: 0.75rem 1.5rem;
 }
 
 .vega-btn-danger:hover {
-  background-color: #b91c1c;
+  background-color: #fecaca;
 }
 
 .vega-btn-sm {
   padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .vega-btn-lg {
   padding: 1rem 2rem;
-  font-size: 1.125rem;
+  font-size: 1rem;
 }
 
 /* Component: Alert */
 .vega-alert {
-  padding: 0.75rem;
-  border-radius: 0.375rem;
-  margin-bottom: 0.75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  margin-bottom: 1rem;
   font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .vega-alert-success {
-  background-color: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #34d399;
+  background-color: #ecfdf5;
+  border: 1px solid #d1fae5;
+  color: #065f46;
 }
 
 .vega-alert-error {
-  background-color: rgba(220, 38, 38, 0.1);
-  border: 1px solid rgba(220, 38, 38, 0.3);
-  color: #fca5a5;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  color: #991b1b;
 }
 
 .vega-alert-info {
-  background-color: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  color: #60a5fa;
+  background-color: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1e40af;
 }
 
 /* Component: Badge */
@@ -107,27 +116,29 @@
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .vega-badge-interested {
-  background-color: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+  background-color: #eff6ff;
+  color: #1d4ed8;
 }
 
 .vega-badge-applied {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  background-color: #f0fdf4;
+  color: #15803d;
 }
 
 .vega-badge-interviewing {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  background-color: #faf5ff;
+  color: #7e22ce;
 }
 
 .vega-badge-offer {
-  background-color: rgba(245, 158, 11, 0.2);
-  color: var(--secondary);
+  background-color: #fffbeb;
+  color: #b45309;
 }
 
 /* Focus states for accessibility */

@@ -94,7 +94,7 @@ export class PasswordAuthService implements IAuthProvider {
         throw new Error(
           errorData.error ||
             errorData.message ||
-            'Unable to sign in. Please try again.'
+            'Unable to login. Please try again.'
         );
       }
 
@@ -110,7 +110,7 @@ export class PasswordAuthService implements IAuthProvider {
 
       const expiresAt = data.expires_at
         ? data.expires_at * 1000
-        : Date.now() + 3600 * 1000;
+        : Date.now() + 24 * 3600 * 1000;
 
       const tokens: AuthToken = {
         access_token: data.token,
@@ -148,16 +148,14 @@ export class PasswordAuthService implements IAuthProvider {
         if (response.status === 401) {
           throw new Error('Refresh token expired');
         }
-        throw new Error(
-          'Unable to refresh your session. Please sign in again.'
-        );
+        throw new Error('Unable to refresh your session. Please login again.');
       }
 
       const data = await response.json();
 
       const expiresAt = data.expires_at
         ? data.expires_at * 1000
-        : Date.now() + 3600 * 1000;
+        : Date.now() + 24 * 3600 * 1000;
 
       const tokens: AuthToken = {
         access_token: data.token,
