@@ -176,13 +176,16 @@ class Popup {
     try {
       // Panel is tab-specific — only re-render when the owning tab navigates
       // and the job-page status changes (e.g. user leaves a job listing).
+      // Note: changeInfo.url requires the "tabs" permission which we don't hold.
+      // Use status === 'complete' instead and read the URL from the tab object,
+      // which is accessible via the activeTab grant while the panel is open.
       chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-        if (changeInfo.url === undefined || !shouldRerender()) return;
+        if (changeInfo.status !== 'complete' || !shouldRerender()) return;
         chrome.tabs.query(
-          { active: true, lastFocusedWindow: true },
+          { active: true, currentWindow: true },
           ([activeTab]) => {
             if (activeTab?.id !== tabId) return;
-            const isJobPage = this.isKnownJobPage(changeInfo.url!);
+            const isJobPage = this.isKnownJobPage(activeTab.url ?? '');
             if (isJobPage !== this.lastKnownJobPageState) this.initialize();
           }
         );

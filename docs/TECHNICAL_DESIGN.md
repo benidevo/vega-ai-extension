@@ -147,9 +147,13 @@ sequenceDiagram
 | `storage` | tokens and settings |
 | `alarms` | background token refresh scheduling |
 | `sidePanel` | open the side panel |
-| `tabs` | read the active tab URL to check against `JOB_URL_PATTERNS` |
+| `activeTab` | temporary access to current tab when user interacts with extension |
 
-No `host_permissions` are required. API calls go through the backend's CORS config. In development, webpack injects `http://localhost:*/*` into `host_permissions` so local backends work without CORS configuration.
+No `host_permissions` are required. The extension uses a **Privacy-First** architecture: it is blind to browsing history and only receives access to the URL of the tab where the user explicitly opens the extension.
+
+This approach avoids broad "Read your browsing history" warnings and maintains user trust.
+
+API calls go through the backend's CORS config. In development, webpack injects `http://localhost:*/*` into `host_permissions` so local backends work without CORS configuration.
 
 ## Stack
 

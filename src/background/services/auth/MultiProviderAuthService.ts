@@ -22,7 +22,6 @@ export class MultiProviderAuthService implements IAuthService {
     if (this.isInitialized) return;
 
     const authToken = await this.getAuthToken();
-    await this.storageService.get<AuthProviderType>('authProvider');
 
     if (authToken) {
       this.notifyAuthStateChange(true);
@@ -185,8 +184,6 @@ export class MultiProviderAuthService implements IAuthService {
       this.storageService.set('authProvider', provider),
       this.storageService.set('authToken', tokens.access_token),
     ]);
-
-    await chrome.storage.local.get(['authToken']);
   }
 
   private notifyAuthStateChange(isAuthenticated: boolean): void {
@@ -196,29 +193,6 @@ export class MultiProviderAuthService implements IAuthService {
       } catch (error) {
         authLogger.error('Error in auth state listener', error);
       }
-    });
-
-    chrome.tabs.query({ url: ['*://*.linkedin.com/*'] }, tabs => {
-      tabs.forEach(tab => {
-        if (tab.id) {
-          chrome.tabs
-            .sendMessage(tab.id, {
-              type: MessageType.AUTH_STATE_CHANGED,
-              payload: { isAuthenticated },
-            })
-            .catch(error => {
-              if (
-                !error.message?.includes('Could not establish connection') &&
-                !error.message?.includes('Receiving end does not exist')
-              ) {
-                authLogger.warn('Failed to broadcast auth state to tab', {
-                  tabId: tab.id,
-                  error: error.message,
-                });
-              }
-            });
-        }
-      });
     });
 
     chrome.runtime
