@@ -1,6 +1,6 @@
 {
   "name": "vega-ai-extension",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Effortlessly capture and organize job listings from any site to your personal Vega AI dashboard in one click.",
   "engines": {
     "node": ">=22"
