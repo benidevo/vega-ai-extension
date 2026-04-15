@@ -5,7 +5,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![GitHub Release](https://img.shields.io/github/v/release/benidevo/vega-ai-extension?logo=github&logoColor=white)](https://github.com/benidevo/vega-ai-extension/releases/latest)
-[![Version](https://img.shields.io/badge/version-1.2.2-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
+[![Version](https://img.shields.io/badge/version-1.4.0-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
 
 Save job listings from any site to your [Vega AI](https://vega.benidevo.com) dashboard. Click the icon, fill in the details, done. Works with the cloud service or a self-hosted backend.
 
