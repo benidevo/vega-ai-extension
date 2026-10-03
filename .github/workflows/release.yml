@@ -38,18 +38,16 @@ jobs:
       run: npm run build
 
     - name: Create release zip
-      env:
-        RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
       run: |
         cd dist
-        zip -r "../vega-extension-${RELEASE_TAG}.zip" .
+        zip -r ../vega-ai-job-capture-extension.zip .
         cd ..
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ inputs.tag_name || github.ref_name }}
-        files: vega-extension-${{ inputs.tag_name || github.ref_name }}.zip
+        files: vega-ai-job-capture-extension.zip
         generate_release_notes: true
         body: |
           ## Vega AI Job Capture ${{ inputs.tag_name || github.ref_name }}
@@ -60,7 +58,7 @@ jobs:
 
           ### 💻 How to Install
 
-          1. Download the attached `vega-extension-*.zip` file.
+          1. Download the attached `vega-ai-job-capture-extension.zip` file.
           2. Unzip the file to a folder on your computer.
           3. Open Chrome and go to `chrome://extensions/`.
           4. Turn on "Developer mode" (toggle in top right).
