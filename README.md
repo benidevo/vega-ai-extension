@@ -17,7 +17,7 @@ Click the extension icon on any page. A side panel opens for that tab. Fill in t
 
 ### Download from GitHub
 
-1. Grab the `vega-extension-*.zip` from the [latest release](https://github.com/benidevo/vega-ai-extension/releases/latest)
+1. Download [vega-ai-job-capture-extension.zip](https://github.com/benidevo/vega-ai-extension/releases/latest/download/vega-ai-job-capture-extension.zip) from the [latest release](https://github.com/benidevo/vega-ai-extension/releases/latest)
 2. Unzip it somewhere
 3. Go to `chrome://extensions/`, turn on Developer mode, click "Load unpacked", select the unzipped folder
 
