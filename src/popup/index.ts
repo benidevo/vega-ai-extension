@@ -112,6 +112,15 @@ class Popup {
       const url = await this.getCurrentTabUrl();
       const isJobPage = this.isKnownJobPage(url);
       this.lastKnownJobPageState = isJobPage;
+
+      const settings = await SettingsService.getSettings();
+      if (!SettingsService.isConfigured(settings)) {
+        this.currentView = 'settings';
+        await this.render(false, isJobPage);
+        await this.showSettings();
+        return;
+      }
+
       const isAuthenticated = await this.checkAuthStatus();
 
       const activeNotification = this.preserveActiveNotification();
@@ -469,14 +478,14 @@ class Popup {
         </div>
       </div>
 
-      <!-- Spacer pushes create-account to bottom -->
+      <!-- Spacer pushes the quick-start link to bottom -->
       <div class="flex-1"></div>
 
       <div class="py-3 flex items-center justify-center gap-1.5">
-        <span class="text-xs text-gray-400">New to Vega?</span>
-        <a href="https://vega.benidevo.com" target="_blank"
+        <span class="text-xs text-gray-400">Need a server?</span>
+        <a href="https://github.com/benidevo/vega-ai#self-hosted-quick-start" target="_blank" rel="noopener noreferrer"
           class="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors flex items-center gap-0.5">
-          Create your account
+          Self-hosting quick start
           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
@@ -935,27 +944,6 @@ class Popup {
       backBtn.addEventListener('click', async () => await this.showMainView());
     }
 
-    const cloudRadio = document.getElementById(
-      'backend-cloud'
-    ) as HTMLInputElement;
-    const localRadio = document.getElementById(
-      'backend-local'
-    ) as HTMLInputElement;
-    const handleBackendModeChange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (target.checked) {
-        this.toggleLocalBackendSettings();
-        this.markDirty();
-      }
-    };
-
-    if (cloudRadio) {
-      cloudRadio.addEventListener('change', handleBackendModeChange);
-    }
-    if (localRadio) {
-      localRadio.addEventListener('change', handleBackendModeChange);
-    }
-
     const customHostInput = document.getElementById(
       'custom-host'
     ) as HTMLInputElement;
@@ -1161,19 +1149,7 @@ class Popup {
     this.settingsView.classList.remove('hidden');
 
     const settings = await SettingsService.getSettings();
-    const backendMode = settings.backendMode;
-
-    const cloudRadio = document.getElementById(
-      'backend-cloud'
-    ) as HTMLInputElement;
-    const localRadio = document.getElementById(
-      'backend-local'
-    ) as HTMLInputElement;
-
-    if (cloudRadio && localRadio) {
-      cloudRadio.checked = backendMode === 'cloud';
-      localRadio.checked = backendMode === 'local';
-    }
+    const configured = SettingsService.isConfigured(settings);
 
     const customHostInput = document.getElementById(
       'custom-host'
@@ -1183,16 +1159,14 @@ class Popup {
     ) as HTMLSelectElement;
 
     if (customHostInput && customSchemeSelect) {
-      if (backendMode === 'local') {
-        customHostInput.value = settings.apiHost;
-        customSchemeSelect.value = settings.apiProtocol;
-      } else {
-        customHostInput.value = 'localhost:8765';
-        customSchemeSelect.value = 'http';
-      }
+      customHostInput.value = settings.apiHost;
+      customSchemeSelect.value = settings.apiProtocol;
     }
 
-    this.toggleLocalBackendSettings();
+    // There is nowhere to go back to until a server is set.
+    document
+      .getElementById('back-btn')
+      ?.classList.toggle('hidden', !configured);
 
     this.attachSettingsEventListeners();
 
@@ -1226,12 +1200,6 @@ class Popup {
   }
 
   private async saveSettings(): Promise<void> {
-    const cloudRadio = document.getElementById(
-      'backend-cloud'
-    ) as HTMLInputElement;
-    const localRadio = document.getElementById(
-      'backend-local'
-    ) as HTMLInputElement;
     const customHostInput = document.getElementById(
       'custom-host'
     ) as HTMLInputElement;
@@ -1239,31 +1207,23 @@ class Popup {
       'custom-scheme'
     ) as HTMLSelectElement;
 
-    if (!cloudRadio || !localRadio) return;
+    if (!customHostInput || !customSchemeSelect) return;
 
-    const newMode = cloudRadio.checked ? 'cloud' : 'local';
-    const currentSettings = await SettingsService.getSettings();
-    const currentMode = currentSettings.backendMode;
-
-    // Validate custom host for local mode
-    if (newMode === 'local' && customHostInput) {
-      const hostValidation = this.validateHostInput();
-      if (!hostValidation.isValid) {
-        this.showNotification(hostValidation.error || 'Invalid host', 'error');
-        return;
-      }
+    const hostValidation = this.validateHostInput();
+    if (!hostValidation.isValid) {
+      this.showNotification(hostValidation.error || 'Invalid host', 'error');
+      return;
     }
 
+    const host = customHostInput.value.trim();
+    const protocol = customSchemeSelect.value as 'http' | 'https';
+    const currentSettings = await SettingsService.getSettings();
+
     try {
-      if (newMode === 'local' && customHostInput && customSchemeSelect) {
-        await SettingsService.setBackendMode(
-          newMode,
-          customHostInput.value.trim(),
-          customSchemeSelect.value as 'http' | 'https'
-        );
-      } else {
-        await SettingsService.setBackendMode(newMode);
-      }
+      await SettingsService.saveSettings({
+        apiHost: host,
+        apiProtocol: protocol,
+      });
 
       this.showNotification('Settings saved', 'success');
 
@@ -1281,10 +1241,8 @@ class Popup {
       }
 
       const settingsChanged =
-        currentMode !== newMode ||
-        (newMode === 'local' &&
-          (currentSettings.apiHost !== customHostInput?.value.trim() ||
-            currentSettings.apiProtocol !== customSchemeSelect?.value));
+        currentSettings.apiHost !== host ||
+        currentSettings.apiProtocol !== protocol;
 
       if (settingsChanged) {
         this.pendingModeSwitch = true;
@@ -1312,40 +1270,8 @@ class Popup {
     } catch (error) {
       const errorDetails = errorService.handleError(error, {
         action: 'save_settings',
-        newMode,
       });
       this.showNotification(errorDetails.userMessage, 'error');
-    }
-  }
-
-  private toggleLocalBackendSettings(): void {
-    const localRadio = document.getElementById(
-      'backend-local'
-    ) as HTMLInputElement;
-    const localSettingsDiv = document.getElementById('local-backend-settings');
-    const customHostInput = document.getElementById(
-      'custom-host'
-    ) as HTMLInputElement;
-    const customSchemeSelect = document.getElementById(
-      'custom-scheme'
-    ) as HTMLSelectElement;
-
-    if (localRadio && localSettingsDiv) {
-      if (localRadio.checked) {
-        localSettingsDiv.classList.remove('hidden');
-
-        if (customHostInput && customSchemeSelect) {
-          if (
-            !customHostInput.value ||
-            customHostInput.value === 'vega.benidevo.com'
-          ) {
-            customHostInput.value = 'localhost:8765';
-            customSchemeSelect.value = 'http';
-          }
-        }
-      } else {
-        localSettingsDiv.classList.add('hidden');
-      }
     }
   }
 
@@ -1406,12 +1332,6 @@ class Popup {
     testBtn.disabled = true;
 
     try {
-      const cloudRadio = document.getElementById(
-        'backend-cloud'
-      ) as HTMLInputElement;
-      const localRadio = document.getElementById(
-        'backend-local'
-      ) as HTMLInputElement;
       const customHostInput = document.getElementById(
         'custom-host'
       ) as HTMLInputElement;
@@ -1419,22 +1339,16 @@ class Popup {
         'custom-scheme'
       ) as HTMLSelectElement;
 
-      let host: string;
-      let protocol: 'http' | 'https';
-
-      if (cloudRadio?.checked) {
-        host = 'vega.benidevo.com';
-        protocol = 'https';
-      } else if (localRadio?.checked && customHostInput && customSchemeSelect) {
-        const hostValidation = validateHost(customHostInput.value);
-        if (!hostValidation.isValid) {
-          throw new Error(hostValidation.error || 'Invalid host');
-        }
-        host = customHostInput.value.trim();
-        protocol = customSchemeSelect.value as 'http' | 'https';
-      } else {
+      if (!customHostInput || !customSchemeSelect) {
         throw new Error('Invalid configuration');
       }
+
+      const hostValidation = validateHost(customHostInput.value);
+      if (!hostValidation.isValid) {
+        throw new Error(hostValidation.error || 'Invalid host');
+      }
+      const host = customHostInput.value.trim();
+      const protocol = customSchemeSelect.value as 'http' | 'https';
 
       const isConnected = await SettingsService.testConnection(host, protocol);
 
@@ -1710,7 +1624,9 @@ class Popup {
     ) as HTMLAnchorElement;
     if (dashboardLink) {
       const baseUrl = await SettingsService.getApiBaseUrl();
-      dashboardLink.href = `${baseUrl}/jobs`;
+      if (baseUrl) {
+        dashboardLink.href = `${baseUrl}/jobs`;
+      }
     }
   }
 }

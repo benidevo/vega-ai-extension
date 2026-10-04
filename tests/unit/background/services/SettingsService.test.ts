@@ -1,9 +1,5 @@
 import { SettingsService } from '@/background/services/settings/SettingsService';
-import {
-  DEFAULT_SETTINGS,
-  BACKEND_CONFIGS,
-  UserSettings,
-} from '@/types/settings';
+import { DEFAULT_SETTINGS, UserSettings } from '@/types/settings';
 import { mockChrome, resetChromeMocks } from '../../../mocks/chrome';
 
 jest.mock('@/utils/logger', () => ({
@@ -21,26 +17,24 @@ describe('SettingsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetChromeMocks();
+    mockChrome.storage.local.set.mockResolvedValue(undefined);
+    mockChrome.storage.local.remove.mockResolvedValue(undefined);
   });
 
   describe('getSettings', () => {
-    it('should return default settings on first use', async () => {
+    it('should return unconfigured defaults on first use', async () => {
       mockChrome.storage.local.get.mockResolvedValue({});
-      mockChrome.storage.local.set.mockResolvedValue(undefined);
 
       const settings = await SettingsService.getSettings();
 
       expect(settings).toEqual(DEFAULT_SETTINGS);
-      expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
-        userSettings: DEFAULT_SETTINGS,
-      });
+      expect(SettingsService.isConfigured(settings)).toBe(false);
     });
 
     it('should return stored settings', async () => {
       const storedSettings: UserSettings = {
         apiHost: 'custom.host.com',
         apiProtocol: 'https',
-        backendMode: 'local',
       };
 
       mockChrome.storage.local.get.mockResolvedValue({
@@ -50,42 +44,63 @@ describe('SettingsService', () => {
       const settings = await SettingsService.getSettings();
 
       expect(settings).toEqual(storedSettings);
+      expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+      expect(mockChrome.storage.local.remove).not.toHaveBeenCalled();
     });
 
-    it('should migrate settings without backendMode', async () => {
-      const oldSettings = {
-        apiHost: 'localhost:8765',
-        apiProtocol: 'http',
-      };
-
+    it('should keep a self-hosted server and ignore the legacy backendMode', async () => {
       mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: oldSettings,
+        userSettings: {
+          apiHost: 'localhost:8765',
+          apiProtocol: 'http',
+          backendMode: 'local',
+        },
       });
-      mockChrome.storage.local.set.mockResolvedValue(undefined);
 
       const settings = await SettingsService.getSettings();
 
-      expect(settings.backendMode).toBe('cloud');
-      expect(mockChrome.storage.local.set).toHaveBeenCalled();
-    });
-
-    it('should fix cloud mode settings if incorrect', async () => {
-      const incorrectCloudSettings: UserSettings = {
+      expect(settings).toEqual({
         apiHost: 'localhost:8765',
         apiProtocol: 'http',
-        backendMode: 'cloud',
-      };
-
-      mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: incorrectCloudSettings,
       });
-      mockChrome.storage.local.set.mockResolvedValue(undefined);
+      expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+      expect(mockChrome.storage.local.remove).not.toHaveBeenCalled();
+    });
+
+    it('should reset a stored cloud profile and clear its login', async () => {
+      mockChrome.storage.local.get.mockResolvedValue({
+        userSettings: {
+          apiHost: 'vega.benidevo.com',
+          apiProtocol: 'https',
+          backendMode: 'cloud',
+        },
+      });
 
       const settings = await SettingsService.getSettings();
 
-      expect(settings.apiHost).toBe(BACKEND_CONFIGS.cloud.apiHost);
-      expect(settings.apiProtocol).toBe(BACKEND_CONFIGS.cloud.apiProtocol);
-      expect(mockChrome.storage.local.set).toHaveBeenCalled();
+      expect(settings).toEqual(DEFAULT_SETTINGS);
+      expect(mockChrome.storage.local.remove).toHaveBeenCalledWith([
+        'authToken',
+        'authTokenData',
+        'authProvider',
+      ]);
+      expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
+        userSettings: DEFAULT_SETTINGS,
+      });
+    });
+
+    it('should reset a profile without backendMode that points at the retired host', async () => {
+      mockChrome.storage.local.get.mockResolvedValue({
+        userSettings: {
+          apiHost: 'vega.benidevo.com',
+          apiProtocol: 'https',
+        },
+      });
+
+      const settings = await SettingsService.getSettings();
+
+      expect(settings).toEqual(DEFAULT_SETTINGS);
+      expect(mockChrome.storage.local.remove).toHaveBeenCalled();
     });
 
     it('should handle storage errors', async () => {
@@ -104,10 +119,7 @@ describe('SettingsService', () => {
       const settings: UserSettings = {
         apiHost: 'test.com',
         apiProtocol: 'https',
-        backendMode: 'local',
       };
-
-      mockChrome.storage.local.set.mockResolvedValue(undefined);
 
       await SettingsService.saveSettings(settings);
 
@@ -118,103 +130,20 @@ describe('SettingsService', () => {
   });
 
   describe('getApiBaseUrl', () => {
-    it('should return cloud URL for cloud mode', async () => {
-      const cloudSettings: UserSettings = {
-        ...DEFAULT_SETTINGS,
-        backendMode: 'cloud',
-      };
+    it('should return an empty string when no server is configured', async () => {
+      mockChrome.storage.local.get.mockResolvedValue({});
 
+      expect(await SettingsService.getApiBaseUrl()).toBe('');
+    });
+
+    it('should return the configured server URL', async () => {
       mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: cloudSettings,
+        userSettings: { apiHost: 'custom.local:3000', apiProtocol: 'http' },
       });
 
-      const url = await SettingsService.getApiBaseUrl();
-
-      expect(url).toBe(
-        `${BACKEND_CONFIGS.cloud.apiProtocol}://${BACKEND_CONFIGS.cloud.apiHost}`
+      expect(await SettingsService.getApiBaseUrl()).toBe(
+        'http://custom.local:3000'
       );
-    });
-
-    it('should return custom URL for local mode', async () => {
-      const localSettings: UserSettings = {
-        apiHost: 'custom.local:3000',
-        apiProtocol: 'http',
-        backendMode: 'local',
-      };
-
-      mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: localSettings,
-      });
-
-      const url = await SettingsService.getApiBaseUrl();
-
-      expect(url).toBe('http://custom.local:3000');
-    });
-  });
-
-  describe('setBackendMode', () => {
-    beforeEach(() => {
-      mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: DEFAULT_SETTINGS,
-      });
-      mockChrome.storage.local.set.mockResolvedValue(undefined);
-    });
-
-    it('should set cloud mode with default config', async () => {
-      await SettingsService.setBackendMode('cloud');
-
-      expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
-        userSettings: {
-          apiHost: BACKEND_CONFIGS.cloud.apiHost,
-          apiProtocol: BACKEND_CONFIGS.cloud.apiProtocol,
-          backendMode: 'cloud',
-        },
-      });
-    });
-
-    it('should set local mode with custom settings', async () => {
-      await SettingsService.setBackendMode(
-        'local',
-        'custom.local:4000',
-        'http'
-      );
-
-      expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
-        userSettings: {
-          apiHost: 'custom.local:4000',
-          apiProtocol: 'http',
-          backendMode: 'local',
-        },
-      });
-    });
-
-    it('should set local mode with default config when no custom settings', async () => {
-      await SettingsService.setBackendMode('local');
-
-      expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
-        userSettings: {
-          apiHost: BACKEND_CONFIGS.local.apiHost,
-          apiProtocol: BACKEND_CONFIGS.local.apiProtocol,
-          backendMode: 'local',
-        },
-      });
-    });
-  });
-
-  describe('getBackendMode', () => {
-    it('should return the current backend mode', async () => {
-      const settings: UserSettings = {
-        ...DEFAULT_SETTINGS,
-        backendMode: 'local',
-      };
-
-      mockChrome.storage.local.get.mockResolvedValue({
-        userSettings: settings,
-      });
-
-      const mode = await SettingsService.getBackendMode();
-
-      expect(mode).toBe('local');
     });
   });
 
