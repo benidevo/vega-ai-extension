@@ -33,11 +33,8 @@ jest.mock('@/config/index', () => ({
       debug: false,
     },
     features: {
-      enableAnalytics: true,
-      enableErrorReporting: true,
       maxJobsPerSession: 100,
       enableGoogleAuth: true,
-      enableDynamicHost: true,
     },
   },
 }));
@@ -50,6 +47,9 @@ describe('DynamicConfig', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     DynamicConfig.clearCache();
+    (SettingsService.isConfigured as jest.Mock).mockImplementation(
+      (settings: UserSettings) => settings.apiHost !== ''
+    );
   });
 
   describe('getConfig', () => {
@@ -57,7 +57,6 @@ describe('DynamicConfig', () => {
       const userSettings: UserSettings = {
         apiHost: 'custom.host.com',
         apiProtocol: 'https',
-        backendMode: 'cloud',
       };
 
       mockGetSettings.mockResolvedValue(userSettings);
@@ -76,7 +75,6 @@ describe('DynamicConfig', () => {
       const userSettings: UserSettings = {
         apiHost: 'cached.host.com',
         apiProtocol: 'https',
-        backendMode: 'local',
       };
 
       mockGetSettings.mockResolvedValue(userSettings);
@@ -92,7 +90,6 @@ describe('DynamicConfig', () => {
       const userSettings: UserSettings = {
         apiHost: 'localhost:3000',
         apiProtocol: 'http',
-        backendMode: 'local',
       };
 
       mockGetSettings.mockResolvedValue(userSettings);
@@ -106,18 +103,25 @@ describe('DynamicConfig', () => {
     });
   });
 
+  it('should use an empty base URL when no server is configured', async () => {
+    mockGetSettings.mockResolvedValue({ apiHost: '', apiProtocol: 'http' });
+
+    const config = await DynamicConfig.getConfig();
+
+    expect(config.api.baseUrl).toBe('');
+    expect(config.auth.providers.password.apiBaseUrl).toBe('');
+  });
+
   describe('clearCache', () => {
     it('should clear cached configuration', async () => {
       const userSettings1: UserSettings = {
         apiHost: 'first.host.com',
         apiProtocol: 'https',
-        backendMode: 'cloud',
       };
 
       const userSettings2: UserSettings = {
         apiHost: 'second.host.com',
         apiProtocol: 'https',
-        backendMode: 'cloud',
       };
 
       mockGetSettings

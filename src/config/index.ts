@@ -29,10 +29,7 @@ export interface AppConfig {
   };
 
   features: {
-    enableAnalytics: boolean;
-    enableErrorReporting: boolean;
     maxJobsPerSession: number;
-    enableDynamicHost: boolean;
   };
 }
 
@@ -68,10 +65,7 @@ const configurations: Record<string, AppConfig> = {
       debug: true,
     },
     features: {
-      enableAnalytics: false,
-      enableErrorReporting: false,
       maxJobsPerSession: 10,
-      enableDynamicHost: true,
     },
   },
 
@@ -79,13 +73,13 @@ const configurations: Record<string, AppConfig> = {
     auth: {
       providers: {
         password: {
-          apiBaseUrl: 'https://vega.benidevo.com',
+          apiBaseUrl: '',
         },
       },
       defaultProvider: 'password',
     },
     api: {
-      baseUrl: 'https://vega.benidevo.com',
+      baseUrl: '',
       authEndpoint: '/api/auth',
       timeout: 30000,
       retryAttempts: 3,
@@ -103,10 +97,7 @@ const configurations: Record<string, AppConfig> = {
       debug: false,
     },
     features: {
-      enableAnalytics: true,
-      enableErrorReporting: true,
       maxJobsPerSession: 100,
-      enableDynamicHost: true,
     },
   },
 };

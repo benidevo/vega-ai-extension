@@ -35,7 +35,7 @@ npm run release:major    # 1.0.0 -> 2.0.0
 
 ## Backend
 
-The extension hits `vega.benidevo.com` by default. For local development, open the side panel settings, switch to Local Mode, and set your host. Webpack adds `http://localhost:*/*` to `host_permissions` in dev builds so you do not need to configure CORS locally.
+The extension has no default server. On first open it asks for your server address; for local development, enter `localhost:8765` in the side panel settings. Webpack adds `http://localhost:*/*` to `host_permissions` in dev builds so you do not need to configure CORS locally.
 
 ## Releasing
 
