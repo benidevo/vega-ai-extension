@@ -9,6 +9,11 @@ const AUTH_STORAGE_KEYS = ['authToken', 'authTokenData', 'authProvider'];
 
 type StoredSettings = Partial<UserSettings> & { backendMode?: string };
 
+// Match the name regardless of case or port.
+function isRetiredHost(host: string | undefined): boolean {
+  return host?.toLowerCase().split(':')[0] === RETIRED_HOST;
+}
+
 export class SettingsService {
   private static readonly STORAGE_KEY = 'userSettings';
 
@@ -21,7 +26,7 @@ export class SettingsService {
         return { ...DEFAULT_SETTINGS };
       }
 
-      if (stored.backendMode === 'cloud' || stored.apiHost === RETIRED_HOST) {
+      if (stored.backendMode === 'cloud' || isRetiredHost(stored.apiHost)) {
         // Drop the old hosted login so it is never sent to another server.
         await chrome.storage.local.remove(AUTH_STORAGE_KEYS);
         await this.saveSettings({ ...DEFAULT_SETTINGS });

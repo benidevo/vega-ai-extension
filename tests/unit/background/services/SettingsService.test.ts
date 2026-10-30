@@ -67,6 +67,34 @@ describe('SettingsService', () => {
       expect(mockChrome.storage.local.remove).not.toHaveBeenCalled();
     });
 
+    it.each(['vega.benidevo.com:443', 'Vega.Benidevo.com'])(
+      'should reset a retired host stored as %p',
+      async apiHost => {
+        mockChrome.storage.local.get.mockResolvedValue({
+          userSettings: { apiHost, apiProtocol: 'https' },
+        });
+
+        const settings = await SettingsService.getSettings();
+
+        expect(settings).toEqual(DEFAULT_SETTINGS);
+        expect(mockChrome.storage.local.remove).toHaveBeenCalled();
+      }
+    );
+
+    it('should keep a self-hosted host that only contains the retired name', async () => {
+      mockChrome.storage.local.get.mockResolvedValue({
+        userSettings: {
+          apiHost: 'vega.benidevo.com.example.org',
+          apiProtocol: 'https',
+        },
+      });
+
+      const settings = await SettingsService.getSettings();
+
+      expect(settings.apiHost).toBe('vega.benidevo.com.example.org');
+      expect(mockChrome.storage.local.remove).not.toHaveBeenCalled();
+    });
+
     it('should reset a stored cloud profile and clear its login', async () => {
       mockChrome.storage.local.get.mockResolvedValue({
         userSettings: {

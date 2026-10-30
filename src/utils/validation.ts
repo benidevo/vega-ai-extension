@@ -98,3 +98,23 @@ export function validateHost(host: string): ValidationResult {
 
   return { isValid: true };
 }
+
+// Optional field. A value must be an http(s) URL, as the server requires.
+export function validateJobUrl(url: string): ValidationResult {
+  const trimmed = url.trim();
+
+  if (!trimmed) {
+    return { isValid: true };
+  }
+
+  try {
+    const { protocol } = new URL(trimmed);
+    if (protocol === 'http:' || protocol === 'https:') {
+      return { isValid: true };
+    }
+  } catch {
+    // Not parseable, so invalid.
+  }
+
+  return { isValid: false, error: 'Enter a valid http:// or https:// URL' };
+}

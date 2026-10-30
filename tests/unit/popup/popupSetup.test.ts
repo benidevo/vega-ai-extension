@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { MessageType } from '@/background/services/message/IMessageService';
+
 jest.mock('@/styles/main.css', () => ({}));
 
 jest.mock('@/utils/logger', () => ({
@@ -161,5 +163,96 @@ describe('popup server setup', () => {
     expect(store.userSettings).toBeUndefined();
     expect(sendMessage).not.toHaveBeenCalledWith({ type: 'RELOAD_SETTINGS' });
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('capture form job URL', () => {
+  const signedIn = (): Store => ({
+    userSettings: { apiHost: 'localhost:8765', apiProtocol: 'http' },
+    authToken: 'token',
+  });
+
+  const urlInput = () => document.getElementById('job-url') as HTMLInputElement;
+
+  async function openCapture(store: Store, tabUrl: string) {
+    const mocks = await openPopup(store);
+    (chrome.tabs.query as jest.Mock).mockResolvedValue([{ url: tabUrl }]);
+    (document.getElementById('capture-btn') as HTMLButtonElement).click();
+    await flush();
+    return mocks;
+  }
+
+  function fillRequired() {
+    const set = (id: string, value: string) => {
+      const el = document.getElementById(id) as HTMLInputElement;
+      el.value = value;
+      el.dispatchEvent(new Event('input'));
+    };
+    set('job-title', 'Engineer');
+    set('job-company', 'Acme');
+    set('job-location', 'Remote');
+    set('job-description', 'Build things');
+  }
+
+  const save = async () => {
+    (document.getElementById('save-job-btn') as HTMLButtonElement).click();
+    await flush();
+  };
+
+  it('prefills the field with the current tab URL', async () => {
+    await openCapture(signedIn(), 'https://example.com/jobs/42');
+
+    expect(urlInput().value).toBe('https://example.com/jobs/42');
+  });
+
+  it('saves the edited URL instead of the tab URL', async () => {
+    const { sendMessage } = await openCapture(
+      signedIn(),
+      'https://example.com/jobs/42'
+    );
+    fillRequired();
+    urlInput().value = 'https://careers.example.com/apply/42';
+    (chrome.tabs.query as jest.Mock).mockResolvedValue([
+      { url: 'https://linkedin.com/jobs/view/999' },
+    ]);
+    await save();
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: MessageType.SAVE_JOB,
+      payload: expect.objectContaining({
+        sourceUrl: 'https://careers.example.com/apply/42',
+      }),
+    });
+  });
+
+  it('leaves the field empty on a browser-internal page and still saves', async () => {
+    const { sendMessage } = await openCapture(
+      signedIn(),
+      'chrome://extensions'
+    );
+    expect(urlInput().value).toBe('');
+
+    fillRequired();
+    await save();
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: MessageType.SAVE_JOB,
+      payload: expect.objectContaining({ sourceUrl: '' }),
+    });
+  });
+
+  it('blocks the save and highlights the field for an invalid URL', async () => {
+    const { sendMessage } = await openCapture(
+      signedIn(),
+      'https://example.com/jobs/42'
+    );
+    fillRequired();
+    urlInput().value = 'javascript:alert(1)';
+    await save();
+
+    expect(sendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: MessageType.SAVE_JOB })
+    );
+    expect(urlInput().classList.contains('border-red-500')).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import {
   validatePassword,
   validateUsername,
   validateHost,
+  validateJobUrl,
   ValidationResult,
 } from '@/utils/validation';
 import { MessageType } from '@/background/services/message/IMessageService';
@@ -1374,7 +1375,8 @@ class Popup {
       company: '',
       location: '',
       jobType: 'full_time',
-      sourceUrl: url,
+      // Browser-internal pages (chrome://, edge://) are not usable job URLs.
+      sourceUrl: validateJobUrl(url).isValid ? url : '',
       description: '',
     };
 
@@ -1402,7 +1404,15 @@ class Popup {
       'job-description'
     ) as HTMLTextAreaElement;
 
-    [titleInput, companyInput, locationInput, descriptionArea].forEach(el => {
+    const urlInput = document.getElementById('job-url') as HTMLInputElement;
+
+    [
+      titleInput,
+      companyInput,
+      locationInput,
+      urlInput,
+      descriptionArea,
+    ].forEach(el => {
       if (el) {
         el.classList.remove(
           'border-red-500',
@@ -1423,6 +1433,7 @@ class Popup {
     if (typeSelect && job.jobType) {
       typeSelect.value = job.jobType;
     }
+    if (urlInput) urlInput.value = job.sourceUrl || '';
     if (notesArea) notesArea.value = job.notes || '';
     if (descriptionArea) descriptionArea.value = job.description || '';
   }
@@ -1450,6 +1461,7 @@ class Popup {
       'job-title',
       'job-company',
       'job-location',
+      'job-url',
       'job-description',
     ];
     fields.forEach(id => {
@@ -1484,7 +1496,10 @@ class Popup {
       'job-description',
     ].includes(element.id);
 
-    if (isRequired && !value) {
+    const isInvalidUrl =
+      element.id === 'job-url' && !validateJobUrl(value).isValid;
+
+    if ((isRequired && !value) || isInvalidUrl) {
       element.classList.add(
         'border-red-500',
         'focus:ring-red-500',
@@ -1519,6 +1534,7 @@ class Popup {
     const locationInput = document.getElementById(
       'job-location'
     ) as HTMLInputElement;
+    const urlInput = document.getElementById('job-url') as HTMLInputElement;
     const descriptionArea = document.getElementById(
       'job-description'
     ) as HTMLTextAreaElement;
@@ -1526,10 +1542,15 @@ class Popup {
     const isTitleValid = this.validateField(titleInput);
     const isCompanyValid = this.validateField(companyInput);
     const isLocationValid = this.validateField(locationInput);
+    const isUrlValid = this.validateField(urlInput);
     const isDescriptionValid = this.validateField(descriptionArea);
 
     return (
-      isTitleValid && isCompanyValid && isLocationValid && isDescriptionValid
+      isTitleValid &&
+      isCompanyValid &&
+      isLocationValid &&
+      isUrlValid &&
+      isDescriptionValid
     );
   }
 
@@ -1558,17 +1579,11 @@ class Popup {
     const company = companyInput?.value.trim() || '';
 
     if (!this.validateCaptureForm()) {
-      this.showNotification('Please fill in all required fields', 'error');
+      this.showNotification('Please fix the highlighted fields', 'error');
       return;
     }
 
-    // Capture the latest URL at save time, but only if it matches a known job page.
-    // Otherwise, we fallback to the URL captured when they clicked 'Capture'.
-    const latestUrl = await this.getCurrentTabUrl();
-    const sourceUrl =
-      latestUrl && this.isKnownJobPage(latestUrl)
-        ? latestUrl
-        : this.currentJob.sourceUrl;
+    const urlInput = document.getElementById('job-url') as HTMLInputElement;
 
     const updatedJob: JobListing = {
       ...this.currentJob,
@@ -1578,7 +1593,7 @@ class Popup {
       jobType: (typeSelect?.value as JobListing['jobType']) || 'full_time',
       notes: notesArea?.value.trim() || '',
       description: descriptionArea?.value.trim() || '',
-      sourceUrl,
+      sourceUrl: urlInput?.value.trim() || '',
     };
 
     saveBtn.disabled = true;

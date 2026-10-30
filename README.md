@@ -7,11 +7,11 @@
 [![GitHub Release](https://img.shields.io/github/v/release/benidevo/vega-ai-extension?logo=github&logoColor=white)](https://github.com/benidevo/vega-ai-extension/releases/latest)
 [![Version](https://img.shields.io/badge/version-1.4.1-green.svg)](https://github.com/benidevo/vega-ai-extension/releases)
 
-Save job listings from any site to your [Vega AI](https://vega.benidevo.com) dashboard. Click the icon, fill in the details, done. Works with your own self-hosted Vega AI server.
+Save job listings from any site to your self-hosted [Vega AI](https://vega.benidevo.com) dashboard. Click the icon, fill in the details, done.
 
 ## How it Works
 
-Click the extension icon on any page. A side panel opens for that tab. Fill in the job details, add notes if you want, and save.
+Click the extension icon on any page. A side panel opens for that tab. The job URL is prefilled from the tab and you can edit it. Fill in the other details, add notes if you want, and save.
 
 ## Install
 
