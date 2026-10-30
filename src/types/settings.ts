@@ -1,24 +1,10 @@
-export type BackendMode = 'cloud' | 'local';
-
 export interface UserSettings {
   apiHost: string;
   apiProtocol: 'http' | 'https';
-  backendMode: BackendMode;
 }
 
+// An empty host means no server has been configured yet.
 export const DEFAULT_SETTINGS: UserSettings = {
-  apiHost: 'vega.benidevo.com',
-  apiProtocol: 'https',
-  backendMode: 'cloud', // Default to cloud mode
-};
-
-export const BACKEND_CONFIGS = {
-  cloud: {
-    apiHost: 'vega.benidevo.com',
-    apiProtocol: 'https' as const,
-  },
-  local: {
-    apiHost: 'localhost:8765',
-    apiProtocol: 'http' as const,
-  },
+  apiHost: '',
+  apiProtocol: 'http',
 };

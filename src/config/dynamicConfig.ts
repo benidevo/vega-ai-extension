@@ -13,7 +13,10 @@ export class DynamicConfig {
     }
 
     const userSettings = await SettingsService.getSettings();
-    const apiBaseUrl = `${userSettings.apiProtocol}://${userSettings.apiHost}`;
+    // An empty base URL makes requests fail instead of parsing "http://" as a host.
+    const apiBaseUrl = SettingsService.isConfigured(userSettings)
+      ? `${userSettings.apiProtocol}://${userSettings.apiHost}`
+      : '';
 
     // Merge with static config
     const dynamicConfig: AppConfig = {

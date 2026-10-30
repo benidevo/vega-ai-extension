@@ -2,6 +2,7 @@ import {
   validatePassword,
   validateUsername,
   validateHost,
+  validateJobUrl,
 } from '../../../src/utils/validation';
 
 describe('validatePassword', () => {
@@ -144,5 +145,28 @@ describe('validateHost', () => {
   it('should reject hosts with special characters', () => {
     expect(validateHost('example@com').isValid).toBe(false);
     expect(validateHost('example com').isValid).toBe(false);
+  });
+});
+
+describe('validateJobUrl', () => {
+  it('should allow an empty URL because the field is optional', () => {
+    expect(validateJobUrl('').isValid).toBe(true);
+    expect(validateJobUrl('   ').isValid).toBe(true);
+  });
+
+  it('should accept http and https URLs', () => {
+    expect(validateJobUrl('https://example.com/jobs/1?ref=a').isValid).toBe(
+      true
+    );
+    expect(validateJobUrl('http://localhost:3000/job').isValid).toBe(true);
+  });
+
+  it('should reject other schemes', () => {
+    expect(validateJobUrl('chrome://extensions').isValid).toBe(false);
+    expect(validateJobUrl('javascript:alert(1)').isValid).toBe(false);
+  });
+
+  it('should reject text that is not a URL', () => {
+    expect(validateJobUrl('not a url').isValid).toBe(false);
   });
 });

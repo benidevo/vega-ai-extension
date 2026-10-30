@@ -1,12 +1,18 @@
-import {
-  UserSettings,
-  DEFAULT_SETTINGS,
-  BACKEND_CONFIGS,
-  BackendMode,
-} from '../../../types/settings';
+import { UserSettings, DEFAULT_SETTINGS } from '../../../types/settings';
 import { Logger } from '@/utils/logger';
 
 const logger = new Logger('SettingsService');
+
+// The hosted service was retired. Profiles that still point at it are reset.
+const RETIRED_HOST = 'vega.benidevo.com';
+const AUTH_STORAGE_KEYS = ['authToken', 'authTokenData', 'authProvider'];
+
+type StoredSettings = Partial<UserSettings> & { backendMode?: string };
+
+// Match the name regardless of case or port.
+function isRetiredHost(host: string | undefined): boolean {
+  return host?.toLowerCase().split(':')[0] === RETIRED_HOST;
+}
 
 export class SettingsService {
   private static readonly STORAGE_KEY = 'userSettings';
@@ -14,86 +20,58 @@ export class SettingsService {
   static async getSettings(): Promise<UserSettings> {
     try {
       const result = await chrome.storage.local.get(this.STORAGE_KEY);
-      let settings = result[this.STORAGE_KEY] as UserSettings | undefined;
+      const stored = result[this.STORAGE_KEY] as StoredSettings | undefined;
 
-      if (!settings) {
-        settings = { ...DEFAULT_SETTINGS };
-        await this.saveSettings(settings);
-      } else {
-        let needsSave = false;
-
-        // Ensure backendMode exists for migration
-        if (!settings.backendMode) {
-          settings.backendMode = 'cloud';
-          needsSave = true;
-        }
-
-        // Ensure cloud mode uses correct settings
-        if (settings.backendMode === 'cloud') {
-          const cloudConfig = BACKEND_CONFIGS.cloud;
-          if (
-            settings.apiHost !== cloudConfig.apiHost ||
-            settings.apiProtocol !== cloudConfig.apiProtocol
-          ) {
-            settings.apiHost = cloudConfig.apiHost;
-            settings.apiProtocol = cloudConfig.apiProtocol;
-            needsSave = true;
-          }
-        }
-
-        if (needsSave) {
-          await this.saveSettings(settings);
-        }
+      if (!stored) {
+        return { ...DEFAULT_SETTINGS };
       }
 
-      return settings;
+      if (stored.backendMode === 'cloud' || isRetiredHost(stored.apiHost)) {
+        // Drop the old hosted login so it is never sent to another server.
+        await chrome.storage.local.remove(AUTH_STORAGE_KEYS);
+        await this.saveSettings({ ...DEFAULT_SETTINGS });
+        return { ...DEFAULT_SETTINGS };
+      }
+
+      // A leftover backendMode field is ignored here and dropped on the next save.
+      return {
+        apiHost: stored.apiHost ?? DEFAULT_SETTINGS.apiHost,
+        apiProtocol: stored.apiProtocol ?? DEFAULT_SETTINGS.apiProtocol,
+      };
     } catch (error) {
       logger.error('Error loading settings', error);
-      return DEFAULT_SETTINGS;
+      return { ...DEFAULT_SETTINGS };
     }
   }
 
   static async saveSettings(settings: UserSettings): Promise<void> {
+    // Raw read: getSettings() can call saveSettings().
+    const result = await chrome.storage.local.get(this.STORAGE_KEY);
+    const stored = result[this.STORAGE_KEY] as StoredSettings | undefined;
+
+    if (
+      stored?.apiHost !== settings.apiHost ||
+      stored?.apiProtocol !== settings.apiProtocol
+    ) {
+      await chrome.storage.local.remove(AUTH_STORAGE_KEYS);
+    }
+
     await chrome.storage.local.set({
       [this.STORAGE_KEY]: settings,
     });
   }
 
+  static isConfigured(settings: UserSettings): boolean {
+    return settings.apiHost !== '';
+  }
+
+  // Returns an empty string until a server is configured.
   static async getApiBaseUrl(): Promise<string> {
     const settings = await this.getSettings();
-
-    if (settings.backendMode === 'local') {
-      return `${settings.apiProtocol}://${settings.apiHost}`;
+    if (!this.isConfigured(settings)) {
+      return '';
     }
-
-    const config = BACKEND_CONFIGS[settings.backendMode];
-    return `${config.apiProtocol}://${config.apiHost}`;
-  }
-
-  static async setBackendMode(
-    mode: BackendMode,
-    customHost?: string,
-    customProtocol?: 'http' | 'https'
-  ): Promise<void> {
-    const settings = await this.getSettings();
-    const config = BACKEND_CONFIGS[mode];
-
-    settings.backendMode = mode;
-
-    if (mode === 'local' && customHost && customProtocol) {
-      settings.apiHost = customHost;
-      settings.apiProtocol = customProtocol;
-    } else {
-      settings.apiHost = config.apiHost;
-      settings.apiProtocol = config.apiProtocol;
-    }
-
-    await this.saveSettings(settings);
-  }
-
-  static async getBackendMode(): Promise<BackendMode> {
-    const settings = await this.getSettings();
-    return settings.backendMode;
+    return `${settings.apiProtocol}://${settings.apiHost}`;
   }
 
   static async testConnection(
