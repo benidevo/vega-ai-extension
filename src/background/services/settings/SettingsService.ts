@@ -45,6 +45,17 @@ export class SettingsService {
   }
 
   static async saveSettings(settings: UserSettings): Promise<void> {
+    // Raw read: getSettings() can call saveSettings().
+    const result = await chrome.storage.local.get(this.STORAGE_KEY);
+    const stored = result[this.STORAGE_KEY] as StoredSettings | undefined;
+
+    if (
+      stored?.apiHost !== settings.apiHost ||
+      stored?.apiProtocol !== settings.apiProtocol
+    ) {
+      await chrome.storage.local.remove(AUTH_STORAGE_KEYS);
+    }
+
     await chrome.storage.local.set({
       [this.STORAGE_KEY]: settings,
     });

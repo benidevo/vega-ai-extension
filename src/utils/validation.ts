@@ -99,7 +99,7 @@ export function validateHost(host: string): ValidationResult {
   return { isValid: true };
 }
 
-// Optional field. A value must be an http(s) URL, as the server requires.
+// A value must be an http(s) URL, as the server requires.
 export function validateJobUrl(url: string): ValidationResult {
   const trimmed = url.trim();
 

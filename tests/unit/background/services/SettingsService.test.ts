@@ -143,7 +143,10 @@ describe('SettingsService', () => {
   });
 
   describe('saveSettings', () => {
+    const authKeys = ['authToken', 'authTokenData', 'authProvider'];
+
     it('should save settings to storage', async () => {
+      mockChrome.storage.local.get.mockResolvedValue({});
       const settings: UserSettings = {
         apiHost: 'test.com',
         apiProtocol: 'https',
@@ -154,6 +157,36 @@ describe('SettingsService', () => {
       expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
         userSettings: settings,
       });
+    });
+
+    it.each([
+      ['host', { apiHost: 'b.example.com', apiProtocol: 'https' }],
+      ['protocol', { apiHost: 'a.example.com', apiProtocol: 'http' }],
+    ] as const)(
+      'should clear the login before saving a different %s',
+      async (_, next) => {
+        mockChrome.storage.local.get.mockResolvedValue({
+          userSettings: { apiHost: 'a.example.com', apiProtocol: 'https' },
+        });
+
+        await SettingsService.saveSettings(next);
+
+        expect(mockChrome.storage.local.remove).toHaveBeenCalledWith(authKeys);
+        expect(
+          mockChrome.storage.local.remove.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+          mockChrome.storage.local.set.mock.invocationCallOrder[0]
+        );
+      }
+    );
+
+    it('should keep the login when host and protocol are unchanged', async () => {
+      const same = { apiHost: 'a.example.com', apiProtocol: 'https' } as const;
+      mockChrome.storage.local.get.mockResolvedValue({ userSettings: same });
+
+      await SettingsService.saveSettings(same);
+
+      expect(mockChrome.storage.local.remove).not.toHaveBeenCalled();
     });
   });
 

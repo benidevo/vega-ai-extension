@@ -1248,22 +1248,10 @@ class Popup {
       if (settingsChanged) {
         this.pendingModeSwitch = true;
 
-        const isAuthenticated = await this.checkAuthStatus();
-        if (isAuthenticated) {
-          this.showNotification(
-            'Backend changed. Logout and login again to continue.',
-            'info'
-          );
-          setTimeout(async () => {
-            await this.showMainView();
-            this.pendingModeSwitch = false;
-          }, 3000);
-        } else {
-          await this.showMainView();
-          setTimeout(() => {
-            this.pendingModeSwitch = false;
-          }, 1000);
-        }
+        await this.showMainView();
+        setTimeout(() => {
+          this.pendingModeSwitch = false;
+        }, 1000);
       } else {
         // No significant changes, just show success
         setTimeout(async () => await this.showMainView(), 1500);
@@ -1493,6 +1481,7 @@ class Popup {
       'job-title',
       'job-company',
       'job-location',
+      'job-url',
       'job-description',
     ].includes(element.id);
 

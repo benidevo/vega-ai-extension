@@ -225,7 +225,7 @@ describe('capture form job URL', () => {
     });
   });
 
-  it('leaves the field empty on a browser-internal page and still saves', async () => {
+  it('leaves the field empty on a browser-internal page and blocks the save', async () => {
     const { sendMessage } = await openCapture(
       signedIn(),
       'chrome://extensions'
@@ -235,10 +235,10 @@ describe('capture form job URL', () => {
     fillRequired();
     await save();
 
-    expect(sendMessage).toHaveBeenCalledWith({
-      type: MessageType.SAVE_JOB,
-      payload: expect.objectContaining({ sourceUrl: '' }),
-    });
+    expect(sendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: MessageType.SAVE_JOB })
+    );
+    expect(urlInput().classList.contains('border-red-500')).toBe(true);
   });
 
   it('blocks the save and highlights the field for an invalid URL', async () => {
